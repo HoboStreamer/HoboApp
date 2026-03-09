@@ -1,0 +1,15 @@
+node_modules/
+hobostreamer/
+.env
+.env.*
+!.env.example
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+.DS_Store
+Thumbs.db
+*.bak
+*.bak2
+*.code-workspace

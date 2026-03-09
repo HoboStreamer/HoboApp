@@ -1,0 +1,27 @@
+{
+  "name": "hoboapp",
+  "version": "2.0.0",
+  "description": "HoboApp - Washington State Stealth Camp & Shelter Locator",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron . --no-sandbox",
+    "dev": "electron . --no-sandbox --dev"
+  },
+  "keywords": [
+    "camping",
+    "stealth-camping",
+    "washington",
+    "public-lands",
+    "shelter",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "cheerio": "^1.2.0",
+    "electron": "^40.7.0",
+    "node-cache": "^5.1.2"
+  }
+}

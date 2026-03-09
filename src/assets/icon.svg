@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0e1a"/>
+      <stop offset="100%" style="stop-color:#05060f"/>
+    </linearGradient>
+    <linearGradient id="hoboGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="100%" style="stop-color:#10b981"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="url(#bgGrad)" stroke="#22c55e" stroke-width="4"/>
+  
+  <!-- Hat brim -->
+  <ellipse cx="120" cy="68" rx="42" ry="10" fill="#1a3a2a" stroke="#22c55e" stroke-width="2.5"/>
+  <!-- Hat top -->
+  <path d="M90 68 C90 42 150 42 150 68" fill="#1a3a2a" stroke="#22c55e" stroke-width="2.5"/>
+  
+  <!-- Head -->
+  <circle cx="120" cy="82" r="20" fill="#0d1117" stroke="#22c55e" stroke-width="2.5"/>
+  
+  <!-- Eyes -->
+  <circle cx="112" cy="79" r="3.5" fill="#22c55e"/>
+  <circle cx="128" cy="79" r="3.5" fill="#22c55e"/>
+  <!-- Eye glints -->
+  <circle cx="113" cy="78" r="1.2" fill="#86efac"/>
+  <circle cx="129" cy="78" r="1.2" fill="#86efac"/>
+  
+  <!-- Smile -->
+  <path d="M110 88 Q120 96 130 88" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Body -->
+  <line x1="120" y1="102" x2="120" y2="170" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Left arm (holding bindle) -->
+  <line x1="120" y1="120" x2="80" y2="108" stroke="#22c55e" stroke-width="3.5" stroke-linecap="round"/>
+  
+  <!-- Right arm -->
+  <line x1="120" y1="120" x2="160" y2="138" stroke="#22c55e" stroke-width="3.5" stroke-linecap="round"/>
+  
+  <!-- Bindle stick -->
+  <line x1="80" y1="108" x2="62" y2="45" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Bindle bundle -->
+  <circle cx="62" cy="45" r="18" fill="#1a3a2a" stroke="#22c55e" stroke-width="2.5"/>
+  <!-- Bindle knot detail -->
+  <path d="M50 40 Q62 32 74 40" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="62" y1="33" x2="62" y2="28" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Legs -->
+  <line x1="120" y1="170" x2="98" y2="218" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+  <line x1="120" y1="170" x2="142" y2="218" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Feet/boots -->
+  <ellipse cx="95" cy="220" rx="8" ry="4" fill="#1a3a2a" stroke="#22c55e" stroke-width="1.5"/>
+  <ellipse cx="145" cy="220" rx="8" ry="4" fill="#1a3a2a" stroke="#22c55e" stroke-width="1.5"/>
+</svg>

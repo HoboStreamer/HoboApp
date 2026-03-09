@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HoboApp – WA Stealth Camp Locator</title>
+
+  <!-- ═══ Fonts ═══ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- ═══ Font Awesome 6 ═══ -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- ═══ Leaflet.js (Map Engine) ═══ -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- ═══ Leaflet Plugins ═══ -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.81.1/dist/L.Control.Locate.min.css">
+  <script src="https://unpkg.com/leaflet.locatecontrol@0.81.1/dist/L.Control.Locate.min.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-fullscreen@1.0.2/dist/leaflet.fullscreen.css">
+  <script src="https://unpkg.com/leaflet-fullscreen@1.0.2/dist/Leaflet.fullscreen.min.js"></script>
+
+  <!-- Leaflet Heat (heatmap layer) -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <!-- ═══ Chart.js ═══ -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- ═══ Toastify (toast notifications) ═══ -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.js"></script>
+
+  <!-- ═══ Tippy.js (tooltips) ═══ -->
+  <script src="https://unpkg.com/@popperjs/core@2/dist/umd/popper.min.js"></script>
+  <script src="https://unpkg.com/tippy.js@6/dist/tippy-bundle.umd.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/themes/translucent.css">
+
+  <!-- ═══ Day.js (date handling) ═══ -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.js"></script>
+
+  <!-- ═══ Particles.js (background animation) ═══ -->
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+  <!-- ═══ Canvas Confetti ═══ -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- ═══ App Styles ═══ -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SPLASH SCREEN                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="splash-screen">
+  <div id="particles-bg"></div>
+  <div class="splash-content">
+    <div class="hobo-logo" id="hobo-logo">
+      <svg viewBox="0 0 120 140" class="hobo-svg">
+        <!-- Hobo figure -->
+        <defs>
+          <linearGradient id="hoboGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:rgba(34,197,94,0.2)"/>
+            <stop offset="100%" style="stop-color:rgba(16,185,129,0.1)"/>
+          </linearGradient>
+        </defs>
+        <!-- Hat -->
+        <ellipse cx="55" cy="22" rx="22" ry="6" fill="rgba(34,197,94,0.25)" stroke="#22c55e" stroke-width="1.2"/>
+        <path d="M40 22 C40 8 70 8 70 22" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.2"/>
+        <!-- Head -->
+        <circle cx="55" cy="32" r="12" fill="url(#hoboGrad)" stroke="rgba(34,197,94,0.6)" stroke-width="1.2"/>
+        <!-- Eyes -->
+        <ellipse cx="50" cy="30" rx="2" ry="2.5" fill="#0a0a1a" class="hobo-eye"/>
+        <ellipse cx="60" cy="30" rx="2" ry="2.5" fill="#0a0a1a" class="hobo-eye"/>
+        <circle cx="50.5" cy="29.5" r="0.8" fill="#22c55e" class="hobo-pupil"/>
+        <circle cx="60.5" cy="29.5" r="0.8" fill="#22c55e" class="hobo-pupil"/>
+        <!-- Smile -->
+        <path d="M49 35 Q55 40 61 35" fill="none" stroke="#22c55e" stroke-width="1" stroke-linecap="round"/>
+        <!-- Body -->
+        <path d="M55 44 L55 80" stroke="rgba(34,197,94,0.6)" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Arms -->
+        <path d="M55 55 L30 48" stroke="rgba(34,197,94,0.6)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M55 55 L80 65" stroke="rgba(34,197,94,0.6)" stroke-width="2" stroke-linecap="round"/>
+        <!-- Legs -->
+        <path d="M55 80 L40 110" stroke="rgba(34,197,94,0.6)" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M55 80 L70 110" stroke="rgba(34,197,94,0.6)" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Bindle stick -->
+        <line x1="30" y1="48" x2="22" y2="15" stroke="#22c55e" stroke-width="2" stroke-linecap="round" class="bindle-stick"/>
+        <!-- Bindle bundle -->
+        <circle cx="22" cy="15" r="10" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1.2" class="bindle-bundle"/>
+        <path d="M16 12 Q22 8 28 12" fill="none" stroke="#22c55e" stroke-width="0.8"/>
+      </svg>
+    </div>
+    <h1 class="splash-title">HOBO<span class="green">APP</span></h1>
+    <p class="splash-subtitle"><i class="fa-solid fa-person-shelter"></i> Washington State Stealth Camp Locator</p>
+    <div class="splash-loader">
+      <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+      <p class="splash-status" id="splash-status"><i class="fa-solid fa-satellite-dish"></i> Initializing data sources...</p>
+    </div>
+    <div class="splash-sources">
+      <span><i class="fa-solid fa-database"></i> RIDB</span>
+      <span><i class="fa-brands fa-openstreetmap"></i> OSM</span>
+      <span><i class="fa-solid fa-campground"></i> FreeCampsites</span>
+      <span><i class="fa-solid fa-globe"></i> iOverlander</span>
+      <span><i class="fa-solid fa-bridge"></i> Bridges</span>
+      <span><i class="fa-solid fa-restroom"></i> Restrooms</span>
+      <span><i class="fa-solid fa-hand-holding-heart"></i> Resources</span>
+      <span><i class="fa-brands fa-reddit"></i> Reddit</span>
+      <span><i class="fa-solid fa-cloud-sun"></i> Weather</span>
+      <span><i class="fa-solid fa-mountain"></i> Terrain</span>
+      <span><i class="fa-solid fa-map-pin"></i> 167+ Curated</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- DISCLAIMER / LIABILITY AGREEMENT                               -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="disclaimer-overlay" class="hidden">
+  <div class="disclaimer-box">
+    <div class="disclaimer-icon">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+    </div>
+    <h1 class="disclaimer-title">IMPORTANT DISCLAIMER</h1>
+    <div class="disclaimer-body">
+      <p><strong>READ CAREFULLY BEFORE USING HOBOAPP</strong></p>
+      <p>HoboApp is provided <strong>strictly for informational and educational purposes only</strong>. By using this software you acknowledge and agree to the following:</p>
+      <ul>
+        <li><strong>No Guarantee of Safety.</strong> Location data, suggestions, and information presented by this software are aggregated from third-party sources and may be <strong>inaccurate, outdated, or dangerous</strong>. Do not rely on this software for your personal safety.</li>
+        <li><strong>Use at Your Own Risk.</strong> Camping, sleeping outdoors, and accessing remote or unfamiliar locations carries <strong>inherent risks including injury, illness, exposure, wildlife encounters, and death</strong>. You assume all risk.</li>
+        <li><strong>Not Legal Advice.</strong> This software does not determine the legality of camping, trespassing, or occupying any location. <strong>You are solely responsible</strong> for understanding and complying with all local, state, and federal laws.</li>
+        <li><strong>No Warranty.</strong> This software is provided "AS IS" without warranty of any kind, express or implied. The developers make <strong>no representations about the suitability, reliability, or accuracy</strong> of the information provided.</li>
+        <li><strong>Limitation of Liability.</strong> Under no circumstances shall the developers or contributors be liable for any <strong>direct, indirect, incidental, special, consequential, or punitive damages</strong> — including but not limited to personal injury, death, property damage, or loss — arising from your use of this software.</li>
+        <li><strong>Your Responsibility.</strong> Always <strong>verify information independently</strong>, tell someone where you are going, carry appropriate gear and supplies, check weather conditions, and use common sense. Never go anywhere you are not comfortable or prepared for.</li>
+      </ul>
+      <p class="disclaimer-final"><i class="fa-solid fa-skull-crossbones"></i> <strong>People have died in the outdoors from exposure, falls, wildlife, flash floods, and poor decisions. This software cannot protect you. Only you can.</strong></p>
+    </div>
+    <div class="disclaimer-actions">
+      <label class="disclaimer-checkbox-label">
+        <input type="checkbox" id="disclaimer-check">
+        <span>I have read and understand this disclaimer. I accept all risks and agree that the developers are not liable for any harm.</span>
+      </label>
+      <button id="btn-disclaimer-agree" class="disclaimer-agree-btn" disabled>
+        <i class="fa-solid fa-shield-halved"></i> I Agree — Enter HoboApp
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MAIN APP                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- ─── Custom Title Bar ─── -->
+  <div id="titlebar">
+    <div class="titlebar-drag">
+      <svg viewBox="0 0 32 38" class="titlebar-hobo">
+        <!-- Hobo hat + head -->
+        <ellipse cx="16" cy="10" rx="10" ry="3" fill="rgba(34,197,94,0.25)" stroke="#22c55e" stroke-width="0.6"/>
+        <path d="M10 10 C10 4 22 4 22 10" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="0.6"/>
+        <circle cx="16" cy="14" r="5" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.6"/>
+        <circle cx="14" cy="13" r="0.8" fill="#22c55e"/>
+        <circle cx="18" cy="13" r="0.8" fill="#22c55e"/>
+        <!-- Body + bindle -->
+        <line x1="16" y1="19" x2="16" y2="30" stroke="#22c55e" stroke-width="1"/>
+        <line x1="16" y1="22" x2="10" y2="20" stroke="#22c55e" stroke-width="0.8"/>
+        <line x1="10" y1="20" x2="7" y2="10" stroke="#22c55e" stroke-width="0.8"/>
+        <circle cx="7" cy="10" r="3" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.6"/>
+        <line x1="16" y1="22" x2="24" y2="26" stroke="#22c55e" stroke-width="0.8"/>
+        <line x1="16" y1="30" x2="11" y2="37" stroke="#22c55e" stroke-width="1"/>
+        <line x1="16" y1="30" x2="21" y2="37" stroke="#22c55e" stroke-width="1"/>
+      </svg>
+      <span class="titlebar-title">HOBO<span class="green">APP</span></span>
+    </div>
+    <div class="titlebar-controls">
+      <button id="btn-win-minimize" class="titlebar-btn" title="Minimize"><i class="fa-solid fa-minus"></i></button>
+      <button id="btn-win-maximize" class="titlebar-btn" title="Maximize"><i class="fa-regular fa-square"></i></button>
+      <button id="btn-win-close" class="titlebar-btn titlebar-btn-close" title="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- ─── Header ─── -->
+  <header id="header">
+    <div class="header-left">
+      <div class="brand" id="brand-logo">
+        <svg viewBox="0 0 32 38" class="brand-hobo">
+          <!-- Hobo hat + head -->
+          <ellipse cx="16" cy="10" rx="10" ry="3" fill="rgba(34,197,94,0.25)" stroke="#22c55e" stroke-width="0.6"/>
+          <path d="M10 10 C10 4 22 4 22 10" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="0.6"/>
+          <circle cx="16" cy="14" r="5" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.6"/>
+          <circle cx="14" cy="13" r="0.8" fill="#22c55e"/>
+          <circle cx="18" cy="13" r="0.8" fill="#22c55e"/>
+          <!-- Body + bindle -->
+          <line x1="16" y1="19" x2="16" y2="30" stroke="#22c55e" stroke-width="1"/>
+          <line x1="16" y1="22" x2="10" y2="20" stroke="#22c55e" stroke-width="0.8"/>
+          <line x1="10" y1="20" x2="7" y2="10" stroke="#22c55e" stroke-width="0.8"/>
+          <circle cx="7" cy="10" r="3" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.6"/>
+          <line x1="16" y1="22" x2="24" y2="26" stroke="#22c55e" stroke-width="0.8"/>
+          <line x1="16" y1="30" x2="11" y2="37" stroke="#22c55e" stroke-width="1"/>
+          <line x1="16" y1="30" x2="21" y2="37" stroke="#22c55e" stroke-width="1"/>
+        </svg>
+        <span class="brand-text">HOBO<span class="green">APP</span></span>
+      </div>
+      <div class="header-divider"></div>
+      <span class="header-tagline"><i class="fa-solid fa-eye-slash"></i> Stealth Camp Locator</span>
+    </div>
+
+    <div class="search-container">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="search-input" placeholder="Enter address, city, or coordinates..." autocomplete="off" aria-label="Search for camping locations">
+        <div id="recent-searches-dropdown" class="recent-dropdown hidden"></div>
+        <button id="btn-my-location" title="Use GPS location"><i class="fa-solid fa-crosshairs"></i></button>
+        <select id="search-radius" title="Search radius">
+          <option value="5">5 mi</option>
+          <option value="10">10 mi</option>
+          <option value="15">15 mi</option>
+          <option value="25" selected>25 mi</option>
+          <option value="50">50 mi</option>
+          <option value="75">75 mi</option>
+          <option value="100">100 mi</option>
+        </select>
+        <button id="btn-search" class="btn-primary"><i class="fa-solid fa-person-shelter"></i><span>Search</span></button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Grouped tool buttons with dividers for clarity -->
+      <div class="header-group" data-group-label="Sleep">
+        <button id="btn-bridges" class="header-btn" title="Bridge Shelters"><i class="fa-solid fa-bridge"></i></button>
+        <button id="btn-trip" class="header-btn" title="Trip Planner"><i class="fa-solid fa-calendar-days"></i></button>
+      </div>
+      <div class="header-divider-v"></div>
+      <div class="header-group" data-group-label="Resources">
+        <button id="btn-bathrooms" class="header-btn" title="Bathrooms & Showers"><i class="fa-solid fa-restroom"></i></button>
+        <button id="btn-grocery" class="header-btn" title="Budget Food"><i class="fa-solid fa-cart-shopping"></i></button>
+        <button id="btn-quick-meal" class="header-btn quick-meal-btn" title="Quick Meal Plan"><i class="fa-solid fa-dice"></i></button>
+        <button id="btn-resources" class="header-btn" title="Survival Resources"><i class="fa-solid fa-hand-holding-heart"></i></button>
+        <button id="btn-transit" class="header-btn" title="Transit & Directions"><i class="fa-solid fa-route"></i></button>
+      </div>
+      <div class="header-divider-v"></div>
+      <div class="header-group" data-group-label="Intel">
+        <button id="btn-weather" class="header-btn" title="Weather & Forecast"><i class="fa-solid fa-cloud-sun"></i></button>
+        <button id="btn-reddit" class="header-btn" title="Reddit Intel"><i class="fa-brands fa-reddit-alien"></i></button>
+        <button id="btn-info" class="header-btn" title="Survival Guide"><i class="fa-solid fa-book-skull"></i></button>
+      </div>
+      <div class="header-divider-v"></div>
+      <div class="header-group" data-group-label="My Stuff">
+        <button id="btn-favorites" class="header-btn" title="Favorites"><i class="fa-solid fa-heart"></i></button>
+        <button id="btn-add-spot" class="header-btn" title="Add Custom Spot"><i class="fa-solid fa-plus"></i></button>
+        <button id="btn-stats" class="header-btn" title="Statistics"><i class="fa-solid fa-chart-pie"></i></button>
+      </div>
+      <div class="header-divider-v"></div>
+      <button id="btn-settings" class="header-btn" title="Settings & API Keys"><i class="fa-solid fa-gear"></i></button>
+      <button id="btn-theme" class="header-btn" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+    </div>
+  </header>
+
+  <!-- ─── Filter Bar ─── -->
+  <div id="filter-bar">
+    <div class="filter-section">
+      <span class="filter-section-label"><i class="fa-solid fa-filter"></i> Show:</span>
+      <div class="filter-chips" role="radiogroup" aria-label="Filter locations by type">
+        <button class="filter-chip active" data-filter="all"><i class="fa-solid fa-layer-group"></i> All Spots</button>
+        <button class="filter-chip" data-filter="dispersed"><i class="fa-solid fa-tree"></i> Dispersed</button>
+        <button class="filter-chip" data-filter="campground"><i class="fa-solid fa-campground"></i> Campgrounds</button>
+        <button class="filter-chip" data-filter="shelter"><i class="fa-solid fa-house-chimney"></i> Shelters</button>
+        <button class="filter-chip" data-filter="bridge"><i class="fa-solid fa-bridge"></i> Bridges</button>
+        <button class="filter-chip" data-filter="cover"><i class="fa-solid fa-umbrella"></i> Rain Cover</button>
+        <button class="filter-chip" data-filter="forest"><i class="fa-solid fa-leaf"></i> Forest</button>
+        <button class="filter-chip" data-filter="woods"><i class="fa-solid fa-tree"></i> Woods</button>
+        <button class="filter-chip" data-filter="urban"><i class="fa-solid fa-city"></i> Urban</button>
+        <button class="filter-chip" data-filter="restroom"><i class="fa-solid fa-restroom"></i> Restrooms</button>
+        <button class="filter-chip" data-filter="water"><i class="fa-solid fa-faucet-drip"></i> Water</button>
+        <button class="filter-chip" data-filter="free"><i class="fa-solid fa-hand-holding-heart"></i> Free Only</button>
+        <button class="filter-chip" data-filter="favorites"><i class="fa-solid fa-heart"></i> Favorites</button>
+      </div>
+    </div>
+    <div class="filter-right">
+      <div id="results-summary"></div>
+      <div id="sort-controls" style="display:none;">
+        <label><i class="fa-solid fa-arrow-down-short-wide"></i></label>
+        <select id="sort-by">
+          <option value="distance">Distance</option>
+          <option value="stealth">Stealth Rating</option>
+          <option value="name">Name</option>
+          <option value="type">Type</option>
+        </select>
+      </div>
+      <button id="btn-heatmap" class="filter-tool-btn" title="Toggle stealth heatmap"><i class="fa-solid fa-fire"></i></button>
+      <button id="btn-crime-heatmap" class="filter-tool-btn" title="Toggle crime/sketch heatmap"><i class="fa-solid fa-skull-crossbones"></i></button>
+      <button id="btn-satellite" class="filter-tool-btn" title="Toggle satellite view"><i class="fa-solid fa-satellite"></i></button>
+    </div>
+  </div>
+
+  <!-- ─── Main Content ─── -->
+  <main id="main-content">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div id="welcome-card" class="welcome-card">
+        <div class="welcome-hobo">
+          <i class="fa-solid fa-person-shelter fa-3x hobo-float"></i>
+        </div>
+        <h2><i class="fa-solid fa-person-hiking"></i> Welcome to HoboApp</h2>
+        <p>Find stealth camping spots, dispersed campsites, shelters, and survival resources across Washington State.</p>
+        <div class="quick-searches">
+          <p class="quick-label"><i class="fa-solid fa-bolt"></i> Quick Search:</p>
+          <button class="quick-btn" data-query="Arlington, WA"><i class="fa-solid fa-map-pin"></i> Arlington</button>
+          <button class="quick-btn" data-query="Granite Falls, WA"><i class="fa-solid fa-mountain"></i> Granite Falls</button>
+          <button class="quick-btn" data-query="Snohomish, WA"><i class="fa-solid fa-tree"></i> Snohomish</button>
+          <button class="quick-btn" data-query="Seattle, WA"><i class="fa-solid fa-city"></i> Seattle</button>
+          <button class="quick-btn" data-query="Darrington, WA"><i class="fa-solid fa-mountain-sun"></i> Darrington</button>
+          <button class="quick-btn" data-query="Everett, WA"><i class="fa-solid fa-water"></i> Everett</button>
+        </div>
+        <div class="welcome-stats" id="welcome-stats">
+          <div class="mini-stat"><i class="fa-solid fa-database"></i><span>8 Sources</span></div>
+          <div class="mini-stat"><i class="fa-solid fa-map-pin"></i><span>100+ Spots</span></div>
+          <div class="mini-stat"><i class="fa-solid fa-cloud-sun"></i><span>Live Weather</span></div>
+          <div class="mini-stat"><i class="fa-solid fa-moon"></i><span>Moon Phase</span></div>
+        </div>
+      </div>
+
+      <div id="results-list"></div>
+    </aside>
+
+    <!-- Map -->
+    <div id="map-container">
+      <div id="map"></div>
+
+      <!-- Search This Area floating button -->
+      <button id="btn-search-area" class="search-area-btn hidden">
+        <i class="fa-solid fa-magnifying-glass-location"></i> Search This Area
+      </button>
+
+      <!-- Map Legend -->
+      <div id="map-legend" class="map-legend-panel">
+        <div class="legend-header">
+          <span class="legend-title"><i class="fa-solid fa-swatchbook"></i> Map Key</span>
+          <div class="legend-header-btns">
+            <button id="legend-toggle" title="Collapse legend"><i class="fa-solid fa-chevron-down"></i></button>
+            <button id="legend-hide" title="Hide legend entirely"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div id="legend-content" class="legend-body">
+          <div class="legend-item" data-type="dispersed">
+            <span class="legend-marker dispersed"><i class="fa-solid fa-tree"></i></span>
+            <span class="legend-label">Dispersed / BLM</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="campground">
+            <span class="legend-marker campground"><i class="fa-solid fa-campground"></i></span>
+            <span class="legend-label">Campground</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="forest">
+            <span class="legend-marker forest"><i class="fa-solid fa-leaf"></i></span>
+            <span class="legend-label">Forest / Nature</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="urban">
+            <span class="legend-marker urban"><i class="fa-solid fa-city"></i></span>
+            <span class="legend-label">Urban / Parking</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="shelter">
+            <span class="legend-marker shelter"><i class="fa-solid fa-house-chimney"></i></span>
+            <span class="legend-label">Shelters / Huts</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="bridge">
+            <span class="legend-marker bridge"><i class="fa-solid fa-bridge"></i></span>
+            <span class="legend-label">Bridge Shelter</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="cover">
+            <span class="legend-marker cover"><i class="fa-solid fa-umbrella"></i></span>
+            <span class="legend-label">Rain Cover</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="restroom">
+            <span class="legend-marker restroom"><i class="fa-solid fa-restroom"></i></span>
+            <span class="legend-label">Restrooms</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="services">
+            <span class="legend-marker services"><i class="fa-solid fa-hands-helping"></i></span>
+            <span class="legend-label">Services</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="water">
+            <span class="legend-marker water"><i class="fa-solid fa-faucet-drip"></i></span>
+            <span class="legend-label">Water Source</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="woods">
+            <span class="legend-marker woods"><i class="fa-solid fa-tree"></i></span>
+            <span class="legend-label">Woods</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item" data-type="sketch">
+            <span class="legend-marker sketch"><i class="fa-solid fa-skull-crossbones"></i></span>
+            <span class="legend-label">Sketch Zones</span>
+            <span class="legend-count">0</span>
+          </div>
+          <div class="legend-item legend-user-row">
+            <span class="legend-marker user-dot"></span>
+            <span class="legend-label">Your Location</span>
+          </div>
+          <div class="legend-hint">Click a type to hide/show</div>
+        </div>
+      </div>
+
+      <!-- Show Legend Button (appears when legend is hidden) -->
+      <button id="legend-show-btn" class="legend-show-btn hidden" title="Show map key">
+        <i class="fa-solid fa-swatchbook"></i>
+      </button>
+
+      <!-- Weather Widget (floating on map) -->
+      <div id="weather-widget" class="map-overlay hidden">
+        <div class="weather-header">
+          <i class="fa-solid fa-cloud-sun"></i>
+          <span id="weather-temp">--</span>
+          <span id="weather-desc">Loading...</span>
+          <button id="close-weather-widget"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="weather-details" id="weather-details"></div>
+      </div>
+
+      <!-- Moon Phase Widget -->
+      <div id="moon-widget" class="map-overlay">
+        <span id="moon-emoji">🌑</span>
+        <span id="moon-name">--</span>
+        <span id="moon-stealth" class="moon-stealth">--</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Detail Panel (slide-in from right) ─── -->
+  <div id="detail-panel" class="hidden">
+    <div class="detail-header">
+      <button id="btn-close-detail"><i class="fa-solid fa-arrow-left"></i></button>
+      <div class="detail-title-area">
+        <h2 id="detail-name"></h2>
+        <p id="detail-type"></p>
+      </div>
+      <button id="btn-favorite-detail" class="detail-fav-btn" title="Toggle favorite"><i class="fa-regular fa-heart"></i></button>
+    </div>
+    <div id="detail-body" class="detail-body"></div>
+  </div>
+
+  <!-- ─── Footer ─── -->
+  <footer id="footer">
+    <div class="footer-left">
+      <i class="fa-solid fa-person-shelter hobo-mini"></i>
+      <span>HoboApp v2.0</span>
+      <span class="footer-sep">|</span>
+      <span id="footer-status"><i class="fa-solid fa-satellite-dish"></i> Ready – Enter an address to begin</span>
+    </div>
+    <div class="footer-right">
+      <span id="footer-coords"></span>
+      <span class="footer-sep">|</span>
+      <span><i class="fa-solid fa-code-branch"></i> 11 data sources</span>
+      <span class="footer-sep">|</span>
+      <span><i class="fa-solid fa-tent"></i> Inspired by Steve Wallis</span>
+    </div>
+  </footer>
+
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MODALS                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<!-- Info / Survival Guide Modal -->
+<div id="info-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-book-skull"></i> HoboApp Survival Guide</h2>
+      <button id="close-info-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="guide-tabs">
+        <button class="guide-tab active" data-tab="stealth"><i class="fa-solid fa-eye-slash"></i> Stealth Basics</button>
+        <button class="guide-tab" data-tab="fire"><i class="fa-solid fa-fire"></i> Fire</button>
+        <button class="guide-tab" data-tab="knots"><i class="fa-solid fa-link"></i> Knots & Rope</button>
+        <button class="guide-tab" data-tab="firstaid"><i class="fa-solid fa-kit-medical"></i> First Aid</button>
+        <button class="guide-tab" data-tab="sheltercraft"><i class="fa-solid fa-tarp"></i> Shelter Craft</button>
+        <button class="guide-tab" data-tab="water_food"><i class="fa-solid fa-droplet"></i> Water & Food</button>
+        <button class="guide-tab" data-tab="urban"><i class="fa-solid fa-city"></i> Urban Survival</button>
+        <button class="guide-tab" data-tab="hygiene"><i class="fa-solid fa-soap"></i> Hygiene</button>
+        <button class="guide-tab" data-tab="wallis"><i class="fa-solid fa-tent"></i> Steve Wallis Tips</button>
+        <button class="guide-tab" data-tab="navigation"><i class="fa-solid fa-compass"></i> Navigation</button>
+        <button class="guide-tab" data-tab="rules"><i class="fa-solid fa-gavel"></i> Rules by Land</button>
+        <button class="guide-tab" data-tab="gear"><i class="fa-solid fa-backpack"></i> Gear Checklist</button>
+        <button class="guide-tab" data-tab="safety"><i class="fa-solid fa-shield-heart"></i> Safety</button>
+        <button class="guide-tab" data-tab="weather_survival"><i class="fa-solid fa-cloud-bolt"></i> Weather Survival</button>
+        <button class="guide-tab" data-tab="tools_repair"><i class="fa-solid fa-screwdriver-wrench"></i> Tools & Repair</button>
+        <button class="guide-tab" data-tab="signals"><i class="fa-solid fa-tower-broadcast"></i> Signals & Comms</button>
+        <button class="guide-tab" data-tab="sources"><i class="fa-solid fa-database"></i> Data Sources</button>
+      </div>
+      <div class="guide-content" id="guide-content"><!-- Populated by JS --></div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Modal -->
+<div id="stats-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-chart-pie"></i> Search Statistics</h2>
+      <button id="close-stats-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="stats-grid">
+        <div class="stat-card"><i class="fa-solid fa-map-pin"></i><span class="stat-value" id="stat-total">0</span><span class="stat-label">Total Found</span></div>
+        <div class="stat-card"><i class="fa-solid fa-tree"></i><span class="stat-value" id="stat-dispersed">0</span><span class="stat-label">Dispersed</span></div>
+        <div class="stat-card"><i class="fa-solid fa-hand-holding-heart"></i><span class="stat-value" id="stat-free">0</span><span class="stat-label">Free Sites</span></div>
+        <div class="stat-card"><i class="fa-solid fa-eye-slash"></i><span class="stat-value" id="stat-stealth">0</span><span class="stat-label">High Stealth (4-5)</span></div>
+        <div class="stat-card"><i class="fa-solid fa-clock"></i><span class="stat-value" id="stat-time">0s</span><span class="stat-label">Query Time</span></div>
+        <div class="stat-card"><i class="fa-solid fa-heart"></i><span class="stat-value" id="stat-favs">0</span><span class="stat-label">Favorites</span></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-container"><canvas id="stats-chart"></canvas></div>
+        <div class="chart-container"><canvas id="sources-chart"></canvas></div>
+      </div>
+      <div class="source-timings-section">
+        <h3 style="font-size:13px;color:var(--text-secondary);margin:16px 0 8px;"><i class="fa-solid fa-stopwatch"></i> Source Response Times</h3>
+        <div id="stat-source-timings" class="source-timings-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Weather Modal -->
+<div id="weather-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-cloud-moon"></i> Weather & Conditions</h2>
+      <button id="close-weather-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="weather-modal-body">
+      <p class="muted-text"><i class="fa-solid fa-info-circle"></i> Search for a location first to see weather data.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Reddit Intel Modal -->
+<div id="reddit-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-brands fa-reddit-alien"></i> Reddit Stealth Camping Intel</h2>
+      <button id="close-reddit-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="reddit-modal-body">
+      <div class="reddit-search-bar">
+        <input type="text" id="reddit-search-input" placeholder="Search Reddit for stealth camping tips..." value="stealth camping washington">
+        <button id="btn-reddit-search"><i class="fa-solid fa-search"></i> Search</button>
+      </div>
+      <div id="reddit-results"><p class="muted-text"><i class="fa-brands fa-reddit"></i> Click search to find community posts...</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Custom Spot Modal -->
+<div id="add-spot-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-plus"></i> Add Custom Spot</h2>
+      <button id="close-add-spot-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="add-spot-form">
+        <div class="form-group">
+          <label><i class="fa-solid fa-tag"></i> Name</label>
+          <input type="text" id="spot-name" placeholder="My secret campsite" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label><i class="fa-solid fa-location-dot"></i> Latitude</label>
+            <input type="number" id="spot-lat" step="any" placeholder="48.0530" required>
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-location-dot"></i> Longitude</label>
+            <input type="number" id="spot-lon" step="any" placeholder="-122.1210" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-align-left"></i> Description</label>
+          <textarea id="spot-desc" rows="3" placeholder="Describe the spot, access, terrain..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label><i class="fa-solid fa-layer-group"></i> Type</label>
+            <select id="spot-type">
+              <option value="Dispersed Camping">Dispersed Camping</option>
+              <option value="Campground">Campground</option>
+              <option value="Urban Stealth">Urban Stealth</option>
+              <option value="Forest Hideout">Forest Hideout</option>
+              <option value="Water Access">Water Access</option>
+              <option value="Shelter">Shelter</option>
+              <option value="Bridge">Bridge Shelter</option>
+              <option value="Covered Structure">Covered Structure</option>
+              <option value="Cave / Rock Overhang">Cave / Rock Overhang</option>
+              <option value="Services">Services</option>
+              <option value="Custom">Custom</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-eye-slash"></i> Stealth Rating</label>
+            <select id="spot-stealth">
+              <option value="1">1 - Very Exposed</option>
+              <option value="2">2 - Low</option>
+              <option value="3" selected>3 - Moderate</option>
+              <option value="4">4 - Good</option>
+              <option value="5">5 - Ghost Mode</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Photo Attachment Section -->
+        <div class="form-group">
+          <label><i class="fa-solid fa-camera"></i> Photos</label>
+          <div class="spot-photos-area">
+            <div class="spot-photos-grid" id="spot-photos-grid"></div>
+            <div class="spot-photos-actions">
+              <button type="button" class="btn-photo" id="btn-attach-photo" title="Attach existing photo(s)"><i class="fa-solid fa-paperclip"></i> Attach Photos</button>
+              <button type="button" class="btn-photo" id="btn-take-photo" title="Take a photo with camera"><i class="fa-solid fa-camera"></i> Take Photo</button>
+            </div>
+            <p class="photo-hint"><i class="fa-solid fa-circle-info"></i> Attach photos of entrances, landmarks, or details to remember</p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary full-width"><i class="fa-solid fa-plus"></i> Add Spot</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Favorites Modal -->
+<div id="favorites-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-heart"></i> Favorite Spots</h2>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="btn-export-favs" class="modal-action-btn" title="Export favorites as GPX"><i class="fa-solid fa-file-export"></i> GPX</button>
+        <button id="close-favorites-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+    <div class="modal-body" id="favorites-content">
+      <p class="muted-text"><i class="fa-regular fa-heart"></i> No favorites yet. Heart a location to save it here.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Grocery Budget Optimizer Modal -->
+<div id="grocery-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-cart-shopping"></i> Budget Food Finder</h2>
+      <button id="close-grocery-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="grocery-modal-body">
+
+      <!-- Tab Navigation -->
+      <div class="grocery-tabs">
+        <button class="grocery-tab active" data-gtab="optimizer"><i class="fa-solid fa-calculator"></i> Meal Optimizer</button>
+        <button class="grocery-tab" data-gtab="compare"><i class="fa-solid fa-scale-balanced"></i> Price Compare</button>
+        <button class="grocery-tab" data-gtab="stores"><i class="fa-solid fa-map-location-dot"></i> Nearby Stores</button>
+        <button class="grocery-tab" data-gtab="foodbanks"><i class="fa-solid fa-hand-holding-heart"></i> Free Food</button>
+      </div>
+
+      <!-- ═══ OPTIMIZER TAB ═══ -->
+      <div class="grocery-tab-panel active" id="gtab-optimizer">
+        <!-- Quick Action Bar -->
+        <div class="grocery-quick-bar">
+          <button id="btn-quick-random-plan" class="btn-quick-plan">
+            <i class="fa-solid fa-dice"></i> Random Cheap Meal Plan
+          </button>
+          <button id="btn-shuffle-plan" class="btn-shuffle-plan" disabled>
+            <i class="fa-solid fa-shuffle"></i> Shuffle
+          </button>
+        </div>
+
+        <div class="grocery-optimizer-controls">
+          <div class="grocery-ctrl-row">
+            <div class="grocery-ctrl-group">
+              <label for="grocery-budget"><i class="fa-solid fa-wallet"></i> Budget ($)</label>
+              <input type="number" id="grocery-budget" value="20" min="5" max="200" step="5">
+            </div>
+            <div class="grocery-ctrl-group">
+              <label for="grocery-days"><i class="fa-solid fa-calendar-days"></i> Days</label>
+              <input type="number" id="grocery-days" value="3" min="1" max="14" step="1">
+            </div>
+            <div class="grocery-ctrl-group">
+              <label class="grocery-checkbox-label">
+                <input type="checkbox" id="grocery-camp-only"> <i class="fa-solid fa-campground"></i> Camp-Friendly
+              </label>
+            </div>
+            <div class="grocery-ctrl-group">
+              <label class="grocery-checkbox-label">
+                <input type="checkbox" id="grocery-shelf-stable"> <i class="fa-solid fa-box-open"></i> Shelf-Stable
+              </label>
+            </div>
+            <div class="grocery-ctrl-group">
+              <label class="grocery-checkbox-label">
+                <input type="checkbox" id="grocery-use-distance" checked> <i class="fa-solid fa-location-dot"></i> Distance-Aware
+              </label>
+            </div>
+          </div>
+          <div class="grocery-store-filters">
+            <span class="grocery-filter-label">Stores:</span>
+            <label class="grocery-store-chip walmart"><input type="checkbox" value="walmart" checked> <i class="fa-solid fa-store"></i> Walmart</label>
+            <label class="grocery-store-chip fredmeyer"><input type="checkbox" value="fredmeyer" checked> <i class="fa-solid fa-cart-shopping"></i> Fred Meyer</label>
+            <label class="grocery-store-chip safeway"><input type="checkbox" value="safeway" checked> <i class="fa-solid fa-basket-shopping"></i> Safeway</label>
+            <label class="grocery-store-chip dollartree"><input type="checkbox" value="dollartree" checked> <i class="fa-solid fa-dollar-sign"></i> Dollar Tree</label>
+            <label class="grocery-store-chip groceryoutlet"><input type="checkbox" value="groceryoutlet" checked> <i class="fa-solid fa-tags"></i> Grocery Outlet</label>
+          </div>
+          <div class="grocery-btn-row">
+            <button id="btn-optimize-meals" class="btn-primary" style="flex:1;justify-content:center;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Optimize Meal Plan
+            </button>
+            <button id="btn-optimize-random" class="btn-secondary" style="justify-content:center;" title="Randomize within budget">
+              <i class="fa-solid fa-dice"></i> Randomize
+            </button>
+          </div>
+        </div>
+
+        <!-- Optimizer Results -->
+        <div id="grocery-optimizer-results"></div>
+      </div>
+
+      <!-- ═══ PRICE COMPARE TAB ═══ -->
+      <div class="grocery-tab-panel" id="gtab-compare">
+        <div class="grocery-compare-controls">
+          <div class="grocery-search-bar">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="grocery-search" placeholder="Search foods (e.g. rice, chicken, beans...)">
+          </div>
+          <div class="grocery-group-filters">
+            <button class="grocery-group-btn active" data-ggroup="all"><i class="fa-solid fa-grip"></i> All</button>
+            <button class="grocery-group-btn" data-ggroup="protein"><i class="fa-solid fa-drumstick-bite"></i> Protein</button>
+            <button class="grocery-group-btn" data-ggroup="grains"><i class="fa-solid fa-wheat-awn"></i> Grains</button>
+            <button class="grocery-group-btn" data-ggroup="vegetables"><i class="fa-solid fa-carrot"></i> Veggies</button>
+            <button class="grocery-group-btn" data-ggroup="fruits"><i class="fa-solid fa-apple-whole"></i> Fruits</button>
+            <button class="grocery-group-btn" data-ggroup="dairy"><i class="fa-solid fa-glass-water"></i> Dairy</button>
+            <button class="grocery-group-btn" data-ggroup="fats"><i class="fa-solid fa-oil-can"></i> Fats</button>
+          </div>
+        </div>
+        <div id="grocery-compare-results"></div>
+      </div>
+
+      <!-- ═══ STORES TAB ═══ -->
+      <div class="grocery-tab-panel" id="gtab-stores">
+        <div class="grocery-stores-intro">
+          <button id="btn-find-stores" class="btn-primary" style="width:100%;justify-content:center;">
+            <i class="fa-solid fa-map-location-dot"></i> Find Nearby Stores
+          </button>
+          <p class="muted-text" style="text-align:center;margin-top:0.5rem;">Searches within 5 miles of your current map center</p>
+        </div>
+        <div id="grocery-stores-results"></div>
+      </div>
+
+      <!-- ═══ FREE FOOD / FOOD BANKS TAB ═══ -->
+      <div class="grocery-tab-panel" id="gtab-foodbanks">
+        <div class="foodbank-intro">
+          <div class="foodbank-intro-text">
+            <i class="fa-solid fa-hand-holding-heart"></i>
+            <div>
+              <strong>Food Banks, Soup Kitchens & Community Fridges</strong>
+              <p class="muted-text">Free food resources near your location — no purchase needed</p>
+            </div>
+          </div>
+          <div class="foodbank-btn-row">
+            <button id="btn-find-foodbanks" class="btn-primary" style="flex:1;justify-content:center;">
+              <i class="fa-solid fa-magnifying-glass-location"></i> Find Free Food Near Me
+            </button>
+          </div>
+          <div class="foodbank-radius-row">
+            <label for="foodbank-radius"><i class="fa-solid fa-arrows-left-right"></i> Search radius:</label>
+            <select id="foodbank-radius">
+              <option value="5">5 miles</option>
+              <option value="10" selected>10 miles</option>
+              <option value="15">15 miles</option>
+              <option value="25">25 miles</option>
+            </select>
+          </div>
+        </div>
+        <div id="foodbank-results"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Bathrooms & Restrooms Modal -->
+<div id="bathrooms-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-restroom"></i> Public Bathrooms & Showers</h2>
+      <button id="close-bathrooms-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="bathrooms-modal-body">
+      <!-- Search Controls -->
+      <div class="br-controls">
+        <div class="br-search-row">
+          <button id="btn-find-bathrooms" class="btn-primary" style="flex:1;justify-content:center;">
+            <i class="fa-solid fa-magnifying-glass-location"></i> Find Bathrooms Near Map Center
+          </button>
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="br-filter-row">
+          <label class="br-filter-chip"><input type="checkbox" id="br-filter-accessible"> <i class="fa-solid fa-wheelchair"></i> Accessible</label>
+          <label class="br-filter-chip"><input type="checkbox" id="br-filter-free"> <i class="fa-solid fa-hand-holding-heart"></i> Free</label>
+          <label class="br-filter-chip"><input type="checkbox" id="br-filter-24h"> <i class="fa-solid fa-clock"></i> 24/7</label>
+          <label class="br-filter-chip"><input type="checkbox" id="br-filter-showers"> <i class="fa-solid fa-shower"></i> Showers</label>
+          <label class="br-filter-chip"><input type="checkbox" id="br-filter-water"> <i class="fa-solid fa-faucet-drip"></i> Water</label>
+        </div>
+
+        <!-- Type Filter Buttons -->
+        <div class="br-type-filters">
+          <button class="br-type-btn active" data-brtype="all"><i class="fa-solid fa-grip"></i> All</button>
+          <button class="br-type-btn" data-brtype="public"><i class="fa-solid fa-restroom"></i> Public</button>
+          <button class="br-type-btn" data-brtype="park"><i class="fa-solid fa-tree"></i> Park</button>
+          <button class="br-type-btn" data-brtype="library"><i class="fa-solid fa-book"></i> Library</button>
+          <button class="br-type-btn" data-brtype="transit"><i class="fa-solid fa-bus"></i> Transit</button>
+          <button class="br-type-btn" data-brtype="shower"><i class="fa-solid fa-shower"></i> Shower</button>
+          <button class="br-type-btn" data-brtype="water"><i class="fa-solid fa-faucet-drip"></i> Water</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="br-summary" class="br-summary hidden"></div>
+
+      <!-- Results List -->
+      <div id="br-results">
+        <div class="br-intro">
+          <div class="br-intro-icon"><i class="fa-solid fa-restroom fa-2x"></i></div>
+          <h3>Public Bathroom Finder</h3>
+          <p>Find restrooms, showers, and drinking water sources near your camping location. Data from Refuge Restrooms community database and OpenStreetMap.</p>
+          <div class="br-sources-row">
+            <div class="br-source-badge refuge"><i class="fa-solid fa-people-group"></i> Refuge Restrooms</div>
+            <div class="br-source-badge osm"><i class="fa-brands fa-openstreetmap"></i> OpenStreetMap</div>
+            <div class="br-source-badge curated"><i class="fa-solid fa-star"></i> HoboApp Curated</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Trip Planner Modal -->
+<div id="trip-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-calendar-days"></i> Trip Planner</h2>
+      <button id="close-trip-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="trip-modal-body">
+      <div class="trip-controls">
+        <div class="trip-ctrl-row">
+          <div class="trip-ctrl-group">
+            <label><i class="fa-solid fa-calendar"></i> Start Date</label>
+            <input type="date" id="trip-start-date">
+          </div>
+          <div class="trip-ctrl-group">
+            <label><i class="fa-solid fa-moon"></i> Nights</label>
+            <input type="number" id="trip-num-nights" value="3" min="1" max="14" step="1">
+          </div>
+          <button id="btn-generate-trip" class="btn-primary" style="align-self:flex-end;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Itinerary
+          </button>
+        </div>
+        <p class="trip-hint"><i class="fa-solid fa-circle-info"></i> Click any night's location slot to assign a spot from your search results or favorites. Weather updates automatically.</p>
+      </div>
+
+      <!-- Trip Timeline -->
+      <div id="trip-timeline" class="trip-timeline">
+        <div class="trip-intro">
+          <div class="trip-intro-icon"><i class="fa-solid fa-route fa-2x"></i></div>
+          <h3>Plan Your Trip</h3>
+          <p>Set your start date and number of nights, then assign camp spots to each night. See weather forecasts, moon phase, and travel info for each stop.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bridge Shelter Finder Modal -->
+<div id="bridges-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-bridge"></i> Bridge Shelter Finder</h2>
+      <button id="close-bridges-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="bridges-modal-body">
+      <!-- Search Controls -->
+      <div class="bg-controls">
+        <div class="bg-search-row">
+          <button id="btn-find-bridges" class="btn-primary" style="flex:1;justify-content:center;">
+            <i class="fa-solid fa-magnifying-glass-location"></i> Find Bridges Near Map Center
+          </button>
+          <select id="bg-radius" class="bg-select">
+            <option value="3">3 mi</option>
+            <option value="5" selected>5 mi</option>
+            <option value="10">10 mi</option>
+            <option value="15">15 mi</option>
+          </select>
+          <select id="bg-sort" class="bg-select">
+            <option value="distance">Sort: Distance</option>
+            <option value="score">Sort: Shelter Score</option>
+            <option value="size">Sort: Size</option>
+          </select>
+        </div>
+
+        <!-- Category Filter Buttons -->
+        <div class="bg-type-filters">
+          <button class="bg-type-btn active" data-bgtype="all"><i class="fa-solid fa-grip"></i> All</button>
+          <button class="bg-type-btn" data-bgtype="water"><i class="fa-solid fa-water"></i> Over Water</button>
+          <button class="bg-type-btn" data-bgtype="road"><i class="fa-solid fa-road"></i> Over Road</button>
+          <button class="bg-type-btn" data-bgtype="railroad"><i class="fa-solid fa-train"></i> Over Rail</button>
+          <button class="bg-type-btn" data-bgtype="path"><i class="fa-solid fa-person-walking"></i> Over Path</button>
+          <button class="bg-type-btn" data-bgtype="other"><i class="fa-solid fa-bridge"></i> Other</button>
+        </div>
+
+        <!-- Min Score Slider -->
+        <div class="bg-score-row">
+          <label><i class="fa-solid fa-star"></i> Min Shelter Score:</label>
+          <input type="range" id="bg-min-score" min="0" max="90" value="0" step="10">
+          <span id="bg-min-score-val">0</span>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="bg-summary" class="bg-summary hidden"></div>
+
+      <!-- Results List -->
+      <div id="bg-results">
+        <div class="bg-intro">
+          <div class="bg-intro-icon"><i class="fa-solid fa-bridge fa-2x"></i></div>
+          <h3>Bridge Shelter Finder</h3>
+          <p>Locate bridges that could provide shelter. Each bridge is scored for "sleep-ability" based on size, clearance, material, and what passes underneath (river, road, or railroad).</p>
+          <div class="bg-sources-row">
+            <div class="bg-source-badge nbi"><i class="fa-solid fa-database"></i> FHWA National Bridge Inventory</div>
+            <div class="bg-source-badge osm"><i class="fa-brands fa-openstreetmap"></i> OpenStreetMap</div>
+          </div>
+          <div class="bg-legend">
+            <div class="bg-legend-item"><span class="bg-dot" style="background:#3b82f6"></span> Over Water (river, creek, canal)</div>
+            <div class="bg-legend-item"><span class="bg-dot" style="background:#6366f1"></span> Over Road (highway, overpass)</div>
+            <div class="bg-legend-item"><span class="bg-dot" style="background:#f59e0b"></span> Over Railroad</div>
+            <div class="bg-legend-item"><span class="bg-dot" style="background:#22c55e"></span> Over Path (pedestrian/bike)</div>
+            <div class="bg-legend-item"><span class="bg-dot" style="background:#94a3b8"></span> Other (drainage, valley)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Survival Resources Modal -->
+<div id="resources-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-hand-holding-heart"></i> Survival Resources</h2>
+      <button id="close-resources-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="resources-modal-body">
+      <!-- Search Controls -->
+      <div class="rs-controls">
+        <div class="rs-search-row">
+          <button id="btn-find-resources" class="btn-primary" style="flex:1;justify-content:center;">
+            <i class="fa-solid fa-magnifying-glass-location"></i> Find Resources Near Map Center
+          </button>
+          <select id="rs-radius" class="rs-select">
+            <option value="3">3 mi</option>
+            <option value="5" selected>5 mi</option>
+            <option value="10">10 mi</option>
+            <option value="15">15 mi</option>
+          </select>
+        </div>
+
+        <!-- Category Filter Buttons -->
+        <div class="rs-type-filters">
+          <button class="rs-type-btn active" data-rstype="all"><i class="fa-solid fa-grip"></i> All</button>
+          <button class="rs-type-btn" data-rstype="water"><i class="fa-solid fa-faucet-drip"></i> Water</button>
+          <button class="rs-type-btn" data-rstype="shower"><i class="fa-solid fa-shower"></i> Showers</button>
+          <button class="rs-type-btn" data-rstype="library"><i class="fa-solid fa-book"></i> Libraries</button>
+          <button class="rs-type-btn" data-rstype="laundry"><i class="fa-solid fa-shirt"></i> Laundry</button>
+          <button class="rs-type-btn" data-rstype="food_bank"><i class="fa-solid fa-utensils"></i> Food Banks</button>
+          <button class="rs-type-btn" data-rstype="community"><i class="fa-solid fa-people-roof"></i> Community</button>
+          <button class="rs-type-btn" data-rstype="wifi"><i class="fa-solid fa-wifi"></i> Free WiFi</button>
+          <button class="rs-type-btn" data-rstype="phone_charging"><i class="fa-solid fa-plug"></i> Charging</button>
+          <button class="rs-type-btn" data-rstype="rest_area"><i class="fa-solid fa-square-parking"></i> Rest Areas</button>
+          <button class="rs-type-btn" data-rstype="bottle_return"><i class="fa-solid fa-recycle"></i> Bottle Return</button>
+          <button class="rs-type-btn" data-rstype="clinic"><i class="fa-solid fa-kit-medical"></i> Free Clinics</button>
+          <button class="rs-type-btn" data-rstype="homeless_shelter"><i class="fa-solid fa-house-chimney"></i> Shelters</button>
+          <button class="rs-type-btn" data-rstype="hospital"><i class="fa-solid fa-hospital"></i> Hospitals</button>
+          <button class="rs-type-btn" data-rstype="pharmacy"><i class="fa-solid fa-prescription"></i> Pharmacies</button>
+          <button class="rs-type-btn" data-rstype="post_office"><i class="fa-solid fa-envelope"></i> Post Offices</button>
+          <button class="rs-type-btn" data-rstype="thrift_store"><i class="fa-solid fa-shirt"></i> Thrift/Free</button>
+          <button class="rs-type-btn" data-rstype="public_bookcase"><i class="fa-solid fa-book-open"></i> Free Books</button>
+          <button class="rs-type-btn" data-rstype="water_point"><i class="fa-solid fa-faucet"></i> Water Points</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="rs-summary" class="rs-summary hidden"></div>
+
+      <!-- Results List -->
+      <div id="rs-results">
+        <div class="rs-intro">
+          <div class="rs-intro-icon"><i class="fa-solid fa-hand-holding-heart fa-2x"></i></div>
+          <h3>Survival Resource Finder</h3>
+          <p>Find essential resources for life on the road: drinking water, showers, libraries, laundromats, food banks, phone charging, rest areas, bottle return, free clinics, homeless shelters, hospitals, pharmacies, post offices, thrift/free shops, Little Free Libraries, and water fill-up points.</p>
+          <div class="rs-sources-row">
+            <div class="rs-source-badge osm"><i class="fa-brands fa-openstreetmap"></i> OpenStreetMap</div>
+          </div>
+          <div class="rs-legend">
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#3b82f6"></span> Drinking Water</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#06b6d4"></span> Public Showers</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#8b5cf6"></span> Libraries</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#f59e0b"></span> Laundromats</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#ef4444"></span> Food Banks</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#ec4899"></span> Community Centers</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#a855f7"></span> Free WiFi</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#f97316"></span> Phone Charging</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#64748b"></span> Rest Areas</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#22c55e"></span> Bottle Return</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#dc2626"></span> Free Clinics</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#7c3aed"></span> Homeless Shelters</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#be123c"></span> Hospitals/ERs</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#0891b2"></span> Pharmacies</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#4338ca"></span> Post Offices</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#a16207"></span> Thrift/Free Shops</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#92400e"></span> Free Books/Libraries</div>
+            <div class="rs-legend-item"><span class="rs-dot" style="background:#0284c7"></span> Water Points (Tank)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transit Directions Modal -->
+<div id="transit-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-route"></i> Transit & Directions</h2>
+      <button id="close-transit-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="transit-modal-body">
+      <!-- Starting Address -->
+      <div class="transit-origin-bar">
+        <div class="transit-origin-input">
+          <i class="fa-solid fa-location-crosshairs"></i>
+          <input type="text" id="transit-from" placeholder="Enter starting address or 'My Location'..." autocomplete="off">
+          <button id="btn-transit-my-loc" title="Use my current location"><i class="fa-solid fa-crosshairs"></i></button>
+        </div>
+        <div class="transit-to-display" id="transit-to-display">
+          <i class="fa-solid fa-map-pin" style="color:var(--green)"></i>
+          <span id="transit-dest-name">Select a location first</span>
+        </div>
+        <button id="btn-get-directions" class="btn-primary" style="width:100%;justify-content:center;">
+          <i class="fa-solid fa-route"></i> Get Directions
+        </button>
+      </div>
+
+      <!-- Results -->
+      <div id="transit-results">
+        <div class="transit-intro">
+          <div class="transit-intro-icon"><i class="fa-solid fa-bus fa-2x"></i></div>
+          <h3>Multi-Modal Directions</h3>
+          <p>Enter a starting address and select a destination to see all travel options including walking, cycling, bus, Zip Shuttle, light rail, and driving with real WA transit fares.</p>
+          <div class="transit-agencies-grid">
+            <div class="transit-agency-badge ct"><i class="fa-solid fa-bus"></i> Community Transit</div>
+            <div class="transit-agency-badge zip"><i class="fa-solid fa-shuttle-van"></i> Zip Shuttle</div>
+            <div class="transit-agency-badge metro"><i class="fa-solid fa-bus-simple"></i> King County Metro</div>
+            <div class="transit-agency-badge st"><i class="fa-solid fa-train-subway"></i> Sound Transit</div>
+            <div class="transit-agency-badge et"><i class="fa-solid fa-bus"></i> Everett Transit</div>
+            <div class="transit-agency-badge pt"><i class="fa-solid fa-bus"></i> Pierce Transit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings & API Keys Modal -->
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal-content large-modal">
+    <div class="modal-header">
+      <h2><i class="fa-solid fa-gear"></i> Settings & API Keys</h2>
+      <button id="close-settings-modal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h3><i class="fa-solid fa-key"></i> API Key Configuration</h3>
+        <p class="settings-help">Configure API keys to unlock additional data sources. Keys are stored locally on your device.</p>
+
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label for="api-key-ridb">
+              <i class="fa-solid fa-database"></i> RIDB / Recreation.gov
+              <span class="api-status" id="status-ridb"></span>
+            </label>
+            <input type="text" id="api-key-ridb" placeholder="Get key at ridb.recreation.gov" spellcheck="false" autocomplete="off">
+            <small>Federal campgrounds, recreation areas, trails. <a href="https://ridb.recreation.gov" target="_blank">Get free key</a></small>
+          </div>
+
+          <div class="setting-item">
+            <label for="api-key-nps">
+              <i class="fa-solid fa-mountain-sun"></i> National Park Service
+              <span class="api-status" id="status-nps"></span>
+            </label>
+            <input type="text" id="api-key-nps" placeholder="Get key at developer.nps.gov" spellcheck="false" autocomplete="off">
+            <small>NPS campgrounds, visitor centers, parking lots, alerts. <a href="https://www.nps.gov/subjects/developer/get-started.htm" target="_blank">Get free key</a></small>
+          </div>
+
+          <div class="setting-item">
+            <label for="api-key-openchargemap">
+              <i class="fa-solid fa-charging-station"></i> OpenChargeMap
+              <span class="api-status" id="status-openchargemap"></span>
+            </label>
+            <input type="text" id="api-key-openchargemap" placeholder="Optional — works without key" spellcheck="false" autocomplete="off">
+            <small>EV charging stations for van/vehicle dwellers. <a href="https://openchargemap.org/site/develop/api" target="_blank">Get free key</a></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fa-solid fa-plug-circle-check"></i> Data Sources</h3>
+        <p class="settings-help">Toggle which sources are searched. Disabling unused sources speeds up searches.</p>
+        <div class="settings-toggles" id="source-toggles">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fa-solid fa-sliders"></i> Search Preferences</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label for="setting-default-radius"><i class="fa-solid fa-bullseye"></i> Default Search Radius</label>
+            <select id="setting-default-radius">
+              <option value="5">5 miles</option>
+              <option value="10">10 miles</option>
+              <option value="15">15 miles</option>
+              <option value="25" selected>25 miles</option>
+              <option value="50">50 miles</option>
+              <option value="100">100 miles</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label for="setting-max-results"><i class="fa-solid fa-list-ol"></i> Max Results Per Source</label>
+            <select id="setting-max-results">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-save-settings" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+        <button id="btn-reset-settings" class="btn-secondary"><i class="fa-solid fa-rotate-left"></i> Reset to Defaults</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App Script -->
+<script src="renderer.js"></script>
+</body>
+</html>
