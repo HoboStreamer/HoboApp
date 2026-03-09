@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="HoboApp search placeholder">
+  <rect width="1600" height="900" fill="#071018"/>
+  <rect x="40" y="40" width="1520" height="70" rx="16" fill="#0f1b29" stroke="#38bdf8"/>
+  <rect x="40" y="140" width="520" height="720" rx="22" fill="#0f172a" stroke="#1f2937"/>
+  <rect x="590" y="140" width="970" height="720" rx="22" fill="#0b1220" stroke="#334155"/>
+  <rect x="70" y="175" width="460" height="52" rx="10" fill="#172536"/>
+  <rect x="70" y="250" width="460" height="140" rx="16" fill="#162230"/>
+  <rect x="70" y="410" width="460" height="140" rx="16" fill="#162230"/>
+  <rect x="70" y="570" width="460" height="140" rx="16" fill="#162230"/>
+  <rect x="70" y="730" width="460" height="95" rx="16" fill="#162230"/>
+  <rect x="620" y="170" width="910" height="70" rx="14" fill="#13212f"/>
+  <rect x="620" y="270" width="910" height="120" rx="18" fill="#13212f"/>
+  <rect x="620" y="420" width="910" height="120" rx="18" fill="#13212f"/>
+  <rect x="620" y="570" width="910" height="120" rx="18" fill="#13212f"/>
+  <rect x="620" y="720" width="910" height="105" rx="18" fill="#13212f"/>
+  <circle cx="675" cy="330" r="18" fill="#22c55e"/>
+  <circle cx="675" cy="480" r="18" fill="#f59e0b"/>
+  <circle cx="675" cy="630" r="18" fill="#38bdf8"/>
+  <text x="70" y="95" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="34" font-weight="700">Results + detail workflow</text>
+  <text x="800" y="845" fill="#94a3b8" font-family="Arial, sans-serif" font-size="28" text-anchor="middle">Placeholder screenshot — replace with real search/result capture</text>
+</svg>
