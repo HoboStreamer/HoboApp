@@ -1,131 +1,145 @@
 # HoboApp
 
-**HoboApp** is an open-source Electron desktop app for researching stealth camping, shelter, hygiene, food, transit, weather, and survival resources across Washington State.
-It pulls together public data sources, curated field data, and planning tools into one fast desktop map interface designed for stealth campers, van dwellers, rough travelers, and nomads.
+HoboApp is an Electron desktop app for stealth-camping research, trip planning, and survival-resource discovery across Washington State.
 
-> Research tool only. Not a guarantee of safety, legality, access, or suitability.
+It combines curated location data, map-based search, public datasets, weather and terrain analysis, transit and grocery research, and local-only planning tools into one desktop workflow.
+
+> Research tool only. It does not guarantee safety, legality, access, or suitability.
+
+**Community:** [Join the Discord](https://discord.gg/M6MuRUaeJj)
 
 ---
 
-## Overview
+## What the current codebase does
 
-HoboApp helps you search around an address, city, or coordinates and quickly surface nearby:
-- stealth camping candidates
+The current codebase centers around:
+
+- an Electron main process in [src/main.js](src/main.js)
+- a secure preload bridge in [src/preload.js](src/preload.js)
+- a large renderer/UI layer in [src/renderer.js](src/renderer.js)
+- modular data adapters under [src/modules](src/modules)
+- local persistence for favorites, notes, recent searches, trip plans, custom spots, and spot photos
+
+The app is desktop-first and local-first. It is built for research and planning, not for cloud sync or social networking.
+
+---
+
+## Core features
+
+### Interactive map research
+
+- address, city, and coordinate lookup
+- rich map overlays and source-aware search progress
+- clustered results and detail panels
+- photo viewing for custom spots
+- dark desktop-oriented UI with animated shell behavior
+
+### Location and survival discovery
+
+The app aggregates public and curated sources to surface:
+
+- stealth-camping candidates
 - campgrounds and public land sites
-- bridge and overpass shelter spots
-- bathrooms and showers
-- water, food banks, libraries, laundry, and other survival resources
-- grocery options and budget meal ideas
-- transit routes and nearby agencies
-- weather, terrain, and elevation intel
-- waterways, woods, rain cover, and sketch/crime indicators
-- EV charging and van-life support stops
+- bridge and overpass shelter options
+- bathrooms and hygiene resources
+- showers, laundry, Wi‑Fi, food, water, libraries, clinics, and related services
+- grocery stores and meal-planning inputs
+- waterways, wooded cover, rain cover, and terrain/elevation context
+- transit options and agency/fare context
 - custom user-added spots with notes and photos
 
----
+### Planning tools
 
-## Screenshots
-
-### Main map and search
-![HoboApp main map](docs/screenshots/overview-placeholder.svg)
-
-### Search results and location research
-![HoboApp results](docs/screenshots/search-placeholder.svg)
-
-### Trip planning workflow
-![HoboApp trip planner](docs/screenshots/trip-planner-placeholder.svg)
-
-> Replace these placeholder images with real screenshots from the app when ready.
-
----
-
-## Key features
-
-### Interactive desktop map
-- Leaflet-based map UI
-- dark and light themes
-- satellite imagery toggle
-- clustered markers for large result sets
-- heatmap overlays, including crime/sketch heatmap support
-- source-by-source progress tracking during search
-
-### Multi-source location search
-HoboApp queries many public and curated sources, normalizes the returned records, deduplicates overlapping spots, and presents them in a single searchable map/list workflow.
-
-### Survival and field utilities
-- **Bathrooms & showers** lookup
-- **Bridge shelter** finder
-- **Resource search** for water, food, libraries, laundry, WiFi, and more
-- **Transit & directions** support
-- **Weather, elevation, and terrain** analysis before heading out
-
-### Food and budget planning
-- nearby grocery store search
-- food bank lookup
-- nutrition lookup
-- quick meal planning
-- budget meal optimization helpers
-
-### Personal planning tools
 - favorites
 - saved notes
 - recent searches
-- custom spots
-- local trip plans
-- custom spot photo attachments
-- local settings and optional API key storage
+- custom locations
+- trip-planning workflows
+- GPX export
+- optional custom photo attachments for saved spots
 
-### Export and portability
-- export filtered results to **GPX**
+### Local-only persistence and safer file handling
+
+The main process stores user data locally and includes guardrails around:
+
+- text sanitization
+- coordinate normalization
+- safer external URL opening
+- safer custom-photo path handling
 
 ---
 
-## Data sources
+## Data sources and adapters
 
-HoboApp combines multiple public APIs, OpenStreetMap-derived layers, curated datasets, and custom parsers.
-
-Integrated sources include:
+The main process currently wires together modules including:
 
 - RIDB / Recreation.gov
-- OpenStreetMap / Overpass
-- FreeCampsites.net
+- Overpass / OpenStreetMap
+- FreeCampsites
 - iOverlander
-- FHWA bridge data + OSM bridge queries
-- restroom and shower datasets
-- survival resources from OSM
-- USFS recreation opportunities
-- National Park Service data
+- geocoding helpers
+- weather
+- Reddit lookup
+- terrain and elevation analysis
+- transit
+- grocery helpers
+- bathrooms
+- bridge data
+- survival-resource search
+- USFS
+- woods / waterways
+- National Park Service
 - OpenChargeMap
-- waterways and woods datasets
-- rain-cover / overhead shelter data
-- crime / sketch-area indicators
-- built-in curated Washington State locations
-- Reddit search for local stealth camping intel
-- weather and elevation analysis services
+- cover / rain-cover research
+- crime-data helpers
+- built-in curated static data
 
-Some integrations work without keys. Some optional providers are better when API keys are configured in-app.
+See [src/main.js](src/main.js) and [src/modules](src/modules).
 
 ---
 
-## Tech stack
+## Architecture summary
 
-- **Electron**
-- **Node.js**
-- **Leaflet**
-- **Chart.js**
-- **Toastify**
-- **Tippy.js**
-- **Day.js**
-- **Axios**
-- **Cheerio**
-- **NodeCache**
+### Main process
+
+[src/main.js](src/main.js) owns:
+
+- Electron window lifecycle
+- IPC routing
+- local JSON persistence
+- photo storage helpers
+- source orchestration and normalization entry points
+
+### Preload bridge
+
+[src/preload.js](src/preload.js) exposes renderer-facing APIs for:
+
+- search and geocoding
+- weather / terrain / elevation
+- Reddit search
+- user-data persistence
+- favorites and notes
+- custom locations
+- spot photo management
+
+### Renderer
+
+[src/renderer.js](src/renderer.js) drives:
+
+- search flows
+- detail panels
+- weather modal
+- photo viewer/lightbox
+- custom-spot workflows
+- trip planning and research interactions
 
 ---
 
 ## Installation
 
 ### Requirements
-- Node.js
+
+- Node.js 18+
 - npm
 - Linux, macOS, or Windows capable of running Electron
 
@@ -146,34 +160,43 @@ npm run dev
 
 ## Repository layout
 
-- [package.json](package.json) — app metadata and scripts
-- [src/main.js](src/main.js) — Electron main process and IPC orchestration
+- [package.json](package.json) — Electron app metadata and scripts
+- [src/main.js](src/main.js) — main process, persistence, IPC, source orchestration
 - [src/preload.js](src/preload.js) — secure renderer bridge
-- [src/renderer.js](src/renderer.js) — main application UI logic
-- [src/index.html](src/index.html) — app shell and modal layout
+- [src/renderer.js](src/renderer.js) — UI logic
+- [src/index.html](src/index.html) — app shell
 - [src/styles.css](src/styles.css) — styling and animations
 - [src/modules](src/modules) — source adapters and utilities
 
-Notable modules:
+Representative modules:
 
-- [src/modules/ridb.js](src/modules/ridb.js)
 - [src/modules/freecampsites.js](src/modules/freecampsites.js)
 - [src/modules/ioverlander.js](src/modules/ioverlander.js)
 - [src/modules/bathrooms.js](src/modules/bathrooms.js)
 - [src/modules/bridges.js](src/modules/bridges.js)
-- [src/modules/resources.js](src/modules/resources.js)
 - [src/modules/grocery.js](src/modules/grocery.js)
-- [src/modules/transit.js](src/modules/transit.js)
-- [src/modules/weather.js](src/modules/weather.js)
-- [src/modules/terrain.js](src/modules/terrain.js)
-- [src/modules/nps.js](src/modules/nps.js)
-- [src/modules/openchargemap.js](src/modules/openchargemap.js)
+- [src/modules/geocoder.js](src/modules/geocoder.js)
+- [src/modules/harmreduction.js](src/modules/harmreduction.js)
+
+---
+
+## Tech stack
+
+The checked-in package metadata currently uses:
+
+- Electron
+- Node.js
+- Axios
+- Cheerio
+- NodeCache
+
+The app also relies heavily on custom renderer logic and internal source modules rather than a large frontend framework.
 
 ---
 
 ## Privacy
 
-HoboApp stores user data locally in Electron's app data directory, including:
+HoboApp stores user data locally, including:
 
 - favorites
 - notes
@@ -184,15 +207,15 @@ HoboApp stores user data locally in Electron's app data directory, including:
 - optional API keys
 - custom spot photos
 
-This repo does not include a hosted sync backend for that personal data.
+There is no hosted sync service in this repository for that personal data.
 
 ---
 
 ## Safety and legal notice
 
-This project is for **informational and educational use only**.
+This project is for informational and educational use only.
 
-Outdoor sleeping, stealth camping, trespassing, and remote travel carry real risk, including injury, arrest, property loss, and death. Data may be incomplete, stale, inaccurate, unsafe, or legally unusable. Always verify conditions, land ownership, weather, access rules, and local laws yourself.
+Outdoor sleeping, stealth camping, trespassing, and remote travel carry real risk, including injury, arrest, property loss, and death. Data can be stale, incomplete, unsafe, inaccurate, or legally unusable. Always verify land ownership, weather, access restrictions, and local law yourself.
 
 Use HoboApp at your own risk.
 
@@ -200,26 +223,26 @@ Use HoboApp at your own risk.
 
 ## Project status
 
-The public project name is **HoboApp**, but some internal code and UI strings still use older names such as **HoboCamp** and **GhostCamp**.
+- package version is currently `2.0.0`
+- some internal storage names still reference older names such as `hobocamp`
+- the current app is Washington-focused and desktop-first
 
 ---
 
 ## Contributing
 
-Issues and pull requests are welcome.
+Useful contribution areas:
 
-Helpful contribution areas:
-
-- improving source quality and deduplication
-- adding support beyond Washington State
-- better offline caching
-- stronger filtering and safety scoring
+- source quality improvements and deduplication
+- better result scoring and filtering
 - renderer performance and UI polish
-- packaging and release automation
-- replacing placeholder screenshots with real captures
+- broader geography support beyond Washington State
+- offline caching improvements
+- release packaging and distribution
+- documentation and screenshot refreshes
 
 ---
 
 ## License
 
-See [LICENSE](LICENSE) for the full project license.
+See [LICENSE](LICENSE).

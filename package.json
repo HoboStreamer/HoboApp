@@ -4,8 +4,8 @@
   "description": "HoboApp - Washington State Stealth Camp & Shelter Locator",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron . --no-sandbox",
-    "dev": "electron . --no-sandbox --dev"
+    "start": "electron .",
+    "dev": "electron . --dev"
   },
   "keywords": [
     "camping",
