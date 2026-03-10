@@ -17,6 +17,7 @@
   const state = {
     map: null,
     markers: null,
+    markerCache: new Map(),
     heatLayer: null,
     userMarker: null,
     lastSearch: null,
@@ -44,9 +45,12 @@
     totalFound: 0,
     queryTime: 0,
     sourceTimings: {},
+    legendCounts: {},
     userData: {},
     transitRoute: null,
     transitDestination: null,
+    resultsRenderStep: 250,
+    renderedResultsLimit: 250,
   };
 
   // WA center
@@ -148,6 +152,27 @@
       restroom: '#2dd4bf', woods: '#15803d', sketch: '#f87171', default: '#94a3b8',
     };
     return colors[tc] || '#94a3b8';
+  }
+
+  function enrichLocation(loc) {
+    const enriched = { ...loc, _id: loc._id || makeId(loc) };
+    enriched._typeClass = typeClass(enriched);
+    return enriched;
+  }
+
+  function rebuildLegendCounts() {
+    const tally = {};
+    state.locations.forEach((loc) => {
+      const tc = loc._typeClass || typeClass(loc);
+      tally[tc] = (tally[tc] || 0) + 1;
+    });
+    state.legendCounts = tally;
+  }
+
+  function resetSearchDerivedState() {
+    state.markerCache.clear();
+    state.legendCounts = {};
+    state.renderedResultsLimit = state.resultsRenderStep;
   }
 
   function typeBadge(tc) {
@@ -425,8 +450,16 @@
     });
 
     // Track mouse coords in footer
+    let mouseCoordsFrame = null;
+    let latestMouseCoords = null;
     state.map.on('mousemove', (e) => {
-      $('#footer-coords').textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+      latestMouseCoords = e.latlng;
+      if (mouseCoordsFrame) return;
+      mouseCoordsFrame = requestAnimationFrame(() => {
+        mouseCoordsFrame = null;
+        if (!latestMouseCoords) return;
+        $('#footer-coords').textContent = `${latestMouseCoords.lat.toFixed(4)}, ${latestMouseCoords.lng.toFixed(4)}`;
+      });
     });
 
     // Click map to add custom spot
@@ -629,7 +662,7 @@
         setFooterStatus(`<i class="fa-solid fa-exclamation-triangle"></i> Search timed out — showing ${state.locations.length} spots found`);
         toast('Search timed out — some sources didn\'t respond', 'warning');
         if (state.locations.length > 0) {
-          applyFilters(); updateMap(); showSortControls(); updateResultsSummary();
+          applyFilters(); showSortControls();
         }
       }
     }, SEARCH_SAFETY_TIMEOUT);
@@ -642,6 +675,7 @@
 
     // ── Progressive loading: stream results to map as each source completes ──
     state.locations = [];
+    resetSearchDerivedState();
     state._partialBounds = null;
 
     // Clean up previous partial results listener
@@ -651,15 +685,15 @@
       if (!Array.isArray(locations) || locations.length === 0) return;
 
       // Tag new locations with IDs and append
-      const newLocs = locations.map(loc => ({ ...loc, _id: makeId(loc) }));
+      const newLocs = locations.map(enrichLocation);
       state.locations.push(...newLocs);
+      rebuildLegendCounts();
 
       // Debounced map update — batch rapid source completions together
       // instead of re-rendering markers for every single source
       clearTimeout(state._partialMapTimer);
       state._partialMapTimer = setTimeout(() => {
         applyFilters();
-        updateMap();
       }, 400);
 
       // Update status footer (lightweight, no debounce needed)
@@ -706,7 +740,7 @@
 
       if (result.locations) {
         // Final deduped results replace the incrementally built list
-        state.locations = result.locations.map(loc => ({ ...loc, _id: makeId(loc) }));
+        state.locations = result.locations.map(enrichLocation);
 
         // Merge in custom spots within search radius
         try {
@@ -715,18 +749,19 @@
             if (c.lat && c.lon) {
               const dist = haversine(lat, lon, c.lat, c.lon);
               if (dist <= radiusMiles) {
-                state.locations.push({ ...c, _id: c.id || makeId(c), _source: 'Custom', distanceMiles: Math.round(dist * 10) / 10 });
+                state.locations.push(enrichLocation({ ...c, _id: c.id || makeId(c), _source: 'Custom', distanceMiles: Math.round(dist * 10) / 10 }));
               }
             }
           }
         } catch (e) {}
 
+        resetSearchDerivedState();
+        rebuildLegendCounts();
+
         state.lastSearch = { query, lat, lon, radiusMiles, result };
 
         applyFilters();
-        updateMap();
         showSortControls();
-        updateResultsSummary();
 
         // Final fit bounds — single smooth zoom once all data is in
         clearTimeout(state._partialMapTimer);
@@ -780,11 +815,11 @@
     } else if (state.activeFilter === 'cover') {
       // "Rain Cover" is a compound filter: bridges + covered structures + caves + dense canopy + shelters
       list = list.filter(l => {
-        const tc = typeClass(l);
+        const tc = l._typeClass || typeClass(l);
         return tc === 'cover' || tc === 'bridge' || tc === 'shelter';
       });
     } else if (state.activeFilter !== 'all') {
-      list = list.filter(l => typeClass(l) === state.activeFilter);
+      list = list.filter(l => (l._typeClass || typeClass(l)) === state.activeFilter);
     }
 
     // Sort
@@ -797,10 +832,11 @@
 
     // Apply legend type toggles
     if (state.legendDisabled?.size > 0) {
-      list = list.filter(l => !state.legendDisabled.has(typeClass(l)));
+      list = list.filter(l => !state.legendDisabled.has(l._typeClass || typeClass(l)));
     }
 
     state.filtered = list;
+    state.renderedResultsLimit = state.resultsRenderStep;
     renderResults();
     updateMap();
     updateResultsSummary();
@@ -810,23 +846,21 @@
   /** Update the live counts shown on each legend row */
   function updateLegendCounts() {
     if (state.locations.length === 0) return;
-    const tally = {};
-    state.locations.forEach(l => {
-      const tc = typeClass(l);
-      tally[tc] = (tally[tc] || 0) + 1;
-    });
     document.querySelectorAll('.legend-item[data-type]').forEach(el => {
       const tc = el.dataset.type;
       const badge = el.querySelector('.legend-count');
-      if (badge) badge.textContent = tally[tc] || 0;
-      el.style.display = (tally[tc] || 0) > 0 ? '' : 'none';
+      const count = state.legendCounts[tc] || 0;
+      if (badge) badge.textContent = count;
+      el.style.display = count > 0 ? '' : 'none';
     });
   }
 
   function updateResultsSummary() {
     const summary = $('#results-summary');
     if (state.locations.length === 0) { summary.innerHTML = ''; return; }
-    summary.innerHTML = `<strong>${state.filtered.length}</strong> of ${state.locations.length} spots <button id="btn-export-results" class="export-inline-btn" title="Export as GPX"><i class="fa-solid fa-file-export"></i></button>`;
+    const shown = Math.min(state.filtered.length, state.renderedResultsLimit);
+    const shownText = state.filtered.length > shown ? ` <span class="muted-text">(showing ${shown})</span>` : '';
+    summary.innerHTML = `<strong>${state.filtered.length}</strong> of ${state.locations.length} spots${shownText} <button id="btn-export-results" class="export-inline-btn" title="Export as GPX"><i class="fa-solid fa-file-export"></i></button>`;
     const exportBtn = $('#btn-export-results');
     if (exportBtn) {
       exportBtn.addEventListener('click', async () => {
@@ -853,8 +887,11 @@
       return;
     }
 
-    container.innerHTML = state.filtered.map((loc, i) => {
-      const tc = typeClass(loc);
+    const visibleResults = state.filtered.slice(0, state.renderedResultsLimit);
+    const hasMore = state.filtered.length > visibleResults.length;
+
+    container.innerHTML = visibleResults.map((loc, i) => {
+      const tc = loc._typeClass || typeClass(loc);
       const isFav = state.favorites.includes(loc._id);
       const dist = loc.distanceMiles ? distanceText(loc.distanceMiles) : '';
       return `
@@ -882,23 +919,12 @@
             ${(loc.amenities || []).slice(0, 4).map(a => `<span class="result-tag"><i class="fa-solid fa-check"></i> ${a}</span>`).join('')}
           </div>
         </div>`;
-    }).join('');
-
-    // Event listeners
-    container.querySelectorAll('.result-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.result-fav-btn')) return;
-        const idx = parseInt(card.dataset.idx);
-        selectLocation(state.filtered[idx]);
-      });
-    });
-
-    container.querySelectorAll('.result-fav-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleFavorite(btn.dataset.favId);
-      });
-    });
+    }).join('') + (hasMore ? `
+      <div class="results-load-more-wrap">
+        <button class="detail-btn primary" id="btn-results-load-more" type="button">
+          <i class="fa-solid fa-chevron-down"></i> Load ${Math.min(state.resultsRenderStep, state.filtered.length - visibleResults.length)} More
+        </button>
+      </div>` : '');
   }
 
   function initTooltips() {
@@ -916,31 +942,33 @@
     const batch = [];
     state.filtered.forEach(loc => {
       if (!loc.lat || !loc.lon) return;
-      const tc = typeClass(loc);
+      const tc = loc._typeClass || typeClass(loc);
+      let marker = state.markerCache.get(loc._id);
+      if (!marker) {
+        const icon = L.divIcon({
+          html: `<div class="custom-marker ${tc}" data-badge="${typeBadge(tc)}"><i class="fa-solid ${typeIcon(tc)}"></i></div>`,
+          className: '',
+          iconSize: [42, 42],
+          iconAnchor: [21, 42],
+          popupAnchor: [0, -42],
+        });
 
-      const icon = L.divIcon({
-        html: `<div class="custom-marker ${tc}" data-badge="${typeBadge(tc)}"><i class="fa-solid ${typeIcon(tc)}"></i></div>`,
-        className: '',
-        iconSize: [42, 42],
-        iconAnchor: [21, 42],
-        popupAnchor: [0, -42],
-      });
-
-      const marker = L.marker([loc.lat, loc.lon], { icon });
-      marker._typeClass = tc; // store for cluster coloring
-      const dist = loc.distanceMiles ? `<br><span class="popup-distance">${distanceText(loc.distanceMiles)}</span>` : '';
-      marker.bindPopup(`
-        <div class="popup-name">${loc.name}</div>
-        <div class="popup-type">${loc.type || 'Unknown'} – ${loc.source || ''}</div>
-        ${dist}
-        <a href="#" class="popup-link">View details →</a>
-      `);
-
-      marker.on('click', () => selectLocation(loc));
-      marker.on('popupopen', () => {
-        const link = marker.getPopup().getElement()?.querySelector('.popup-link');
-        if (link) link.addEventListener('click', (e) => { e.preventDefault(); selectLocation(loc); });
-      });
+        marker = L.marker([loc.lat, loc.lon], { icon });
+        marker._typeClass = tc;
+        const dist = loc.distanceMiles ? `<br><span class="popup-distance">${distanceText(loc.distanceMiles)}</span>` : '';
+        marker.bindPopup(`
+          <div class="popup-name">${loc.name}</div>
+          <div class="popup-type">${loc.type || 'Unknown'} – ${loc.source || ''}</div>
+          ${dist}
+          <a href="#" class="popup-link">View details →</a>
+        `);
+        marker.on('click', () => selectLocation(loc));
+        marker.on('popupopen', () => {
+          const link = marker.getPopup().getElement()?.querySelector('.popup-link');
+          if (link) link.addEventListener('click', (e) => { e.preventDefault(); selectLocation(loc); }, { once: true });
+        });
+        state.markerCache.set(loc._id, marker);
+      }
       batch.push(marker);
     });
 
@@ -4537,6 +4565,28 @@
       if (e.key === 'Enter') { hide($('#recent-searches-dropdown')); performSearch($('#search-input').value); }
     });
     $('#search-input').addEventListener('focus', () => showRecentSearches());
+    $('#results-list').addEventListener('click', (e) => {
+      const loadMoreBtn = e.target.closest('#btn-results-load-more');
+      if (loadMoreBtn) {
+        state.renderedResultsLimit += state.resultsRenderStep;
+        renderResults();
+        updateResultsSummary();
+        return;
+      }
+
+      const favBtn = e.target.closest('.result-fav-btn');
+      if (favBtn) {
+        e.stopPropagation();
+        toggleFavorite(favBtn.dataset.favId);
+        return;
+      }
+
+      const card = e.target.closest('.result-card');
+      if (card) {
+        const idx = parseInt(card.dataset.idx, 10);
+        if (Number.isFinite(idx) && state.filtered[idx]) selectLocation(state.filtered[idx]);
+      }
+    });
     // Hide dropdown when clicking outside
     document.addEventListener('click', (e) => {
       const dropdown = $('#recent-searches-dropdown');
@@ -4596,12 +4646,15 @@
     });
 
     // Forest/Woods heatmap toggle
-    $('#btn-forest-heatmap').addEventListener('click', () => {
-      state.forestHeatmapOn = !state.forestHeatmapOn;
-      $('#btn-forest-heatmap').classList.toggle('active', state.forestHeatmapOn);
-      updateForestHeatLayer();
-      toast(state.forestHeatmapOn ? 'Forest & woods cover heatmap ON' : 'Forest cover heatmap OFF', 'info');
-    });
+    const forestHeatmapBtn = $('#btn-forest-heatmap');
+    if (forestHeatmapBtn) {
+      forestHeatmapBtn.addEventListener('click', () => {
+        state.forestHeatmapOn = !state.forestHeatmapOn;
+        forestHeatmapBtn.classList.toggle('active', state.forestHeatmapOn);
+        updateForestHeatLayer();
+        toast(state.forestHeatmapOn ? 'Forest & woods cover heatmap ON' : 'Forest cover heatmap OFF', 'info');
+      });
+    }
 
     // Crime heatmap toggle
     $('#btn-crime-heatmap').addEventListener('click', () => {
@@ -4612,10 +4665,12 @@
     });
 
     // Satellite toggle — shared handler for both buttons
+    const satelliteBtn = $('#btn-satellite');
+    const mapSatelliteBtn = $('#btn-map-satellite');
     function toggleSatellite() {
       state.satelliteOn = !state.satelliteOn;
-      $('#btn-satellite').classList.toggle('active', state.satelliteOn);
-      $('#btn-map-satellite').classList.toggle('active', state.satelliteOn);
+      if (satelliteBtn) satelliteBtn.classList.toggle('active', state.satelliteOn);
+      if (mapSatelliteBtn) mapSatelliteBtn.classList.toggle('active', state.satelliteOn);
       if (state.satelliteOn) {
         state.map.removeLayer(state.darkTiles);
         state.map.removeLayer(state.lightTiles);
@@ -4627,8 +4682,8 @@
       }
       toast(state.satelliteOn ? 'Satellite view' : 'Map view', 'info');
     }
-    $('#btn-satellite').addEventListener('click', toggleSatellite);
-    $('#btn-map-satellite').addEventListener('click', toggleSatellite);
+    if (satelliteBtn) satelliteBtn.addEventListener('click', toggleSatellite);
+    if (mapSatelliteBtn) mapSatelliteBtn.addEventListener('click', toggleSatellite);
 
     // Theme toggle
     $('#btn-theme').addEventListener('click', toggleTheme);

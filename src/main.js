@@ -37,6 +37,15 @@ const NodeCache = require('node-cache');
 
 app.commandLine.appendSwitch('no-sandbox');
 
+// Fix Chromium crashes on Steam Deck / Linux:
+// - SystemdScope: prevents D-Bus "UnitExists" hang
+// - NetworkServiceSandbox: prevents network service crash that blocks CDN loading
+// - GPU fallback: prevents GPU process launch failure
+app.commandLine.appendSwitch('disable-features', 'SystemdScope,NetworkServiceSandbox');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+app.commandLine.appendSwitch('use-gl', 'angle');
+app.commandLine.appendSwitch('use-angle', 'swiftshader');
+
 // ─── Search Cache (5-min TTL, auto-purge every 60s) ────────────────
 const searchCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
