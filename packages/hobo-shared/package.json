@@ -1,0 +1,17 @@
+{
+  "name": "hobo-shared",
+  "version": "1.0.0",
+  "description": "Shared auth, theme, and brand utilities for the Hobo Network",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./auth-client": "./auth-client.js",
+    "./theme-sync": "./theme-sync.js",
+    "./brand": "./brand.js",
+    "./middleware": "./middleware.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.0"
+  }
+}

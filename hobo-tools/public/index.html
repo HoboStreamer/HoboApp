@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hobo Network — One Account. All of Hobo.</title>
+    <meta name="description" content="The Hobo Network hub. Live streaming, MMORPG, camp maps, and nomadic utilities — all connected by one account.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary:   #1e1e24;
+            --bg-secondary: #252530;
+            --bg-tertiary:  #2a2a38;
+            --bg-card:      #22222c;
+            --bg-hover:     #2f2f3d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b8;
+            --text-muted:   #707080;
+            --accent:       #c0965c;
+            --accent-light: #dbb077;
+            --accent-dark:  #a07840;
+            --border:       #333340;
+            --border-light: #404050;
+            --shadow:       0 2px 8px rgba(0,0,0,0.3);
+            --shadow-lg:    0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        a { color: var(--accent-light); text-decoration: none; transition: color .2s; }
+        a:hover { color: var(--accent); }
+
+        /* ── Hero ─────────────────────────────────────── */
+        .hero {
+            text-align: center;
+            padding: 100px 24px 60px;
+            background: radial-gradient(ellipse at 50% 0%, rgba(192,150,92,0.08) 0%, transparent 70%);
+            position: relative;
+        }
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+        .hero-flame {
+            font-size: 56px;
+            margin-bottom: 16px;
+            display: block;
+            filter: drop-shadow(0 0 24px rgba(192,150,92,0.4));
+        }
+        .hero h1 {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero .tagline {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+        .hero .cta-row {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            border: none;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--accent-dark); color: #fff; }
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-light); color: #fff; }
+
+        /* ── Services Grid ────────────────────────────── */
+        .services {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 64px 24px;
+        }
+        .services h2 {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            color: var(--text-secondary);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px 24px;
+            transition: all .25s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover {
+            border-color: var(--accent-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .card .icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+            display: block;
+        }
+        .card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .card .tag {
+            display: inline-block;
+            margin-top: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(192,150,92,0.12);
+            color: var(--accent-light);
+        }
+
+        /* ── SSO Banner ───────────────────────────────── */
+        .sso-banner {
+            text-align: center;
+            padding: 48px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .sso-banner h2 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .sso-banner p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            max-width: 500px;
+            margin-inline: auto;
+            line-height: 1.6;
+        }
+        .sso-banner .service-dots {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .service-dot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .service-dot .dot {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .service-dot span {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ── Footer ───────────────────────────────────── */
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+        }
+        footer p { font-size: 13px; color: var(--text-muted); }
+        footer .links { margin-top: 8px; display: flex; justify-content: center; gap: 16px; }
+        footer .links a { font-size: 13px; color: var(--text-muted); }
+        footer .links a:hover { color: var(--accent-light); }
+
+        /* ── Auth Pages (login/register) ──────────────── */
+        .auth-container {
+            display: none;
+            max-width: 420px;
+            margin: 80px auto;
+            padding: 0 24px;
+        }
+        .auth-container.active { display: block; }
+        .auth-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 36px 32px;
+        }
+        .auth-box h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 22px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: border-color .2s;
+        }
+        .form-group input:focus { border-color: var(--accent); }
+        .auth-error {
+            background: rgba(231,76,60,0.1);
+            border: 1px solid rgba(231,76,60,0.3);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: #e74c3c;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .auth-switch {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 28px; }
+            .hero { padding: 60px 16px 40px; }
+            .services { padding: 40px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ LANDING PAGE ═══════════════════════ -->
+<div id="landing">
+    <section class="hero">
+        <span class="hero-flame">🔥</span>
+        <h1>Hobo Network</h1>
+        <p class="tagline">One Account. All of Hobo.</p>
+        <div class="cta-row">
+            <a href="#" class="btn btn-primary" onclick="showAuth('register')">Create Account</a>
+            <a href="#" class="btn btn-secondary" onclick="showAuth('login')">Sign In</a>
+        </div>
+    </section>
+
+    <section class="services">
+        <h2>The Network</h2>
+        <div class="grid">
+            <a class="card" href="https://hobostreamer.com" target="_blank">
+                <span class="icon">📡</span>
+                <h3>HoboStreamer</h3>
+                <p>Live streaming platform for the nomadic community. Watch streams, chat, and interact with real robots.</p>
+                <span class="tag">Live Streaming</span>
+            </a>
+            <a class="card" href="https://hobo.quest" target="_blank">
+                <span class="icon">⚔️</span>
+                <h3>HoboQuest</h3>
+                <p>Community MMORPG and collaborative canvas. Level up, battle, craft, and leave your mark on the world.</p>
+                <span class="tag">Games</span>
+            </a>
+            <a class="card" href="https://maps.hobo.tools" target="_blank">
+                <span class="icon">🗺️</span>
+                <h3>HoboMaps</h3>
+                <p>Find free campsites, shelters, water sources, and community resources across the Pacific Northwest.</p>
+                <span class="tag">Maps</span>
+            </a>
+            <a class="card" href="https://dl.hobo.tools" target="_blank">
+                <span class="icon">🔧</span>
+                <h3>HoboTools</h3>
+                <p>YouTube downloader, media converters, and nomadic utilities. Practical tools for life on the road.</p>
+                <span class="tag">Utilities</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="sso-banner">
+        <div class="service-dots">
+            <div class="service-dot"><div class="dot">📡</div><span>Streamer</span></div>
+            <div class="service-dot"><div class="dot">⚔️</div><span>Quest</span></div>
+            <div class="service-dot"><div class="dot">🗺️</div><span>Maps</span></div>
+            <div class="service-dot"><div class="dot">🔧</div><span>Tools</span></div>
+        </div>
+        <h2>One Account. All of Hobo.</h2>
+        <p>Sign in once and you're everywhere — your identity, your theme, your progress, all synced across every Hobo service.</p>
+        <a href="#" class="btn btn-primary" onclick="showAuth('register')">Get Started</a>
+    </section>
+</div>
+
+<!-- ═══════════════════════ AUTH FORMS ═════════════════════════ -->
+<div id="auth-register" class="auth-container">
+    <div class="auth-box">
+        <h2>Create Account</h2>
+        <div class="auth-error" id="register-error"></div>
+        <form onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label for="reg-username">Username</label>
+                <input id="reg-username" name="username" type="text" required minlength="3" maxlength="24" autocomplete="username" placeholder="hobo_wanderer">
+            </div>
+            <div class="form-group">
+                <label for="reg-email">Email <span style="color:var(--text-muted)">(optional)</span></label>
+                <input id="reg-email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input id="reg-password" name="password" type="password" required minlength="6" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Create Account</button>
+        </form>
+        <p class="auth-switch">Already have an account? <a href="#" onclick="showAuth('login')">Sign In</a></p>
+    </div>
+</div>
+
+<div id="auth-login" class="auth-container">
+    <div class="auth-box">
+        <h2>Sign In</h2>
+        <div class="auth-error" id="login-error"></div>
+        <form onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="login-username">Username</label>
+                <input id="login-username" name="username" type="text" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input id="login-password" name="password" type="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Sign In</button>
+        </form>
+        <p class="auth-switch">Don't have an account? <a href="#" onclick="showAuth('register')">Create one</a></p>
+    </div>
+</div>
+
+<footer>
+    <p>&copy; 2025 Hobo Network. Open source on <a href="https://github.com/HoboStreamer" target="_blank">GitHub</a>.</p>
+    <div class="links">
+        <a href="https://hobostreamer.com">HoboStreamer</a>
+        <a href="https://hobo.quest">HoboQuest</a>
+        <a href="https://discord.gg/M6MuRUaeJj">Discord</a>
+    </div>
+</footer>
+
+<script>
+    const API = '/api';
+
+    function showAuth(mode) {
+        document.getElementById('landing').style.display = 'none';
+        document.getElementById('auth-register').classList.toggle('active', mode === 'register');
+        document.getElementById('auth-login').classList.toggle('active', mode === 'login');
+        window.scrollTo(0, 0);
+    }
+
+    function showLanding() {
+        document.getElementById('landing').style.display = '';
+        document.getElementById('auth-register').classList.remove('active');
+        document.getElementById('auth-login').classList.remove('active');
+    }
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    async function handleRegister(e) {
+        e.preventDefault();
+        document.getElementById('register-error').style.display = 'none';
+        const username = document.getElementById('reg-username').value.trim();
+        const email = document.getElementById('reg-email').value.trim() || undefined;
+        const password = document.getElementById('reg-password').value;
+
+        try {
+            const res = await fetch(`${API}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Registration failed');
+            onAuthSuccess(data.token, data.user);
+        } catch (err) {
+            showError('register-error', err.message);
+        }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        document.getElementById('login-error').style.display = 'none';
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        try {
+            const res = await fetch(`${API}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Login failed');
+            onAuthSuccess(data.token, data.user);
+        } catch (err) {
+            showError('login-error', err.message);
+        }
+    }
+
+    function onAuthSuccess(token, user) {
+        document.cookie = `hobo_token=${token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+        localStorage.setItem('hobo_token', token);
+        localStorage.setItem('hobo_user', JSON.stringify(user));
+
+        // Multi-account: store in accounts list
+        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
+        const existing = accounts.findIndex(a => a.id === user.id);
+        const entry = { id: user.id, username: user.username, display_name: user.display_name, avatar_url: user.avatar_url, email: user.email, token, is_anon: false };
+        if (existing !== -1) accounts[existing] = entry;
+        else accounts.push(entry);
+        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+        localStorage.setItem('hobo_active_account', user.id);
+
+        // If we came from an OAuth redirect, resume it
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('client_id') && params.has('redirect_uri')) {
+            window.location.href = `/authorize?${params.toString()}`;
+            return;
+        }
+
+        // Otherwise show dashboard stub
+        showDashboard(user);
+    }
+
+    function showDashboard(user) {
+        document.getElementById('landing').style.display = 'none';
+        document.getElementById('auth-register').classList.remove('active');
+        document.getElementById('auth-login').classList.remove('active');
+
+        document.body.insertAdjacentHTML('afterbegin', `
+            <section class="hero" style="padding: 60px 24px 40px">
+                <span class="hero-flame">🔥</span>
+                <h1>Welcome, ${user.display_name || user.username}</h1>
+                <p class="tagline">You're signed in to the Hobo Network</p>
+                <div class="cta-row" style="margin-top: 24px">
+                    <a href="https://hobostreamer.com" class="btn btn-secondary">📡 HoboStreamer</a>
+                    <a href="https://hobo.quest" class="btn btn-secondary">⚔️ HoboQuest</a>
+                    <a href="https://maps.hobo.tools" class="btn btn-secondary">🗺️ HoboMaps</a>
+                    <a href="/my.html" class="btn btn-primary">👤 My Account</a>
+                </div>
+                <p style="margin-top: 24px; font-size: 13px; color: var(--text-muted)">
+                    <a href="#" onclick="signOut()" style="color: var(--text-muted)">Sign out</a>
+                </p>
+            </section>
+        `);
+
+        // Initialize navbar & notification bell for logged-in users
+        if (window.HoboNavbar) {
+            HoboNavbar.init({ service: 'hobotools', token: localStorage.getItem('hobo_token'), user });
+            const bellMount = HoboNavbar.getBellMount();
+            if (bellMount && window.HoboNotifications) {
+                HoboNotifications.init({ token: localStorage.getItem('hobo_token'), apiBase: API.replace('/api', '') });
+                bellMount.appendChild(HoboNotifications.createBell());
+            }
+        }
+    }
+
+    function signOut() {
+        document.cookie = 'hobo_token=; path=/; max-age=0';
+        localStorage.removeItem('hobo_token');
+        localStorage.removeItem('hobo_user');
+        window.location.reload();
+    }
+
+    // Check if already logged in on page load
+    (function checkAuth() {
+        const token = localStorage.getItem('hobo_token');
+        const user = localStorage.getItem('hobo_user');
+        if (token && user) {
+            try {
+                showDashboard(JSON.parse(user));
+            } catch { /* invalid stored data, ignore */ }
+        }
+    })();
+</script>
+
+<!-- Shared Hobo Network scripts -->
+<script src="/shared/navbar.js"></script>
+<script src="/shared/notification-ui.js"></script>
+<script src="/shared/account-switcher.js"></script>
+<script src="/shared/user-card.js"></script>
+</body>
+</html>

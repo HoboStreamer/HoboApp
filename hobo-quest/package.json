@@ -1,0 +1,23 @@
+{
+    "name": "hobo-quest",
+    "version": "0.1.0",
+    "private": true,
+    "description": "HoboQuest — Community MMORPG & Canvas (hobo.quest)",
+    "scripts": {
+        "start": "node server/index.js",
+        "dev": "NODE_ENV=development node server/index.js"
+    },
+    "dependencies": {
+        "better-sqlite3": "^11.0.0",
+        "cookie-parser": "^1.4.6",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.0",
+        "express": "^4.21.0",
+        "express-rate-limit": "^7.4.0",
+        "express-ws": "^5.0.2",
+        "helmet": "^8.0.0",
+        "hobo-shared": "file:../packages/hobo-shared",
+        "jsonwebtoken": "^9.0.0",
+        "uuid": "^11.0.0"
+    }
+}

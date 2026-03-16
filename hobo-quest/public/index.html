@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoboQuest — Community MMORPG & Canvas</title>
+    <meta name="description" content="Play the HoboQuest MMORPG, explore dungeons, craft items, and paint on the collaborative pixel canvas.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary:   #1e1e24;
+            --bg-secondary: #252530;
+            --bg-tertiary:  #2a2a38;
+            --bg-card:      #22222c;
+            --bg-hover:     #2f2f3d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b8;
+            --text-muted:   #707080;
+            --accent:       #c0965c;
+            --accent-light: #dbb077;
+            --accent-dark:  #a07840;
+            --border:       #333340;
+            --shadow-lg:    0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        a { color: var(--accent-light); text-decoration: none; }
+        a:hover { color: var(--accent); }
+
+        .hero {
+            text-align: center;
+            padding: 80px 24px 48px;
+            background: radial-gradient(ellipse at 50% 0%, rgba(192,150,92,0.06) 0%, transparent 70%);
+        }
+        .hero .icon { font-size: 56px; margin-bottom: 12px; display: block; }
+        .hero h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p { color: var(--text-secondary); margin-bottom: 24px; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all .2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-dark); color: #fff; }
+
+        .modes {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 24px 64px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .mode-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px 24px;
+            text-align: center;
+            transition: all .25s;
+        }
+        .mode-card:hover {
+            border-color: var(--accent-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .mode-card .icon { font-size: 48px; display: block; margin-bottom: 12px; }
+        .mode-card h3 { font-size: 20px; margin-bottom: 8px; }
+        .mode-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+
+        .features {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 24px 64px;
+            text-align: center;
+        }
+        .features h2 { font-size: 20px; margin-bottom: 24px; color: var(--text-secondary); }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .feature {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .feature .emoji { font-size: 24px; display: block; margin-bottom: 6px; }
+        .feature span { font-size: 13px; color: var(--text-secondary); }
+
+        footer {
+            text-align: center;
+            padding: 24px;
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+        }
+        footer p { font-size: 13px; color: var(--text-muted); }
+
+        @media (max-width: 500px) {
+            .modes { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+
+<section class="hero">
+    <span class="icon">⚔️</span>
+    <h1>HoboQuest</h1>
+    <p>Community MMORPG & Collaborative Canvas</p>
+    <a href="/auth/login" class="btn btn-primary" id="play-btn">Sign in to Play</a>
+</section>
+
+<div class="modes">
+    <div class="mode-card">
+        <span class="icon">🎮</span>
+        <h3>MMORPG</h3>
+        <p>Explore a 512×512 world. Level up 7 skills, fight monsters, clear dungeons, build, and trade.</p>
+    </div>
+    <div class="mode-card">
+        <span class="icon">🎨</span>
+        <h3>Canvas</h3>
+        <p>512×512 collaborative pixel canvas. Place pixels, create art together, and compete for territory.</p>
+    </div>
+</div>
+
+<section class="features">
+    <h2>Game Features</h2>
+    <div class="feature-grid">
+        <div class="feature"><span class="emoji">⚔️</span><span>Combat</span></div>
+        <div class="feature"><span class="emoji">🎣</span><span>Fishing</span></div>
+        <div class="feature"><span class="emoji">⛏️</span><span>Mining</span></div>
+        <div class="feature"><span class="emoji">🪓</span><span>Woodcutting</span></div>
+        <div class="feature"><span class="emoji">🧪</span><span>Crafting</span></div>
+        <div class="feature"><span class="emoji">🏗️</span><span>Building</span></div>
+        <div class="feature"><span class="emoji">🏰</span><span>Dungeons</span></div>
+        <div class="feature"><span class="emoji">🏆</span><span>Achievements</span></div>
+        <div class="feature"><span class="emoji">📋</span><span>Daily Quests</span></div>
+        <div class="feature"><span class="emoji">🏪</span><span>Trading</span></div>
+    </div>
+</section>
+
+<footer>
+    <p>Part of the <a href="https://hobo.tools">Hobo Network</a>. <a href="https://github.com/HoboStreamer">Open Source</a>.</p>
+</footer>
+
+<script>
+    // If already authenticated, change button
+    const token = document.cookie.split(';').find(c => c.trim().startsWith('hobo_token='));
+    if (token) {
+        const btn = document.getElementById('play-btn');
+        btn.textContent = 'Enter Game';
+        btn.href = '/game'; // Future: game canvas SPA route
+    }
+</script>
+</body>
+</html>

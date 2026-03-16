@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign In — Hobo Network</title>
+<meta name="description" content="Sign in to the Hobo Network — your identity across HoboStreamer, HoboQuest, and HoboTools.">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+    --bg:#0d0d14;--bg-card:#16161f;--bg-input:#1c1c28;
+    --border:#2a2a3a;--border-focus:#c0965c;
+    --accent:#c0965c;--accent-glow:rgba(192,150,92,0.4);--accent-dark:#a07840;
+    --text:#e0e0e0;--text-muted:#707080;--text-dim:#505060;
+    --live-red:#e74c3c;--success:#2ecc71;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+
+/* Animated background */
+.bg-canvas{position:fixed;inset:0;z-index:0}
+.bg-canvas .orb{
+    position:absolute;border-radius:50%;filter:blur(100px);opacity:0.15;
+    animation:orb-drift 20s ease-in-out infinite alternate;
+}
+.bg-canvas .orb:nth-child(1){width:400px;height:400px;background:#c0965c;top:-100px;left:-100px;animation-delay:0s}
+.bg-canvas .orb:nth-child(2){width:500px;height:500px;background:#e74c3c;bottom:-150px;right:-150px;animation-delay:-5s}
+.bg-canvas .orb:nth-child(3){width:300px;height:300px;background:#9b59b6;top:40%;left:60%;animation-delay:-10s}
+.bg-canvas .orb:nth-child(4){width:250px;height:250px;background:#3498db;bottom:20%;left:10%;animation-delay:-15s}
+@keyframes orb-drift{
+    0%{transform:translate(0,0) scale(1)}25%{transform:translate(40px,-30px) scale(1.1)}
+    50%{transform:translate(-20px,50px) scale(0.95)}75%{transform:translate(30px,20px) scale(1.05)}
+    100%{transform:translate(-40px,-40px) scale(1)}
+}
+
+/* Particle field */
+.particles{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.particles .p{
+    position:absolute;width:2px;height:2px;background:rgba(192,150,92,0.3);border-radius:50%;
+    animation:particle-float linear infinite;
+}
+@keyframes particle-float{
+    from{transform:translateY(100vh) scale(0);opacity:0}
+    10%{opacity:1;transform:translateY(90vh) scale(1)}
+    90%{opacity:.6}
+    to{transform:translateY(-5vh) scale(0.5);opacity:0}
+}
+
+/* Grid lines */
+.grid-overlay{
+    position:fixed;inset:0;z-index:0;
+    background-image:
+        linear-gradient(rgba(192,150,92,0.02) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(192,150,92,0.02) 1px,transparent 1px);
+    background-size:60px 60px;
+    animation:grid-scroll 30s linear infinite;
+}
+@keyframes grid-scroll{from{background-position:0 0}to{background-position:60px 60px}}
+
+/* Container */
+.login-container{
+    position:relative;z-index:10;height:100%;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+
+/* Card */
+.login-card{
+    width:100%;max-width:420px;background:var(--bg-card);border:1px solid var(--border);
+    border-radius:20px;padding:40px 36px;position:relative;overflow:hidden;
+    box-shadow:0 20px 80px rgba(0,0,0,0.5), 0 0 60px rgba(192,150,92,0.03);
+    animation:card-entrance .6s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes card-entrance{from{transform:scale(.92) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+
+.login-card::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    animation:shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer{0%,100%{opacity:0.3}50%{opacity:1}}
+
+/* Logo */
+.logo{text-align:center;margin-bottom:28px}
+.logo .flame{font-size:48px;display:block;margin-bottom:8px;animation:flame-pulse 2s ease-in-out infinite}
+@keyframes flame-pulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.08);filter:brightness(1.2)}}
+.logo h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.logo p{font-size:12px;color:var(--text-muted);font-weight:500}
+
+/* Tabs */
+.tab-bar{display:flex;gap:4px;background:var(--bg-input);border-radius:10px;padding:4px;margin-bottom:24px}
+.tab-bar button{
+    flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;
+    background:transparent;color:var(--text-muted);cursor:pointer;transition:all .2s;
+}
+.tab-bar button.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(192,150,92,0.3)}
+.tab-bar button:hover:not(.active){color:var(--text)}
+
+/* Forms */
+.form-panel{display:none;animation:panel-in .3s ease}
+.form-panel.active{display:block}
+@keyframes panel-in{from{transform:translateX(10px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.field{margin-bottom:16px;position:relative}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.field input{
+    width:100%;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);
+    border-radius:10px;color:var(--text);font-size:14px;outline:none;
+    transition:border-color .2s, box-shadow .2s;
+}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.field input::placeholder{color:var(--text-dim)}
+
+.field .toggle-password{
+    position:absolute;right:12px;top:30px;background:none;border:none;
+    color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;
+}
+
+.submit-btn{
+    width:100%;padding:14px;border:none;border-radius:10px;font-size:14px;font-weight:700;
+    background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;cursor:pointer;
+    transition:all .2s;position:relative;overflow:hidden;
+}
+.submit-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(192,150,92,0.35)}
+.submit-btn:active{transform:translateY(0)}
+.submit-btn.loading{pointer-events:none;opacity:.7}
+.submit-btn .ripple{
+    position:absolute;border-radius:50%;background:rgba(255,255,255,0.3);
+    transform:scale(0);animation:btn-ripple .6s ease-out;
+}
+@keyframes btn-ripple{to{transform:scale(4);opacity:0}}
+
+/* Messages */
+.message{padding:10px 14px;border-radius:8px;font-size:12px;font-weight:500;margin-bottom:16px;display:none;animation:msg-in .3s ease}
+.message.visible{display:block}
+.message.error{background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);color:#e74c3c}
+.message.success{background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);color:#2ecc71}
+@keyframes msg-in{from{transform:translateY(-4px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Extras */
+.divider{text-align:center;position:relative;margin:24px 0}
+.divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)}
+.divider span{position:relative;background:var(--bg-card);padding:0 12px;font-size:11px;color:var(--text-dim);font-weight:500}
+
+.anon-btn{
+    width:100%;padding:12px;border:1px dashed var(--border);border-radius:10px;
+    background:transparent;color:var(--text-muted);font-size:13px;font-weight:500;
+    cursor:pointer;transition:all .2s;
+}
+.anon-btn:hover{border-color:var(--accent-dark);color:var(--text);background:rgba(192,150,92,0.04)}
+
+.services{text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)}
+.services p{font-size:11px;color:var(--text-dim);margin-bottom:10px}
+.services .icons{display:flex;justify-content:center;gap:10px}
+.services .icons span{font-size:16px;opacity:0.4;transition:opacity .2s}
+.services .icons span:hover{opacity:0.8}
+
+/* Toast */
+.login-toast{
+    position:fixed;top:20px;right:20px;z-index:100;padding:14px 20px;
+    border-radius:10px;font-size:13px;font-weight:500;
+    transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.login-toast.show{transform:translateX(0)}
+.login-toast.error{background:rgba(231,76,60,0.9);color:#fff}
+.login-toast.success{background:rgba(46,204,113,0.9);color:#fff}
+
+@media(max-width:480px){
+    .login-card{padding:28px 24px;border-radius:16px}
+    .logo .flame{font-size:36px}
+    .logo h1{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- Animated Background -->
+<div class="bg-canvas">
+    <div class="orb"></div><div class="orb"></div><div class="orb"></div><div class="orb"></div>
+</div>
+<div class="grid-overlay"></div>
+<div class="particles" id="particles"></div>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="logo">
+            <span class="flame">🔥</span>
+            <h1>Hobo Network</h1>
+            <p>One account across all services</p>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+            <button class="active" onclick="switchTab('login')">Sign In</button>
+            <button onclick="switchTab('register')">Create Account</button>
+        </div>
+
+        <!-- Login Form -->
+        <div class="form-panel active" id="panel-login">
+            <div class="message" id="login-msg"></div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" name="username" placeholder="Your username" required autocomplete="username" autofocus>
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Your password" required autocomplete="current-password">
+                    <button type="button" class="toggle-password" onclick="togglePw(this)">👁</button>
+                </div>
+                <button type="submit" class="submit-btn" id="login-submit">
+                    Sign In →
+                </button>
+            </form>
+        </div>
+
+        <!-- Register Form -->
+        <div class="form-panel" id="panel-register">
+            <div class="message" id="register-msg"></div>
+            <form id="register-form" onsubmit="handleRegister(event)">
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" name="username" placeholder="Choose a username" required minlength="3" maxlength="24" pattern="^[a-zA-Z0-9_]+$" autocomplete="username">
+                </div>
+                <div class="field">
+                    <label>Email <span style="color:var(--text-dim)">(optional)</span></label>
+                    <input type="email" name="email" placeholder="your@email.com" autocomplete="email">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Min 6 characters" required minlength="6" autocomplete="new-password">
+                    <button type="button" class="toggle-password" onclick="togglePw(this)">👁</button>
+                </div>
+                <div class="field">
+                    <label>Confirm Password</label>
+                    <input type="password" name="password_confirm" placeholder="Repeat password" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="submit-btn" id="register-submit">
+                    Create Account 🔥
+                </button>
+            </form>
+        </div>
+
+        <div class="divider"><span>or</span></div>
+        <button class="anon-btn" onclick="continueAnonymous()">
+            🫥 Continue Anonymously
+        </button>
+
+        <div class="services">
+            <p>Works across the entire network</p>
+            <div class="icons">
+                <span title="HoboStreamer">📺</span>
+                <span title="HoboQuest">⚔️</span>
+                <span title="HoboTools">🔧</span>
+                <span title="HoboMaps">🗺️</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="login-toast" id="toast"></div>
+
+<script>
+const API_BASE = window.location.origin;
+
+// Generate particles
+(function() {
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'p';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDuration = (8 + Math.random() * 12) + 's';
+        p.style.animationDelay = -(Math.random() * 20) + 's';
+        p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+        container.appendChild(p);
+    }
+})();
+
+// Tab switching
+function switchTab(tab) {
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+}
+
+// Password toggle
+function togglePw(btn) {
+    const input = btn.previousElementSibling;
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+
+// Show message
+function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'message visible ' + type;
+    setTimeout(() => el.classList.remove('visible'), 5000);
+}
+
+// Toast
+function toast(text, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = text;
+    el.className = 'login-toast ' + type + ' show';
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Button ripple
+function ripple(btn, e) {
+    const r = document.createElement('span');
+    r.className = 'ripple';
+    const rect = btn.getBoundingClientRect();
+    r.style.left = (e.clientX - rect.left - 10) + 'px';
+    r.style.top = (e.clientY - rect.top - 10) + 'px';
+    r.style.width = r.style.height = '20px';
+    btn.appendChild(r);
+    setTimeout(() => r.remove(), 600);
+}
+
+// Get return URL
+function getReturnUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('return') || '/';
+}
+
+function isAddAccount() {
+    return new URLSearchParams(window.location.search).get('add_account') === '1';
+}
+
+// Handle login
+async function handleLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('login-submit');
+    btn.classList.add('loading');
+    btn.textContent = 'Signing in...';
+    ripple(btn, e);
+
+    const form = new FormData(e.target);
+    try {
+        const res = await fetch(API_BASE + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: form.get('username'), password: form.get('password') }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        // Store token
+        localStorage.setItem('hobo_token', data.token);
+        document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+
+        // Multi-account: add to accounts list
+        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
+        const existing = accounts.findIndex(a => a.id === data.user.id);
+        const entry = { id: data.user.id, username: data.user.username, display_name: data.user.display_name, avatar_url: data.user.avatar_url, email: data.user.email, token: data.token, is_anon: false };
+        if (existing !== -1) accounts[existing] = entry;
+        else accounts.push(entry);
+        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+        localStorage.setItem('hobo_active_account', data.user.id);
+
+        toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! 🔥');
+        setTimeout(() => window.location.href = getReturnUrl(), 800);
+    } catch (err) {
+        showMsg('login-msg', err.message, 'error');
+        btn.textContent = 'Sign In →';
+        btn.classList.remove('loading');
+    }
+}
+
+// Handle register
+async function handleRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('register-submit');
+    const form = new FormData(e.target);
+
+    if (form.get('password') !== form.get('password_confirm')) {
+        showMsg('register-msg', 'Passwords do not match', 'error');
+        return;
+    }
+
+    btn.classList.add('loading');
+    btn.textContent = 'Creating...';
+    ripple(btn, e);
+
+    try {
+        const res = await fetch(API_BASE + '/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: form.get('username'), email: form.get('email') || undefined, password: form.get('password') }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+        localStorage.setItem('hobo_token', data.token);
+        document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+
+        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
+        accounts.push({ id: data.user.id, username: data.user.username, display_name: data.user.display_name, avatar_url: data.user.avatar_url, token: data.token, is_anon: false });
+        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+        localStorage.setItem('hobo_active_account', data.user.id);
+
+        toast('Account created! Welcome to the network 🔥');
+        setTimeout(() => window.location.href = getReturnUrl(), 800);
+    } catch (err) {
+        showMsg('register-msg', err.message, 'error');
+        btn.textContent = 'Create Account 🔥';
+        btn.classList.remove('loading');
+    }
+}
+
+// Anonymous mode
+async function continueAnonymous() {
+    try {
+        const res = await fetch(API_BASE + '/api/auth/anon-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        localStorage.setItem('hobo_anon_token', data.token);
+        localStorage.setItem('hobo_active_account', 'anon');
+
+        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
+        accounts.push({ id: data.user.id, username: data.user.username, display_name: data.user.display_name, is_anon: true, anon_number: data.user.anon_number, token: data.token });
+        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+
+        toast('Browsing as Anonymous #' + data.user.anon_number);
+        setTimeout(() => window.location.href = getReturnUrl(), 600);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+</script>
+</body>
+</html>

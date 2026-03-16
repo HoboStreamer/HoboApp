@@ -43,6 +43,7 @@ Thumbs.db
 *.bak
 *.bak2
 *.code-workspace
+!hobo.code-workspace
 *~
 *.swp
 *.swo

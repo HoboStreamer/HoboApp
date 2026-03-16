@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "hobostreamer"
+		},
+		{
+			"path": "hobo-tools"
+		},
+		{
+			"path": "hobo-quest"
+		},
+		{
+			"path": "packages/hobo-shared"
+		},
+		{
+			"path": "../rs-companion"
+		}
+	]
+}

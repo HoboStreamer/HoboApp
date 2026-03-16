@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Account — Hobo Network</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+    --bg:#0d0d14;--bg-secondary:#151520;--bg-card:#1a1a26;--bg-input:#1c1c28;
+    --border:#2a2a3a;--border-focus:#c0965c;
+    --accent:#c0965c;--accent-glow:rgba(192,150,92,0.4);--accent-dark:#a07840;--accent-light:#dbb077;
+    --text:#e0e0e0;--text-secondary:#b0b0b8;--text-muted:#707080;
+    --live-red:#e74c3c;--success:#2ecc71;
+    --shadow:0 4px 20px rgba(0,0,0,0.3);
+}
+html{height:100%;background:var(--bg)}
+body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding-bottom:40px}
+
+/* Layout */
+.page{max-width:900px;margin:0 auto;padding:20px}
+.page-header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
+.page-header .avatar{width:72px;height:72px;border-radius:50%;border:3px solid var(--accent);object-fit:cover}
+.page-header .info{flex:1}
+.page-header .info h1{font-size:22px;font-weight:800;margin-bottom:2px}
+.page-header .info .subtitle{font-size:13px;color:var(--text-muted)}
+.page-header .info .badges{display:flex;gap:6px;margin-top:6px}
+.page-header .info .badges .badge{
+    font-size:10px;padding:3px 10px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+}
+.badge-admin{background:rgba(231,76,60,0.15);color:#e74c3c}
+.badge-anon{background:rgba(192,150,92,0.15);color:var(--accent-light)}
+.badge-streamer{background:rgba(155,89,182,0.15);color:#9b59b6}
+.badge-user{background:rgba(52,152,219,0.15);color:#3498db}
+
+/* Section tabs */
+.section-tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--bg-secondary);border-radius:10px;padding:4px;overflow-x:auto}
+.section-tabs button{
+    flex-shrink:0;padding:8px 16px;border:none;border-radius:8px;font-size:12px;font-weight:600;
+    background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.section-tabs button.active{background:var(--bg-card);color:var(--accent-light)}
+.section-tabs button:hover:not(.active){color:var(--text)}
+
+/* Section */
+.section{display:none;animation:sec-in .2s ease}
+.section.active{display:block}
+@keyframes sec-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Cards */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h3 .icon{font-size:16px}
+.card p{font-size:13px;color:var(--text-secondary);line-height:1.6}
+
+/* Form fields */
+.form-field{margin-bottom:14px}
+.form-field label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.form-field input,.form-field select,.form-field textarea{
+    width:100%;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:13px;outline:none;transition:border-color .2s;
+}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--accent)}
+.form-field textarea{resize:vertical;min-height:60px}
+.form-field .hint{font-size:10px;color:var(--text-muted);margin-top:3px}
+
+.btn{
+    padding:8px 20px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--accent-dark);color:var(--accent-light)}
+.btn-danger{background:rgba(231,76,60,0.1);color:var(--live-red);border:1px solid rgba(231,76,60,0.2)}
+.btn-danger:hover{background:rgba(231,76,60,0.2)}
+.btn-row{display:flex;gap:8px;margin-top:12px}
+
+/* Account list */
+.account-list{display:flex;flex-direction:column;gap:8px}
+.account-item{
+    display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;
+    background:var(--bg-input);border:1px solid var(--border);
+}
+.account-item.active{border-color:var(--accent)}
+.account-item img{width:36px;height:36px;border-radius:50%}
+.account-item .name{font-size:13px;font-weight:600}
+.account-item .meta{font-size:11px;color:var(--text-muted)}
+.account-item .actions{margin-left:auto;display:flex;gap:6px}
+
+/* Notification pref grid */
+.notif-grid{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;align-items:center;font-size:12px}
+.notif-grid .cat{font-weight:600;text-transform:capitalize}
+.notif-grid .toggle{width:36px;height:20px;border-radius:10px;border:none;cursor:pointer;position:relative;transition:background .2s}
+.notif-grid .toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .2s}
+.notif-grid .toggle.on{background:var(--accent)}
+.notif-grid .toggle.on::after{transform:translateX(16px)}
+.notif-grid .toggle.off{background:var(--border)}
+
+/* Linked services */
+.linked-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;background:var(--bg-input);margin-bottom:8px}
+.linked-item .svc-icon{font-size:20px;width:32px;text-align:center}
+.linked-item .svc-name{font-size:13px;font-weight:600}
+.linked-item .svc-user{font-size:11px;color:var(--text-muted)}
+.linked-item .svc-status{margin-left:auto;font-size:11px;font-weight:600;color:var(--success)}
+
+/* Anon info card */
+.anon-card{text-align:center;padding:32px 20px}
+.anon-card .number{font-size:48px;font-weight:800;color:var(--accent);margin-bottom:8px}
+.anon-card .label{font-size:12px;color:var(--text-muted);margin-bottom:16px}
+.anon-card .stats{display:flex;justify-content:center;gap:24px}
+.anon-card .stat{text-align:center}
+.anon-card .stat .val{font-size:20px;font-weight:700}
+.anon-card .stat .key{font-size:10px;color:var(--text-muted);text-transform:uppercase}
+
+/* Loading */
+.loading-spinner{text-align:center;padding:40px;color:var(--text-muted);font-size:13px}
+
+@media(max-width:600px){
+    .page{padding:12px}
+    .page-header{flex-direction:column;text-align:center}
+    .page-header .info .badges{justify-content:center}
+    .notif-grid{grid-template-columns:1fr auto auto}
+    .notif-grid .col-email,.notif-grid .col-toast{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Navbar mount point -->
+<div id="navbar-mount"></div>
+
+<div class="page">
+    <div class="page-header" id="page-header">
+        <img class="avatar" id="user-avatar" src="/data/avatars/default.png" alt="">
+        <div class="info">
+            <h1 id="user-name">Loading...</h1>
+            <div class="subtitle" id="user-subtitle"></div>
+            <div class="badges" id="user-badges"></div>
+        </div>
+    </div>
+
+    <div class="section-tabs">
+        <button class="active" onclick="showSection('profile',this)">👤 Profile</button>
+        <button onclick="showSection('accounts',this)">🔄 Accounts</button>
+        <button onclick="showSection('notifications',this)">🔔 Notifications</button>
+        <button onclick="showSection('linked',this)">🔗 Linked Services</button>
+        <button onclick="showSection('security',this)">🔒 Security</button>
+        <button onclick="showSection('anon',this)">🫥 Anon Info</button>
+    </div>
+
+    <!-- Profile Section -->
+    <div class="section active" id="sec-profile">
+        <div class="card">
+            <h3><span class="icon">👤</span> Edit Profile</h3>
+            <form id="profile-form">
+                <div class="form-field">
+                    <label>Display Name</label>
+                    <input type="text" id="pf-display-name" maxlength="50">
+                </div>
+                <div class="form-field">
+                    <label>Bio</label>
+                    <textarea id="pf-bio" maxlength="500" placeholder="Tell us about yourself..."></textarea>
+                </div>
+                <div class="form-field">
+                    <label>Email</label>
+                    <input type="email" id="pf-email" placeholder="your@email.com">
+                    <div class="hint">Used for critical notification emails only</div>
+                </div>
+                <div class="form-field">
+                    <label>Profile Color</label>
+                    <input type="color" id="pf-color" value="#c0965c" style="width:60px;height:36px;padding:2px;cursor:pointer">
+                </div>
+                <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Accounts Section -->
+    <div class="section" id="sec-accounts">
+        <div class="card">
+            <h3><span class="icon">🔄</span> Your Accounts</h3>
+            <p>Switch between multiple accounts, Google-style. You can have up to 5 accounts logged in at once.</p>
+            <div class="account-list" id="account-list" style="margin-top:12px">
+                <!-- Populated by JS -->
+            </div>
+            <div class="btn-row" style="margin-top:16px">
+                <button class="btn btn-outline" onclick="addAccount()">+ Add Another Account</button>
+                <button class="btn btn-danger" onclick="signOutAll()">Sign Out All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Section -->
+    <div class="section" id="sec-notifications">
+        <div class="card">
+            <h3><span class="icon">🔔</span> Notification Preferences</h3>
+            <p style="margin-bottom:16px">Control which notifications you receive and how they are delivered.</p>
+            <div class="notif-grid" id="notif-prefs">
+                <div style="font-weight:700;font-size:11px;color:var(--text-muted)">Category</div>
+                <div style="font-weight:700;font-size:11px;color:var(--text-muted);text-align:center">Enabled</div>
+                <div style="font-weight:700;font-size:11px;color:var(--text-muted);text-align:center">Sound</div>
+                <div style="font-weight:700;font-size:11px;color:var(--text-muted);text-align:center" class="col-toast">Toast</div>
+                <div style="font-weight:700;font-size:11px;color:var(--text-muted);text-align:center" class="col-email">Email</div>
+                <!-- Rows populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Linked Services Section -->
+    <div class="section" id="sec-linked">
+        <div class="card">
+            <h3><span class="icon">🔗</span> Linked Services</h3>
+            <p style="margin-bottom:12px">Your Hobo Network account is connected to these services.</p>
+            <div id="linked-list">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Section -->
+    <div class="section" id="sec-security">
+        <div class="card">
+            <h3><span class="icon">🔒</span> Change Password</h3>
+            <form id="password-form">
+                <div class="form-field">
+                    <label>Current Password</label>
+                    <input type="password" id="sec-current-pw" required>
+                </div>
+                <div class="form-field">
+                    <label>New Password</label>
+                    <input type="password" id="sec-new-pw" required minlength="6">
+                </div>
+                <div class="form-field">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="sec-confirm-pw" required>
+                </div>
+                <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <h3><span class="icon">📱</span> Active Sessions</h3>
+            <div id="sessions-list"><div class="loading-spinner">Loading sessions...</div></div>
+            <div class="btn-row" style="margin-top:12px">
+                <button class="btn btn-danger" onclick="revokeAllSessions()">Revoke All Sessions</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anon Info Section -->
+    <div class="section" id="sec-anon">
+        <div class="card">
+            <div class="anon-card" id="anon-info">
+                <p style="color:var(--text-muted)">Anonymous user info will appear here once loaded.</p>
+            </div>
+        </div>
+        <div class="card">
+            <h3><span class="icon">🔗</span> Link Anon to Account</h3>
+            <p>If you had an anonymous session before signing up, you can link it to preserve your anon number.</p>
+            <div class="btn-row">
+                <button class="btn btn-outline" onclick="linkAnon()">Link Anonymous Identity</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Shared scripts -->
+<script src="/shared/navbar.js"></script>
+<script src="/shared/notification-ui.js"></script>
+<script src="/shared/account-switcher.js"></script>
+
+<script>
+const API = window.location.origin;
+const token = localStorage.getItem('hobo_token');
+let currentUser = null;
+
+async function apiFetch(path, opts = {}) {
+    const headers = { 'Content-Type':'application/json', ...opts.headers };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const res = await fetch(API + path, { ...opts, headers, credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+}
+
+// Section switching
+function showSection(id, btn) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.section-tabs button').forEach(b => b.classList.remove('active'));
+    document.getElementById('sec-' + id).classList.add('active');
+    btn?.classList.add('active');
+}
+
+// Load user data
+async function loadUser() {
+    if (!token) { window.location.href = '/login.html'; return; }
+    try {
+        const data = await apiFetch('/api/auth/me');
+        currentUser = data.user;
+        renderHeader(data.user);
+        renderProfile(data.user);
+        loadAccounts();
+        loadNotifPrefs();
+        loadLinked();
+        loadSessions();
+        loadAnonInfo();
+
+        // Init navbar
+        HoboNavbar.init({ service: 'hobotools', token, user: currentUser });
+        const bellMount = HoboNavbar.getBellMount();
+        if (bellMount) HoboNotifications.init({ token, apiBase: API }).then(() => bellMount.appendChild(HoboNotifications.createBell()));
+    } catch (err) {
+        console.error(err);
+        if (err.message.includes('401') || err.message.includes('Authentication')) {
+            window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname);
+        }
+    }
+}
+
+function renderHeader(user) {
+    document.getElementById('user-avatar').src = user.avatar_url || '/data/avatars/default.png';
+    document.getElementById('user-name').textContent = user.display_name || user.username;
+    document.getElementById('user-subtitle').textContent = '@' + user.username + (user.email ? ' · ' + user.email : '');
+    const badges = document.getElementById('user-badges');
+    badges.innerHTML = `<span class="badge badge-${user.role}">${user.role}</span>`;
+    if (user.anon_number) badges.innerHTML += `<span class="badge badge-anon">Anon #${user.anon_number}</span>`;
+}
+
+function renderProfile(user) {
+    document.getElementById('pf-display-name').value = user.display_name || '';
+    document.getElementById('pf-bio').value = user.bio || '';
+    document.getElementById('pf-email').value = user.email || '';
+    document.getElementById('pf-color').value = user.profile_color || '#c0965c';
+}
+
+// Profile form
+document.getElementById('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+        const data = await apiFetch('/api/auth/profile', { method: 'PUT', body: JSON.stringify({
+            display_name: document.getElementById('pf-display-name').value,
+            bio: document.getElementById('pf-bio').value,
+            email: document.getElementById('pf-email').value || undefined,
+            profile_color: document.getElementById('pf-color').value,
+        })});
+        currentUser = data.user;
+        renderHeader(data.user);
+        alert('Profile updated!');
+    } catch (err) { alert('Error: ' + err.message); }
+});
+
+// Accounts
+function loadAccounts() {
+    const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
+    const activeId = localStorage.getItem('hobo_active_account');
+    const list = document.getElementById('account-list');
+    list.innerHTML = accounts.map(a => `
+        <div class="account-item ${String(a.id) === String(activeId) ? 'active' : ''}">
+            <img src="${a.avatar_url || '/data/avatars/default.png'}" alt="">
+            <div>
+                <div class="name">${a.display_name || a.username}${a.is_anon ? ' 🫥' : ''}</div>
+                <div class="meta">${a.is_anon ? 'Anonymous #' + (a.anon_number || '?') : '@' + a.username}</div>
+            </div>
+            <div class="actions">
+                ${String(a.id) !== String(activeId) ? `<button class="btn btn-outline" onclick="switchAccount('${a.id}')">Switch</button>` : '<span style="font-size:11px;color:var(--success);font-weight:600">Active</span>'}
+                ${String(a.id) !== String(activeId) ? `<button class="btn btn-danger" onclick="removeAccount('${a.id}')">✕</button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function switchAccount(id) { HoboAccountSwitcher.switchTo(id); }
+function removeAccount(id) { HoboAccountSwitcher.removeAccount(id); loadAccounts(); }
+function addAccount() { window.location.href = '/login.html?add_account=1&return=' + encodeURIComponent(window.location.pathname); }
+function signOutAll() { HoboAccountSwitcher.logoutAll(); }
+
+// Notification preferences
+const CATEGORIES = ['social','chat','game','stream','economy','achievement','moderation','system','service','admin'];
+
+async function loadNotifPrefs() {
+    try {
+        const data = await apiFetch('/api/notifications/preferences');
+        const prefsMap = {};
+        for (const p of data.preferences) prefsMap[p.category] = p;
+        const grid = document.getElementById('notif-prefs');
+        // Clear existing rows
+        grid.querySelectorAll('.pref-row').forEach(r => r.remove());
+        for (const cat of CATEGORIES) {
+            const p = prefsMap[cat] || { enabled: 1, sound: 1, toasts: 1, email: 0 };
+            const html = `
+                <div class="cat pref-row">${cat}</div>
+                <button class="toggle pref-row ${p.enabled ? 'on' : 'off'}" data-cat="${cat}" data-field="enabled" onclick="togglePref(this)"></button>
+                <button class="toggle pref-row ${p.sound ? 'on' : 'off'}" data-cat="${cat}" data-field="sound" onclick="togglePref(this)"></button>
+                <button class="toggle pref-row col-toast ${p.toasts ? 'on' : 'off'}" data-cat="${cat}" data-field="toasts" onclick="togglePref(this)"></button>
+                <button class="toggle pref-row col-email ${p.email ? 'on' : 'off'}" data-cat="${cat}" data-field="email" onclick="togglePref(this)"></button>
+            `;
+            grid.insertAdjacentHTML('beforeend', html);
+        }
+    } catch (err) { console.error('Failed to load notif prefs:', err); }
+}
+
+async function togglePref(btn) {
+    const cat = btn.dataset.cat;
+    const field = btn.dataset.field;
+    const isOn = btn.classList.contains('on');
+    btn.classList.toggle('on');
+    btn.classList.toggle('off');
+    try {
+        await apiFetch('/api/notifications/preferences', { method: 'PUT', body: JSON.stringify({ category: cat, [field]: !isOn }) });
+    } catch (err) { btn.classList.toggle('on'); btn.classList.toggle('off'); }
+}
+
+// Linked services
+async function loadLinked() {
+    try {
+        const data = await apiFetch('/api/auth/me');
+        // We don't have a direct linked endpoint from auth/me, let's check from card
+        const card = await apiFetch('/api/auth/users/' + currentUser.id + '/card');
+        const list = document.getElementById('linked-list');
+        const icons = { hobostreamer: '📺', hoboquest: '⚔️', hobotools: '🔧', hobomaps: '🗺️' };
+        const linked = card.user?.linked_services || [];
+        if (linked.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No services linked yet. Use HoboStreamer or HoboQuest with your account to link them automatically.</p>';
+        } else {
+            list.innerHTML = linked.map(l => `
+                <div class="linked-item">
+                    <span class="svc-icon">${icons[l.service] || '🔗'}</span>
+                    <div>
+                        <div class="svc-name">${l.service}</div>
+                        <div class="svc-user">${l.service_username || l.service_user_id}</div>
+                    </div>
+                    <span class="svc-status">✓ Linked</span>
+                </div>
+            `).join('');
+        }
+    } catch (err) { console.error('Failed to load linked:', err); }
+}
+
+// Sessions
+async function loadSessions() {
+    try {
+        const data = await apiFetch('/api/auth/sessions');
+        const list = document.getElementById('sessions-list');
+        if (data.sessions.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No active sessions.</p>';
+        } else {
+            list.innerHTML = data.sessions.map(s => `
+                <div class="linked-item">
+                    <span class="svc-icon">📱</span>
+                    <div>
+                        <div class="svc-name">${s.device_name || 'Unknown Device'}</div>
+                        <div class="svc-user">IP: ${s.ip || '?'} · Last used: ${new Date(s.last_used).toLocaleDateString()}</div>
+                    </div>
+                    <button class="btn btn-danger" onclick="revokeSession(${s.id})">Revoke</button>
+                </div>
+            `).join('');
+        }
+    } catch (err) { document.getElementById('sessions-list').innerHTML = '<p style="color:var(--text-muted)">Unable to load sessions.</p>'; }
+}
+
+async function revokeSession(id) {
+    try { await apiFetch('/api/auth/sessions/' + id, { method: 'DELETE' }); loadSessions(); }
+    catch (err) { alert('Error: ' + err.message); }
+}
+
+async function revokeAllSessions() {
+    if (!confirm('Revoke all sessions? You will need to log in again on other devices.')) return;
+    try { await apiFetch('/api/auth/sessions', { method: 'DELETE' }); loadSessions(); }
+    catch (err) { alert('Error: ' + err.message); }
+}
+
+// Anon info
+async function loadAnonInfo() {
+    const anonToken = localStorage.getItem('hobo_anon_token');
+    const container = document.getElementById('anon-info');
+    if (!anonToken && !currentUser?.anon_number) {
+        container.innerHTML = `
+            <p style="color:var(--text-muted);font-size:14px">🫥</p>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:8px">You don't have an anonymous identity yet.</p>
+            <button class="btn btn-outline" onclick="createAnon()" style="margin-top:12px">Create Anonymous Identity</button>
+        `;
+        return;
+    }
+
+    if (currentUser?.anon_number) {
+        container.innerHTML = `
+            <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Your Anonymous Number</p>
+            <div class="number">#${currentUser.anon_number}</div>
+            <p style="font-size:12px;color:var(--text-muted)">This number is permanently linked to your account.</p>
+        `;
+        return;
+    }
+
+    try {
+        const data = await fetch(API + '/api/auth/anon/' + anonToken).then(r => r.json());
+        if (data.user) {
+            container.innerHTML = `
+                <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Your Anonymous Number</p>
+                <div class="number">#${data.user.anon_number}</div>
+                <div class="label">First seen ${new Date(data.user.first_seen).toLocaleDateString()}</div>
+                <div class="stats">
+                    <div class="stat"><div class="val">${data.user.total_messages}</div><div class="key">Messages</div></div>
+                    <div class="stat"><div class="val">${data.user.total_commands}</div><div class="key">Commands</div></div>
+                </div>
+            `;
+        }
+    } catch (err) {
+        container.innerHTML = '<p style="color:var(--text-muted)">Unable to load anonymous info.</p>';
+    }
+}
+
+async function createAnon() {
+    try {
+        const res = await fetch(API + '/api/auth/anon-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await res.json();
+        localStorage.setItem('hobo_anon_token', data.token);
+        loadAnonInfo();
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+async function linkAnon() {
+    const anonToken = localStorage.getItem('hobo_anon_token');
+    if (!anonToken) { alert('No anonymous session to link.'); return; }
+    try {
+        await apiFetch('/api/auth/anon/' + anonToken + '/link', { method: 'POST' });
+        alert('Anonymous identity linked!');
+        location.reload();
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+// Password form
+document.getElementById('password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPw = document.getElementById('sec-new-pw').value;
+    if (newPw !== document.getElementById('sec-confirm-pw').value) { alert('Passwords do not match'); return; }
+    try {
+        const data = await apiFetch('/api/auth/change-password', { method: 'POST', body: JSON.stringify({
+            current_password: document.getElementById('sec-current-pw').value,
+            new_password: newPw,
+        })});
+        localStorage.setItem('hobo_token', data.token);
+        document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+        alert(data.message || 'Password changed!');
+        document.getElementById('password-form').reset();
+    } catch (err) { alert('Error: ' + err.message); }
+});
+
+// Init
+HoboAccountSwitcher.init({ apiBase: API });
+loadUser();
+</script>
+</body>
+</html>

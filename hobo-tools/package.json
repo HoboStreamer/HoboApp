@@ -1,0 +1,26 @@
+{
+  "name": "hobo-tools",
+  "version": "1.0.0",
+  "description": "Hobo Network — Central Hub, SSO Provider, and Nomadic Toolkit",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "NODE_ENV=development node server/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.700.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "hobo-shared": "file:../packages/hobo-shared",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^11.1.0"
+  }
+}
