@@ -182,6 +182,11 @@ if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
 app.use('/data/avatars', express.static(avatarDir, { maxAge: '7d' }));
 
 // SPA fallback
+// Serve login.html for /login (account chooser + auth forms)
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+});
+
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/internal/')) {
         return res.status(404).json({ error: 'Not found' });
