@@ -54,7 +54,7 @@ router.get('/authorize', (req, res) => {
 // Called from the account chooser UI. Accepts a hobo.tools JWT
 // token and OAuth params, validates everything, issues an
 // authorization code, and returns the redirect URL.
-router.post('/oauth/confirm', (req, res) => {
+router.post('/confirm', (req, res) => {
     const db = getDb(req);
     const config = getConfig(req);
     const { token, client_id, redirect_uri, scope, state } = req.body;
