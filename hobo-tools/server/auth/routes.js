@@ -80,7 +80,7 @@ router.post('/register', (req, res) => {
         return res.status(403).json({ error: 'Registration is currently closed' });
     }
 
-    const { username, password, email } = req.body;
+    const { username, password, email, verification_key } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
     if (typeof username !== 'string' || username.length < 3 || username.length > 24) {
         return res.status(400).json({ error: 'Username must be 3-24 characters' });
@@ -93,6 +93,24 @@ router.post('/register', (req, res) => {
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
     if (existing) return res.status(409).json({ error: 'Username already taken' });
+
+    // Check if username is reserved (has an active verification key)
+    const reserved = db.isUsernameReserved(username);
+    if (reserved) {
+        if (!verification_key) {
+            return res.status(403).json({
+                error: 'This username is reserved. A verification key is required to claim it.',
+                reserved: true,
+            });
+        }
+        const vk = db.getVerificationKeyByKey(verification_key);
+        if (!vk || vk.status !== 'active') {
+            return res.status(403).json({ error: 'Invalid or expired verification key' });
+        }
+        if (vk.target_username.toLowerCase() !== username.toLowerCase()) {
+            return res.status(403).json({ error: 'This verification key is for a different username' });
+        }
+    }
 
     if (email) {
         const emailExists = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
@@ -108,10 +126,15 @@ router.post('/register', (req, res) => {
     // Create default preferences
     db.prepare('INSERT OR IGNORE INTO user_preferences (user_id) VALUES (?)').run(result.lastInsertRowid);
 
+    // Redeem verification key if used
+    if (verification_key && reserved) {
+        db.redeemVerificationKey(verification_key, result.lastInsertRowid);
+    }
+
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     const token = signToken(user, req.app.locals.privateKey, config);
 
-    console.log(`[Auth] New user registered: ${username} (id: ${user.id})`);
+    console.log(`[Auth] New user registered: ${username} (id: ${user.id})${reserved ? ' [verification key redeemed]' : ''}`);
     res.status(201).json({ token, user: sanitizeUser(user) });
 });
 

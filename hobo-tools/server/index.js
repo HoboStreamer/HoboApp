@@ -143,7 +143,7 @@ app.get('/api/brand', (_req, res) => res.json(BRAND));
 app.use('/api/auth', authRoutes);
 
 // OAuth2 authorization endpoints
-app.use('/', require('./auth/oauth-routes'));
+app.use('/oauth', require('./auth/oauth-routes'));
 
 // Theme API
 app.use('/api/themes', require('./themes/routes'));

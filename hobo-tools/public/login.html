@@ -224,6 +224,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
                     <input type="email" name="email" placeholder="your@email.com" autocomplete="email">
                 </div>
                 <div class="field">
+                    <label>Verification Key <span style="color:var(--text-dim)">(optional)</span></label>
+                    <input type="text" name="verification_key" placeholder="HOBO-XXXX-XXXX-XXXX" style="font-family:monospace">
+                </div>
+                <div class="field">
                     <label>Password</label>
                     <input type="password" name="password" placeholder="Min 6 characters" required minlength="6" autocomplete="new-password">
                     <button type="button" class="toggle-password" onclick="togglePw(this)">👁</button>
@@ -317,9 +321,13 @@ function ripple(btn, e) {
     setTimeout(() => r.remove(), 600);
 }
 
-// Get return URL
+// Get return URL (OAuth-aware)
 function getReturnUrl() {
     const params = new URLSearchParams(window.location.search);
+    // If we arrived via OAuth redirect, go back to /oauth/authorize with the original params
+    if (params.has('client_id') && params.has('redirect_uri')) {
+        return `/oauth/authorize?${params.toString()}`;
+    }
     return params.get('return') || '/';
 }
 
@@ -386,7 +394,7 @@ async function handleRegister(e) {
         const res = await fetch(API_BASE + '/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: form.get('username'), email: form.get('email') || undefined, password: form.get('password') }),
+            body: JSON.stringify({ username: form.get('username'), email: form.get('email') || undefined, password: form.get('password'), verification_key: form.get('verification_key') || undefined }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');

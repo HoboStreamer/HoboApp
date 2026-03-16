@@ -255,6 +255,24 @@ function initDb(dbPath) {
             FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE
         );
+
+        -- Verification keys (reserved username claims)
+        CREATE TABLE IF NOT EXISTS verification_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            target_username TEXT NOT NULL,
+            note TEXT DEFAULT '',
+            created_by INTEGER NOT NULL,
+            used_by INTEGER,
+            status TEXT DEFAULT 'active' CHECK(status IN ('active', 'used', 'revoked')),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            used_at DATETIME,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (used_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_vkeys_key ON verification_keys(key);
+        CREATE INDEX IF NOT EXISTS idx_vkeys_target ON verification_keys(target_username);
+        CREATE INDEX IF NOT EXISTS idx_vkeys_status ON verification_keys(status);
     `);
 
     // ── Migration: Add columns that may not exist ────────────
@@ -282,7 +300,7 @@ function initDb(dbPath) {
                 client_id: 'hobostreamer',
                 client_secret: uuidv4(),
                 name: 'HoboStreamer',
-                redirect_uris: JSON.stringify(['https://hobostreamer.com/auth/callback']),
+                redirect_uris: JSON.stringify(['https://hobostreamer.com/auth/callback', 'https://hobostreamer.com/api/auth/callback']),
                 is_first_party: 1,
             },
             {
@@ -302,6 +320,20 @@ function initDb(dbPath) {
         }
         console.log('[DB] ⚠️  Save these client secrets! They are shown only once.');
     }
+
+    // Ensure hobostreamer redirect_uris include /api/auth/callback path
+    try {
+        const hsClient = db.prepare("SELECT redirect_uris FROM oauth_clients WHERE client_id = 'hobostreamer'").get();
+        if (hsClient) {
+            const uris = JSON.parse(hsClient.redirect_uris);
+            if (!uris.includes('https://hobostreamer.com/api/auth/callback')) {
+                uris.push('https://hobostreamer.com/api/auth/callback');
+                db.prepare("UPDATE oauth_clients SET redirect_uris = ? WHERE client_id = 'hobostreamer'")
+                    .run(JSON.stringify(uris));
+                console.log('[DB] Updated hobostreamer redirect_uris to include /api/auth/callback');
+            }
+        }
+    } catch { /* already up to date */ }
 
     // ── Seed Default Settings ────────────────────────────────
     const settingsCount = db.prepare('SELECT COUNT(*) as cnt FROM site_settings').get().cnt;
@@ -347,6 +379,46 @@ function initDb(dbPath) {
         if (row.type === 'boolean') return row.value === 'true';
         if (row.type === 'number') return Number(row.value);
         return row.value;
+    };
+
+    // ── Verification Key helpers ─────────────────────────────
+    db.createVerificationKey = function ({ key, target_username, note, created_by }) {
+        return this.prepare(
+            'INSERT INTO verification_keys (key, target_username, note, created_by) VALUES (?, ?, ?, ?)'
+        ).run(key, target_username, note || '', created_by);
+    };
+
+    db.getVerificationKeyByKey = function (key) {
+        return this.prepare('SELECT * FROM verification_keys WHERE key = ?').get(key);
+    };
+
+    db.getVerificationKeyByUsername = function (username) {
+        return this.prepare("SELECT * FROM verification_keys WHERE target_username = ? COLLATE NOCASE AND status = 'active'").get(username);
+    };
+
+    db.getAllVerificationKeys = function () {
+        return this.prepare(`
+            SELECT vk.*, u1.username as created_by_name, u2.username as used_by_name
+            FROM verification_keys vk
+            LEFT JOIN users u1 ON vk.created_by = u1.id
+            LEFT JOIN users u2 ON vk.used_by = u2.id
+            ORDER BY vk.created_at DESC
+        `).all();
+    };
+
+    db.redeemVerificationKey = function (key, userId) {
+        return this.prepare(
+            "UPDATE verification_keys SET status = 'used', used_by = ?, used_at = CURRENT_TIMESTAMP WHERE key = ? AND status = 'active'"
+        ).run(userId, key);
+    };
+
+    db.revokeVerificationKey = function (id) {
+        return this.prepare("UPDATE verification_keys SET status = 'revoked' WHERE id = ? AND status = 'active'").run(id);
+    };
+
+    db.isUsernameReserved = function (username) {
+        const vk = this.prepare("SELECT id FROM verification_keys WHERE target_username = ? COLLATE NOCASE AND status = 'active'").get(username);
+        return !!vk;
     };
 
     console.log('[DB] Central database initialized');

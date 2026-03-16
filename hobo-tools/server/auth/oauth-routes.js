@@ -203,8 +203,8 @@ router.get('/.well-known/openid-configuration', (req, res) => {
     const config = getConfig(req);
     res.json({
         issuer: config.jwt.issuer,
-        authorization_endpoint: `${config.loginUrl}/authorize`,
-        token_endpoint: `${config.baseUrl}/token`,
+        authorization_endpoint: `${config.baseUrl}/oauth/authorize`,
+        token_endpoint: `${config.baseUrl}/oauth/token`,
         userinfo_endpoint: `${config.baseUrl}/api/auth/me`,
         jwks_uri: `${config.baseUrl}/api/.well-known/jwks`,
         response_types_supported: ['code'],

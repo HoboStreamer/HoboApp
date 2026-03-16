@@ -369,6 +369,10 @@
                 <input id="reg-email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
             </div>
             <div class="form-group">
+                <label for="reg-key">Verification Key <span style="color:var(--text-muted)">(optional)</span></label>
+                <input id="reg-key" name="verification_key" type="text" placeholder="HOBO-XXXX-XXXX-XXXX" style="font-family:monospace">
+            </div>
+            <div class="form-group">
                 <label for="reg-password">Password</label>
                 <input id="reg-password" name="password" type="password" required minlength="6" autocomplete="new-password">
             </div>
@@ -433,13 +437,14 @@
         document.getElementById('register-error').style.display = 'none';
         const username = document.getElementById('reg-username').value.trim();
         const email = document.getElementById('reg-email').value.trim() || undefined;
+        const verification_key = document.getElementById('reg-key').value.trim() || undefined;
         const password = document.getElementById('reg-password').value;
 
         try {
             const res = await fetch(`${API}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password }),
+                body: JSON.stringify({ username, email, password, verification_key }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Registration failed');
@@ -486,7 +491,7 @@
         // If we came from an OAuth redirect, resume it
         const params = new URLSearchParams(window.location.search);
         if (params.has('client_id') && params.has('redirect_uri')) {
-            window.location.href = `/authorize?${params.toString()}`;
+            window.location.href = `/oauth/authorize?${params.toString()}`;
             return;
         }
 
@@ -536,12 +541,22 @@
 
     // Check if already logged in on page load
     (function checkAuth() {
+        const params = new URLSearchParams(window.location.search);
+        const isOAuth = params.has('client_id') && params.has('redirect_uri');
         const token = localStorage.getItem('hobo_token');
         const user = localStorage.getItem('hobo_user');
         if (token && user) {
             try {
+                // If already logged in and this is an OAuth redirect, go straight to authorize
+                if (isOAuth) {
+                    window.location.href = `/oauth/authorize?${params.toString()}`;
+                    return;
+                }
                 showDashboard(JSON.parse(user));
             } catch { /* invalid stored data, ignore */ }
+        } else if (isOAuth) {
+            // Not logged in + OAuth redirect → show login form immediately
+            showAuth('login');
         }
     })();
 </script>
