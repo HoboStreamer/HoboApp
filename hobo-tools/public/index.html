@@ -232,63 +232,7 @@
         footer .links a { font-size: 13px; color: var(--text-muted); }
         footer .links a:hover { color: var(--accent-light); }
 
-        /* ── Auth Pages (login/register) ──────────────── */
-        .auth-container {
-            display: none;
-            max-width: 420px;
-            margin: 80px auto;
-            padding: 0 24px;
-        }
-        .auth-container.active { display: block; }
-        .auth-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 36px 32px;
-        }
-        .auth-box h2 {
-            text-align: center;
-            margin-bottom: 24px;
-            font-size: 22px;
-        }
-        .form-group {
-            margin-bottom: 16px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 10px 14px;
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 14px;
-            outline: none;
-            transition: border-color .2s;
-        }
-        .form-group input:focus { border-color: var(--accent); }
-        .auth-error {
-            background: rgba(231,76,60,0.1);
-            border: 1px solid rgba(231,76,60,0.3);
-            border-radius: 6px;
-            padding: 10px 14px;
-            color: #e74c3c;
-            font-size: 13px;
-            margin-bottom: 16px;
-            display: none;
-        }
-        .auth-switch {
-            text-align: center;
-            margin-top: 16px;
-            font-size: 13px;
-            color: var(--text-muted);
-        }
+
 
         @media (max-width: 600px) {
             .hero h1 { font-size: 28px; }
@@ -306,8 +250,8 @@
         <h1>Hobo Network</h1>
         <p class="tagline">One Account. All of Hobo.</p>
         <div class="cta-row">
-            <a href="#" class="btn btn-primary" onclick="showAuth('register')">Create Account</a>
-            <a href="#" class="btn btn-secondary" onclick="showAuth('login')">Sign In</a>
+            <a href="/login" class="btn btn-primary">Create Account</a>
+            <a href="/login" class="btn btn-secondary">Sign In</a>
         </div>
     </section>
 
@@ -350,56 +294,11 @@
         </div>
         <h2>One Account. All of Hobo.</h2>
         <p>Sign in once and you're everywhere — your identity, your theme, your progress, all synced across every Hobo service.</p>
-        <a href="#" class="btn btn-primary" onclick="showAuth('register')">Get Started</a>
+        <a href="/login" class="btn btn-primary">Get Started</a>
     </section>
 </div>
 
-<!-- ═══════════════════════ AUTH FORMS ═════════════════════════ -->
-<div id="auth-register" class="auth-container">
-    <div class="auth-box">
-        <h2>Create Account</h2>
-        <div class="auth-error" id="register-error"></div>
-        <form onsubmit="handleRegister(event)">
-            <div class="form-group">
-                <label for="reg-username">Username</label>
-                <input id="reg-username" name="username" type="text" required minlength="3" maxlength="24" autocomplete="username" placeholder="hobo_wanderer">
-            </div>
-            <div class="form-group">
-                <label for="reg-email">Email <span style="color:var(--text-muted)">(optional)</span></label>
-                <input id="reg-email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
-            </div>
-            <div class="form-group">
-                <label for="reg-key">Verification Key <span style="color:var(--text-muted)">(optional)</span></label>
-                <input id="reg-key" name="verification_key" type="text" placeholder="HOBO-XXXX-XXXX-XXXX" style="font-family:monospace">
-            </div>
-            <div class="form-group">
-                <label for="reg-password">Password</label>
-                <input id="reg-password" name="password" type="password" required minlength="6" autocomplete="new-password">
-            </div>
-            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Create Account</button>
-        </form>
-        <p class="auth-switch">Already have an account? <a href="#" onclick="showAuth('login')">Sign In</a></p>
-    </div>
-</div>
 
-<div id="auth-login" class="auth-container">
-    <div class="auth-box">
-        <h2>Sign In</h2>
-        <div class="auth-error" id="login-error"></div>
-        <form onsubmit="handleLogin(event)">
-            <div class="form-group">
-                <label for="login-username">Username</label>
-                <input id="login-username" name="username" type="text" required autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label for="login-password">Password</label>
-                <input id="login-password" name="password" type="password" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Sign In</button>
-        </form>
-        <p class="auth-switch">Don't have an account? <a href="#" onclick="showAuth('register')">Create one</a></p>
-    </div>
-</div>
 
 <footer>
     <p>&copy; 2025 Hobo Network. Open source on <a href="https://github.com/HoboStreamer" target="_blank">GitHub</a>.</p>
@@ -411,98 +310,27 @@
 </footer>
 
 <script>
-    const API = '/api';
-
-    function showAuth(mode) {
-        document.getElementById('landing').style.display = 'none';
-        document.getElementById('auth-register').classList.toggle('active', mode === 'register');
-        document.getElementById('auth-login').classList.toggle('active', mode === 'login');
-        window.scrollTo(0, 0);
+    function signOut() {
+        document.cookie = 'hobo_token=; path=/; max-age=0';
+        localStorage.removeItem('hobo_token');
+        localStorage.removeItem('hobo_user');
+        window.location.reload();
     }
 
-    function showLanding() {
-        document.getElementById('landing').style.display = '';
-        document.getElementById('auth-register').classList.remove('active');
-        document.getElementById('auth-login').classList.remove('active');
-    }
-
-    function showError(id, msg) {
-        const el = document.getElementById(id);
-        el.textContent = msg;
-        el.style.display = 'block';
-    }
-
-    async function handleRegister(e) {
-        e.preventDefault();
-        document.getElementById('register-error').style.display = 'none';
-        const username = document.getElementById('reg-username').value.trim();
-        const email = document.getElementById('reg-email').value.trim() || undefined;
-        const verification_key = document.getElementById('reg-key').value.trim() || undefined;
-        const password = document.getElementById('reg-password').value;
-
-        try {
-            const res = await fetch(`${API}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password, verification_key }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Registration failed');
-            onAuthSuccess(data.token, data.user);
-        } catch (err) {
-            showError('register-error', err.message);
+    // Check if already logged in on page load
+    (function checkAuth() {
+        const token = localStorage.getItem('hobo_token');
+        const user = localStorage.getItem('hobo_user');
+        if (token && user) {
+            try {
+                const u = JSON.parse(user);
+                showDashboard(u);
+            } catch { /* invalid stored data, ignore */ }
         }
-    }
-
-    async function handleLogin(e) {
-        e.preventDefault();
-        document.getElementById('login-error').style.display = 'none';
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value;
-
-        try {
-            const res = await fetch(`${API}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Login failed');
-            onAuthSuccess(data.token, data.user);
-        } catch (err) {
-            showError('login-error', err.message);
-        }
-    }
-
-    function onAuthSuccess(token, user) {
-        document.cookie = `hobo_token=${token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-        localStorage.setItem('hobo_token', token);
-        localStorage.setItem('hobo_user', JSON.stringify(user));
-
-        // Multi-account: store in accounts list
-        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
-        const existing = accounts.findIndex(a => a.id === user.id);
-        const entry = { id: user.id, username: user.username, display_name: user.display_name, avatar_url: user.avatar_url, email: user.email, token, is_anon: false };
-        if (existing !== -1) accounts[existing] = entry;
-        else accounts.push(entry);
-        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
-        localStorage.setItem('hobo_active_account', user.id);
-
-        // If we came from an OAuth redirect, resume it
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('client_id') && params.has('redirect_uri')) {
-            window.location.href = `/oauth/authorize?${params.toString()}`;
-            return;
-        }
-
-        // Otherwise show dashboard stub
-        showDashboard(user);
-    }
+    })();
 
     function showDashboard(user) {
         document.getElementById('landing').style.display = 'none';
-        document.getElementById('auth-register').classList.remove('active');
-        document.getElementById('auth-login').classList.remove('active');
 
         document.body.insertAdjacentHTML('afterbegin', `
             <section class="hero" style="padding: 60px 24px 40px">
@@ -526,39 +354,11 @@
             HoboNavbar.init({ service: 'hobotools', token: localStorage.getItem('hobo_token'), user });
             const bellMount = HoboNavbar.getBellMount();
             if (bellMount && window.HoboNotifications) {
-                HoboNotifications.init({ token: localStorage.getItem('hobo_token'), apiBase: API.replace('/api', '') });
+                HoboNotifications.init({ token: localStorage.getItem('hobo_token'), apiBase: '' });
                 bellMount.appendChild(HoboNotifications.createBell());
             }
         }
     }
-
-    function signOut() {
-        document.cookie = 'hobo_token=; path=/; max-age=0';
-        localStorage.removeItem('hobo_token');
-        localStorage.removeItem('hobo_user');
-        window.location.reload();
-    }
-
-    // Check if already logged in on page load
-    (function checkAuth() {
-        const params = new URLSearchParams(window.location.search);
-        const isOAuth = params.has('client_id') && params.has('redirect_uri');
-        const token = localStorage.getItem('hobo_token');
-        const user = localStorage.getItem('hobo_user');
-        if (token && user) {
-            try {
-                // If already logged in and this is an OAuth redirect, go straight to authorize
-                if (isOAuth) {
-                    window.location.href = `/oauth/authorize?${params.toString()}`;
-                    return;
-                }
-                showDashboard(JSON.parse(user));
-            } catch { /* invalid stored data, ignore */ }
-        } else if (isOAuth) {
-            // Not logged in + OAuth redirect → show login form immediately
-            showAuth('login');
-        }
-    })();
 </script>
 
 <!-- Shared Hobo Network scripts -->
