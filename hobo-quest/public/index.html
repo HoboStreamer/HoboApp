@@ -136,7 +136,10 @@
     <span class="icon">⚔️</span>
     <h1>HoboQuest</h1>
     <p>Community MMORPG & Collaborative Canvas</p>
-    <a href="/auth/login" class="btn btn-primary" id="play-btn">Sign in to Play</a>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+        <a href="/auth/login" class="btn btn-primary" id="play-btn">Sign in to Play</a>
+        <span id="hobo-bell-mount" style="display:inline-flex;align-items:center"></span>
+    </div>
 </section>
 
 <div class="modes">
@@ -172,13 +175,33 @@
     <p>Part of the <a href="https://hobo.tools">Hobo Network</a>. <a href="https://github.com/HoboStreamer">Open Source</a>.</p>
 </footer>
 
+<script src="https://hobo.tools/shared/notification-ui.js"></script>
 <script>
-    // If already authenticated, change button
-    const token = document.cookie.split(';').find(c => c.trim().startsWith('hobo_token='));
+    // Read hobo_token from cookie
+    function getCookie(name) {
+        const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+    const token = getCookie('hobo_token');
+
+    // If authenticated, change button
     if (token) {
         const btn = document.getElementById('play-btn');
         btn.textContent = 'Enter Game';
-        btn.href = '/game'; // Future: game canvas SPA route
+        btn.href = '/game';
+    }
+
+    // Initialize notification bell
+    if (token && window.HoboNotifications) {
+        const mount = document.getElementById('hobo-bell-mount');
+        if (mount) {
+            HoboNotifications.init({
+                token,
+                apiBase: 'https://hobo.tools',
+                soundBase: 'https://hobo.tools/shared/sounds',
+            });
+            mount.appendChild(HoboNotifications.createBell());
+        }
     }
 </script>
 </body>

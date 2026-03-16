@@ -46,7 +46,7 @@ class HoboAuthClient {
             state,
         });
         return {
-            url: `${this.authBase}/authorize?${params.toString()}`,
+            url: `${this.authBase}/oauth/authorize?${params.toString()}`,
             state,
         };
     }
@@ -57,7 +57,7 @@ class HoboAuthClient {
      * @returns {Promise<{ access_token: string, refresh_token: string, user: Object }>}
      */
     async exchangeCode(code) {
-        const res = await fetch(`${this.authBase}/token`, {
+        const res = await fetch(`${this.authBase}/oauth/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -81,7 +81,7 @@ class HoboAuthClient {
      * @returns {Promise<{ access_token: string, refresh_token: string }>}
      */
     async refreshAccessToken(refreshToken) {
-        const res = await fetch(`${this.authBase}/token`, {
+        const res = await fetch(`${this.authBase}/oauth/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

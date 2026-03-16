@@ -12,7 +12,7 @@ const BRAND = Object.freeze({
 
     urls: Object.freeze({
         tools:    'https://hobo.tools',
-        login:    'https://login.hobo.tools',
+        login:    'https://hobo.tools',
         maps:     'https://maps.hobo.tools',
         dl:       'https://dl.hobo.tools',
         streamer: 'https://hobostreamer.com',

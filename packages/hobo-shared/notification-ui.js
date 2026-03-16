@@ -384,10 +384,20 @@
     }
 
     // ── API Helpers ──────────────────────────────────────────
+    function isCrossOrigin() {
+        try { return new URL(_config.apiBase).origin !== window.location.origin; } catch { return false; }
+    }
+
     function apiFetch(path, opts = {}) {
         const headers = { ...opts.headers };
         if (_config.token) headers['Authorization'] = `Bearer ${_config.token}`;
-        return fetch(`${_config.apiBase}${path}`, { ...opts, headers, credentials: 'include' });
+        const crossOrigin = isCrossOrigin();
+        return fetch(`${_config.apiBase}${path}`, {
+            ...opts,
+            headers,
+            // Only send credentials for same-origin requests; cross-origin uses Authorization header
+            credentials: crossOrigin ? 'omit' : 'include',
+        });
     }
 
     async function markRead(id) {
@@ -482,7 +492,14 @@
         /** Update auth token (e.g., after account switch). */
         setToken(token) {
             _config.token = token;
-            pollUnread();
+            if (token) {
+                pollUnread();
+                if (!_pollTimer) _pollTimer = setInterval(pollUnread, POLL_INTERVAL);
+            } else {
+                clearInterval(_pollTimer);
+                _pollTimer = null;
+                updateBadge(0);
+            }
         },
 
         /** Open/close the notification panel. */

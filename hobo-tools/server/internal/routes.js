@@ -227,4 +227,32 @@ router.post('/notifications/resolve-users', (req, res) => {
     res.json({ ok: true, users });
 });
 
+// ── Issue Token for Linked User ──────────────────────────────
+// POST /internal/issue-token
+// Body: { user_id }
+// Used by hobostreamer/hobo-quest to get a hobo.tools JWT for
+// users who logged in via password but have a linked account.
+// This enables cross-service features (notifications, themes).
+router.post('/issue-token', (req, res) => {
+    const { user_id } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id required' });
+
+    const db = getDb(req);
+    const config = getConfig(req);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.is_banned) return res.status(403).json({ error: 'User is banned' });
+
+    const privateKey = req.app.locals.privateKey;
+    const algorithm = privateKey === req.app.locals.publicKey ? 'HS256' : 'RS256';
+
+    const token = jwt.sign(
+        { sub: user.id, username: user.username, role: user.role },
+        privateKey,
+        { algorithm, expiresIn: config.jwt.accessTokenExpiry, issuer: config.jwt.issuer }
+    );
+
+    res.json({ token, user: { id: user.id, username: user.username, display_name: user.display_name, role: user.role, avatar_url: user.avatar_url } });
+});
+
 module.exports = router;

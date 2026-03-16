@@ -29,8 +29,8 @@ module.exports = {
     oauth: {
         clientId: 'hoboquest',
         clientSecret: process.env.OAUTH_CLIENT_SECRET || '',
-        authorizationUrl: 'https://hobo.tools/authorize',
-        tokenUrl: 'https://hobo.tools/token',
+        authorizationUrl: 'https://hobo.tools/oauth/authorize',
+        tokenUrl: 'https://hobo.tools/oauth/token',
         redirectUri: 'https://hobo.quest/auth/callback',
     },
 

@@ -221,10 +221,10 @@
                     </div>
                 </div>
                 <div class="hobo-navbar-dropdown-menu">
-                    <a href="https://my.hobo.tools/"><span class="icon">👤</span> My Account</a>
-                    <a href="https://my.hobo.tools/notifications"><span class="icon">🔔</span> Notification Settings</a>
-                    <a href="https://my.hobo.tools/themes"><span class="icon">🎨</span> Themes</a>
-                    <a href="https://my.hobo.tools/linked"><span class="icon">🔗</span> Linked Services</a>
+                    <a href="https://hobo.tools/my"><span class="icon">👤</span> My Account</a>
+                    <a href="https://hobo.tools/my#notifications"><span class="icon">🔔</span> Notification Settings</a>
+                    <a href="https://hobo.tools/themes"><span class="icon">🎨</span> Themes</a>
+                    <a href="https://hobo.tools/my#linked"><span class="icon">🔗</span> Linked Services</a>
                     ${u.role === 'admin' ? `<a href="https://hobo.tools/admin"><span class="icon">🛠️</span> Admin Panel</a>` : ''}
                     <div style="height:1px;background:var(--border,#333340);margin:4px -8px"></div>
                     <button id="hobo-logout-btn" class="danger"><span class="icon">🚪</span> Sign Out</button>
@@ -252,7 +252,7 @@
             });
 
             dropdown.querySelector('#hobo-add-account')?.addEventListener('click', () => {
-                window.location.href = `https://login.hobo.tools/login?add_account=1&return=${encodeURIComponent(window.location.href)}`;
+                window.location.href = `https://hobo.tools/login?add_account=1&return=${encodeURIComponent(window.location.href)}`;
             });
 
             dropdown.querySelector('#hobo-logout-btn')?.addEventListener('click', () => {
@@ -267,7 +267,7 @@
         } else {
             nav.querySelector('#hobo-login-btn')?.addEventListener('click', () => {
                 if (_config.onLogin) _config.onLogin();
-                else window.location.href = `https://login.hobo.tools/login?return=${encodeURIComponent(window.location.href)}`;
+                else window.location.href = `https://hobo.tools/login?return=${encodeURIComponent(window.location.href)}`;
             });
         }
 

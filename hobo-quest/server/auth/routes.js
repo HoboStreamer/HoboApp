@@ -22,7 +22,7 @@ router.get('/callback', async (req, res) => {
 
     try {
         // Exchange code for tokens with hobo.tools
-        const tokenRes = await fetch(`${config.hoboTools.url}/token`, {
+        const tokenRes = await fetch(`${config.oauth.tokenUrl || config.hoboTools.url + '/oauth/token'}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
