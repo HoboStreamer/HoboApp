@@ -34,7 +34,8 @@ router.get('/authorize', (req, res) => {
     if (!client) return res.status(400).json({ error: 'Unknown client_id' });
 
     const allowedUris = JSON.parse(client.redirect_uris || '[]');
-    if (!allowedUris.includes(redirect_uri)) {
+    const uriLower = redirect_uri.toLowerCase();
+    if (!allowedUris.some(u => u.toLowerCase() === uriLower)) {
         return res.status(400).json({ error: 'Invalid redirect_uri' });
     }
 
