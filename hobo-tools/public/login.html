@@ -162,6 +162,52 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .login-toast.error{background:rgba(231,76,60,0.9);color:#fff}
 .login-toast.success{background:rgba(46,204,113,0.9);color:#fff}
 
+/* ── Account Chooser ───────────────────────────────────── */
+.chooser-subtitle{font-size:13px;color:var(--text-muted);text-align:center;margin-bottom:20px;line-height:1.5}
+.chooser-subtitle .app-name{color:var(--accent);font-weight:700}
+
+.account-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.account-item{
+    display:flex;align-items:center;gap:12px;padding:12px 14px;
+    background:var(--bg-input);border:1px solid var(--border);border-radius:12px;
+    cursor:pointer;transition:all .2s;position:relative;
+}
+.account-item:hover{border-color:var(--accent);background:rgba(192,150,92,0.06);transform:translateX(2px)}
+.account-item.active-account{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+.account-item .avatar{
+    width:40px;height:40px;border-radius:50%;background:var(--border);
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+    flex-shrink:0;overflow:hidden;
+}
+.account-item .avatar img{width:100%;height:100%;object-fit:cover}
+.account-item .info{flex:1;min-width:0}
+.account-item .info .name{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-item .info .detail{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-item .arrow{color:var(--text-dim);font-size:14px;flex-shrink:0;transition:color .2s}
+.account-item:hover .arrow{color:var(--accent)}
+.account-item .remove-btn{
+    position:absolute;top:6px;right:6px;width:20px;height:20px;border:none;
+    background:rgba(231,76,60,0.15);border-radius:50%;color:#e74c3c;font-size:10px;
+    cursor:pointer;display:none;align-items:center;justify-content:center;
+    transition:background .2s;line-height:1;
+}
+.account-item:hover .remove-btn{display:flex}
+.account-item .remove-btn:hover{background:rgba(231,76,60,0.3)}
+
+.chooser-actions{display:flex;flex-direction:column;gap:8px}
+.chooser-actions .action-btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;
+    border:1px dashed var(--border);border-radius:10px;background:transparent;
+    color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;
+}
+.chooser-actions .action-btn:hover{border-color:var(--accent-dark);color:var(--text);background:rgba(192,150,92,0.04)}
+
+.back-link{
+    display:block;text-align:center;margin-top:16px;font-size:12px;
+    color:var(--text-muted);cursor:pointer;text-decoration:none;transition:color .2s;
+}
+.back-link:hover{color:var(--accent)}
+
 @media(max-width:480px){
     .login-card{padding:28px 24px;border-radius:16px}
     .logo .flame{font-size:36px}
@@ -186,14 +232,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
             <p>One account across all services</p>
         </div>
 
-        <!-- Tab bar -->
-        <div class="tab-bar">
+        <!-- Tab bar (hidden when chooser is shown) -->
+        <div class="tab-bar" id="auth-tabs">
             <button class="active" onclick="switchTab('login')">Sign In</button>
             <button onclick="switchTab('register')">Create Account</button>
         </div>
 
+        <!-- Account Chooser (shown when saved accounts exist) -->
+        <div class="form-panel" id="panel-chooser">
+            <p class="chooser-subtitle" id="chooser-subtitle">Choose an account to continue</p>
+            <div class="account-list" id="account-list"></div>
+            <div class="divider"><span>or</span></div>
+            <div class="chooser-actions">
+                <button class="action-btn" onclick="showAuthForm('login')">
+                    🔑 Use another account
+                </button>
+                <button class="action-btn" onclick="showAuthForm('register')">
+                    ✨ Create a new account
+                </button>
+            </div>
+        </div>
+
         <!-- Login Form -->
-        <div class="form-panel active" id="panel-login">
+        <div class="form-panel" id="panel-login">
             <div class="message" id="login-msg"></div>
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="field">
@@ -209,6 +270,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
                     Sign In →
                 </button>
             </form>
+            <a class="back-link" id="login-back" onclick="showChooser()" style="display:none">← Back to saved accounts</a>
         </div>
 
         <!-- Register Form -->
@@ -240,6 +302,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
                     Create Account 🔥
                 </button>
             </form>
+            <a class="back-link" id="register-back" onclick="showChooser()" style="display:none">← Back to saved accounts</a>
         </div>
 
         <div class="divider"><span>or</span></div>
@@ -263,6 +326,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 <script>
 const API_BASE = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const isOAuth = params.has('client_id') && params.has('redirect_uri');
+const clientName = params.get('client_name') || params.get('client_id') || '';
 
 // Generate particles
 (function() {
@@ -278,12 +344,154 @@ const API_BASE = window.location.origin;
     }
 })();
 
-// Tab switching
+// ── Saved Accounts ──────────────────────────────────────────
+function getSavedAccounts() {
+    try { return JSON.parse(localStorage.getItem('hobo_accounts') || '[]').filter(a => a && a.token && !a.is_anon); }
+    catch { return []; }
+}
+
+function saveAccount(user, token) {
+    const accounts = getSavedAccounts();
+    const idx = accounts.findIndex(a => a.id === user.id);
+    const entry = {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name || user.username,
+        avatar_url: user.avatar_url || null,
+        email: user.email || null,
+        token,
+        is_anon: false,
+    };
+    if (idx !== -1) accounts[idx] = entry;
+    else accounts.push(entry);
+    localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+    localStorage.setItem('hobo_active_account', user.id);
+    return entry;
+}
+
+function removeAccount(id) {
+    const accounts = getSavedAccounts().filter(a => a.id !== id);
+    localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+    renderChooser();
+    if (accounts.length === 0) showAuthForm('login');
+}
+
+// ── View Management ─────────────────────────────────────────
+let hasAccounts = false;
+
+function showChooser() {
+    document.getElementById('auth-tabs').style.display = 'none';
+    document.getElementById('panel-chooser').classList.add('active');
+    document.getElementById('panel-login').classList.remove('active');
+    document.getElementById('panel-register').classList.remove('active');
+    document.querySelector('.divider')?.style && (document.querySelectorAll('.login-card > .divider').forEach(d => d.style.display = ''));
+    document.querySelector('.anon-btn')?.style && (document.querySelector('.anon-btn').style.display = '');
+}
+
+function showAuthForm(tab) {
+    document.getElementById('panel-chooser').classList.remove('active');
+    document.getElementById('auth-tabs').style.display = '';
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    const tabIdx = tab === 'login' ? 0 : 1;
+    document.querySelectorAll('.tab-bar button')[tabIdx].classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+    // Show "back" links if we have saved accounts
+    if (hasAccounts) {
+        document.getElementById('login-back').style.display = '';
+        document.getElementById('register-back').style.display = '';
+    }
+}
+
 function switchTab(tab) {
     document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
     event.target.classList.add('active');
     document.getElementById('panel-' + tab).classList.add('active');
+}
+
+// ── Render Account Chooser ──────────────────────────────────
+function renderChooser() {
+    const accounts = getSavedAccounts();
+    const list = document.getElementById('account-list');
+    const activeId = localStorage.getItem('hobo_active_account');
+    list.innerHTML = '';
+
+    // Set subtitle
+    const subtitle = document.getElementById('chooser-subtitle');
+    if (isOAuth && clientName) {
+        subtitle.innerHTML = `Choose an account to continue to <span class="app-name">${escapeHtml(clientName)}</span>`;
+    } else {
+        subtitle.textContent = 'Choose an account to continue';
+    }
+
+    accounts.forEach(account => {
+        const item = document.createElement('div');
+        item.className = 'account-item' + (String(account.id) === String(activeId) ? ' active-account' : '');
+        const avatarContent = account.avatar_url
+            ? `<img src="${escapeHtml(account.avatar_url)}" alt="" onerror="this.parentElement.textContent='🔥'">`
+            : '🔥';
+        item.innerHTML = `
+            <div class="avatar">${avatarContent}</div>
+            <div class="info">
+                <div class="name">${escapeHtml(account.display_name || account.username)}</div>
+                <div class="detail">${escapeHtml(account.username)}${account.email ? ' · ' + escapeHtml(account.email) : ''}</div>
+            </div>
+            <span class="arrow">→</span>
+            <button class="remove-btn" title="Remove this saved account" onclick="event.stopPropagation(); removeAccount(${account.id})">✕</button>
+        `;
+        item.addEventListener('click', () => selectAccount(account));
+        list.appendChild(item);
+    });
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+// ── Account Selection ───────────────────────────────────────
+async function selectAccount(account) {
+    // Set this as the active account
+    localStorage.setItem('hobo_token', account.token);
+    localStorage.setItem('hobo_active_account', account.id);
+    document.cookie = `hobo_token=${account.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+
+    if (isOAuth) {
+        // Call /oauth/confirm to get the redirect URL
+        try {
+            const res = await fetch(API_BASE + '/oauth/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: account.token,
+                    client_id: params.get('client_id'),
+                    redirect_uri: params.get('redirect_uri'),
+                    scope: params.get('scope') || 'profile theme',
+                    state: params.get('state') || '',
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                if (res.status === 401) {
+                    // Token expired — remove from saved and show login
+                    toast('Session expired for ' + (account.display_name || account.username) + '. Please sign in again.', 'error');
+                    removeAccount(account.id);
+                    return;
+                }
+                throw new Error(data.error || 'Authorization failed');
+            }
+            toast('Redirecting as ' + (account.display_name || account.username) + '...', 'success');
+            setTimeout(() => window.location.href = data.redirect, 400);
+        } catch (err) {
+            toast(err.message, 'error');
+        }
+    } else {
+        // Not OAuth — just switch the active account and go home
+        toast('Switched to ' + (account.display_name || account.username) + ' 🔥', 'success');
+        setTimeout(() => window.location.href = getReturnUrl(), 600);
+    }
 }
 
 // Password toggle
@@ -321,21 +529,12 @@ function ripple(btn, e) {
     setTimeout(() => r.remove(), 600);
 }
 
-// Get return URL (OAuth-aware)
+// Get return URL (non-OAuth)
 function getReturnUrl() {
-    const params = new URLSearchParams(window.location.search);
-    // If we arrived via OAuth redirect, go back to /oauth/authorize with the original params
-    if (params.has('client_id') && params.has('redirect_uri')) {
-        return `/oauth/authorize?${params.toString()}`;
-    }
     return params.get('return') || '/';
 }
 
-function isAddAccount() {
-    return new URLSearchParams(window.location.search).get('add_account') === '1';
-}
-
-// Handle login
+// ── Login Handler ───────────────────────────────────────────
 async function handleLogin(e) {
     e.preventDefault();
     const btn = document.getElementById('login-submit');
@@ -353,21 +552,32 @@ async function handleLogin(e) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
 
-        // Store token
+        // Store token & save account
         localStorage.setItem('hobo_token', data.token);
         document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+        saveAccount(data.user, data.token);
 
-        // Multi-account: add to accounts list
-        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
-        const existing = accounts.findIndex(a => a.id === data.user.id);
-        const entry = { id: data.user.id, username: data.user.username, display_name: data.user.display_name, avatar_url: data.user.avatar_url, email: data.user.email, token: data.token, is_anon: false };
-        if (existing !== -1) accounts[existing] = entry;
-        else accounts.push(entry);
-        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
-        localStorage.setItem('hobo_active_account', data.user.id);
-
-        toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! 🔥');
-        setTimeout(() => window.location.href = getReturnUrl(), 800);
+        if (isOAuth) {
+            // Confirm OAuth with the new token
+            const confirmRes = await fetch(API_BASE + '/oauth/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: data.token,
+                    client_id: params.get('client_id'),
+                    redirect_uri: params.get('redirect_uri'),
+                    scope: params.get('scope') || 'profile theme',
+                    state: params.get('state') || '',
+                }),
+            });
+            const confirmData = await confirmRes.json();
+            if (!confirmRes.ok) throw new Error(confirmData.error || 'Authorization failed');
+            toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! 🔥');
+            setTimeout(() => window.location.href = confirmData.redirect, 800);
+        } else {
+            toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! 🔥');
+            setTimeout(() => window.location.href = getReturnUrl(), 800);
+        }
     } catch (err) {
         showMsg('login-msg', err.message, 'error');
         btn.textContent = 'Sign In →';
@@ -375,7 +585,7 @@ async function handleLogin(e) {
     }
 }
 
-// Handle register
+// ── Register Handler ────────────────────────────────────────
 async function handleRegister(e) {
     e.preventDefault();
     const btn = document.getElementById('register-submit');
@@ -394,21 +604,40 @@ async function handleRegister(e) {
         const res = await fetch(API_BASE + '/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: form.get('username'), email: form.get('email') || undefined, password: form.get('password'), verification_key: form.get('verification_key') || undefined }),
+            body: JSON.stringify({
+                username: form.get('username'),
+                email: form.get('email') || undefined,
+                password: form.get('password'),
+                verification_key: form.get('verification_key') || undefined,
+            }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');
 
         localStorage.setItem('hobo_token', data.token);
         document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+        saveAccount(data.user, data.token);
 
-        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
-        accounts.push({ id: data.user.id, username: data.user.username, display_name: data.user.display_name, avatar_url: data.user.avatar_url, token: data.token, is_anon: false });
-        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
-        localStorage.setItem('hobo_active_account', data.user.id);
-
-        toast('Account created! Welcome to the network 🔥');
-        setTimeout(() => window.location.href = getReturnUrl(), 800);
+        if (isOAuth) {
+            const confirmRes = await fetch(API_BASE + '/oauth/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: data.token,
+                    client_id: params.get('client_id'),
+                    redirect_uri: params.get('redirect_uri'),
+                    scope: params.get('scope') || 'profile theme',
+                    state: params.get('state') || '',
+                }),
+            });
+            const confirmData = await confirmRes.json();
+            if (!confirmRes.ok) throw new Error(confirmData.error || 'Authorization failed');
+            toast('Account created! Welcome to the network 🔥');
+            setTimeout(() => window.location.href = confirmData.redirect, 800);
+        } else {
+            toast('Account created! Welcome to the network 🔥');
+            setTimeout(() => window.location.href = getReturnUrl(), 800);
+        }
     } catch (err) {
         showMsg('register-msg', err.message, 'error');
         btn.textContent = 'Create Account 🔥';
@@ -425,9 +654,9 @@ async function continueAnonymous() {
         localStorage.setItem('hobo_anon_token', data.token);
         localStorage.setItem('hobo_active_account', 'anon');
 
-        const accounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
-        accounts.push({ id: data.user.id, username: data.user.username, display_name: data.user.display_name, is_anon: true, anon_number: data.user.anon_number, token: data.token });
-        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+        const allAccounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
+        allAccounts.push({ id: data.user.id, username: data.user.username, display_name: data.user.display_name, is_anon: true, anon_number: data.user.anon_number, token: data.token });
+        localStorage.setItem('hobo_accounts', JSON.stringify(allAccounts));
 
         toast('Browsing as Anonymous #' + data.user.anon_number);
         setTimeout(() => window.location.href = getReturnUrl(), 600);
@@ -435,6 +664,23 @@ async function continueAnonymous() {
         toast(err.message, 'error');
     }
 }
+
+// ── Page Init ───────────────────────────────────────────────
+(function init() {
+    const accounts = getSavedAccounts();
+    hasAccounts = accounts.length > 0;
+
+    if (hasAccounts) {
+        // Show account chooser
+        renderChooser();
+        showChooser();
+    } else {
+        // No saved accounts — show login form directly
+        document.getElementById('panel-chooser').classList.remove('active');
+        document.getElementById('auth-tabs').style.display = '';
+        document.getElementById('panel-login').classList.add('active');
+    }
+})();
 </script>
 </body>
 </html>

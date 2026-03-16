@@ -14,12 +14,11 @@ function getDb(req) { return req.app.locals.db; }
 function getConfig(req) { return req.app.locals.config; }
 
 // ── GET /authorize ───────────────────────────────────────────
-// OAuth2 authorization endpoint. Redirects to login UI if not
-// authenticated, or issues an authorization code if already
-// logged in.
+// OAuth2 authorization endpoint. Always shows the account chooser
+// so the user can pick which account to continue with, add a new
+// one, or create an account.
 router.get('/authorize', (req, res) => {
     const db = getDb(req);
-    const config = getConfig(req);
     const { client_id, redirect_uri, response_type, scope, state } = req.query;
 
     if (response_type !== 'code') {
@@ -39,38 +38,69 @@ router.get('/authorize', (req, res) => {
         return res.status(400).json({ error: 'Invalid redirect_uri' });
     }
 
-    // Check if user is already authenticated via cookie
-    const token = req.cookies?.hobo_token;
-    if (token) {
-        const publicKey = req.app.locals.publicKey;
-        const algorithm = publicKey.includes('BEGIN') ? 'RS256' : 'HS256';
-        try {
-            const decoded = jwt.verify(token, publicKey, { algorithms: [algorithm], issuer: config.jwt.issuer });
-            const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.sub || decoded.id);
-            if (user && !user.is_banned) {
-                // User is logged in — issue authorization code
-                const code = crypto.randomBytes(32).toString('hex');
-                const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min
-                db.prepare(`
-                    INSERT INTO oauth_codes (code, client_id, user_id, redirect_uri, scope, expires_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                `).run(code, client_id, user.id, redirect_uri, scope || 'profile theme', expiresAt);
-
-                const sep = redirect_uri.includes('?') ? '&' : '?';
-                return res.redirect(`${redirect_uri}${sep}code=${code}&state=${state || ''}`);
-            }
-        } catch { /* token invalid, fall through to login */ }
-    }
-
-    // Not authenticated — redirect to login UI with the original authorize params
+    // Always redirect to login/chooser — let the user pick which account to use
     const loginParams = new URLSearchParams({
         client_id,
+        client_name: client.name || client_id,
         redirect_uri,
         response_type,
         scope: scope || 'profile theme',
         state: state || '',
     });
-    res.redirect(`${config.loginUrl}/login?${loginParams.toString()}`);
+    res.redirect(`${getConfig(req).loginUrl}/login?${loginParams.toString()}`);
+});
+
+// ── POST /oauth/confirm ─────────────────────────────────────
+// Called from the account chooser UI. Accepts a hobo.tools JWT
+// token and OAuth params, validates everything, issues an
+// authorization code, and returns the redirect URL.
+router.post('/oauth/confirm', (req, res) => {
+    const db = getDb(req);
+    const config = getConfig(req);
+    const { token, client_id, redirect_uri, scope, state } = req.body;
+
+    if (!token || !client_id || !redirect_uri) {
+        return res.status(400).json({ error: 'token, client_id, and redirect_uri are required' });
+    }
+
+    // Validate client
+    const client = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(client_id);
+    if (!client) return res.status(400).json({ error: 'Unknown client_id' });
+
+    const allowedUris = JSON.parse(client.redirect_uris || '[]');
+    const uriLower = redirect_uri.toLowerCase();
+    if (!allowedUris.some(u => u.toLowerCase() === uriLower)) {
+        return res.status(400).json({ error: 'Invalid redirect_uri' });
+    }
+
+    // Verify the token
+    const publicKey = req.app.locals.publicKey;
+    const algorithm = publicKey.includes('BEGIN') ? 'RS256' : 'HS256';
+    let decoded;
+    try {
+        decoded = jwt.verify(token, publicKey, { algorithms: [algorithm], issuer: config.jwt.issuer });
+    } catch {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.sub || decoded.id);
+    if (!user || user.is_banned) {
+        return res.status(403).json({ error: 'User not found or banned' });
+    }
+
+    // Issue authorization code
+    const code = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    db.prepare(`
+        INSERT INTO oauth_codes (code, client_id, user_id, redirect_uri, scope, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `).run(code, client_id, user.id, redirect_uri, scope || 'profile theme', expiresAt);
+
+    // Also set cookie to this account so hobo.tools itself knows the active session
+    res.cookie('hobo_token', token, { httpOnly: false, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'Lax', secure: true, path: '/' });
+
+    const sep = redirect_uri.includes('?') ? '&' : '?';
+    res.json({ redirect: `${redirect_uri}${sep}code=${code}&state=${state || ''}` });
 });
 
 // ── POST /token ──────────────────────────────────────────────
