@@ -120,6 +120,8 @@
         if (typeof HoboNavbar !== 'undefined') {
             HoboNavbar.init({
                 service: 'hoboimg',
+                brandName: ctx?.brandName || undefined,
+                brandIcon: ctx?.faIcon || undefined,
                 token,
                 user: ctx?.user || user,
                 apiBase: 'https://hobo.tools',

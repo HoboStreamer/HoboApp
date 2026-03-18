@@ -130,6 +130,34 @@
         hoboimg: 'HoboImg', hoboyt: 'HoboYT',
     };
 
+    const SERVICE_ICONS = {
+        hobostreamer: 'fa-tower-broadcast', hoboquest: 'fa-hat-wizard',
+        hobotools: 'fa-screwdriver-wrench', hobomaps: 'fa-map-location-dot',
+        hoboimg: 'fa-images', hoboyt: 'fa-circle-play',
+    };
+
+    // Subdomain → brand override for multi-subdomain services (HoboImg)
+    const SUBDOMAIN_BRANDS = {
+        'png.hobo.tools':      { name: 'HoboPNG',      icon: 'fa-file-image' },
+        'jpg.hobo.tools':      { name: 'HoboJPG',      icon: 'fa-file-image' },
+        'jpeg.hobo.tools':     { name: 'HoboJPG',      icon: 'fa-file-image' },
+        'webp.hobo.tools':     { name: 'HoboWebP',     icon: 'fa-file-image' },
+        'avif.hobo.tools':     { name: 'HoboAVIF',     icon: 'fa-file-image' },
+        'heic.hobo.tools':     { name: 'HoboHEIC',     icon: 'fa-file-image' },
+        'heif.hobo.tools':     { name: 'HoboHEIC',     icon: 'fa-file-image' },
+        'svg.hobo.tools':      { name: 'HoboSVG',      icon: 'fa-bezier-curve' },
+        'gif.hobo.tools':      { name: 'HoboGIF',      icon: 'fa-film' },
+        'ico.hobo.tools':      { name: 'HoboICO',      icon: 'fa-icons' },
+        'tiff.hobo.tools':     { name: 'HoboTIFF',     icon: 'fa-file-image' },
+        'bmp.hobo.tools':      { name: 'HoboBMP',      icon: 'fa-file-image' },
+        'compress.hobo.tools': { name: 'HoboCompress',  icon: 'fa-compress' },
+        'resize.hobo.tools':   { name: 'HoboResize',    icon: 'fa-up-right-and-down-left-from-center' },
+        'crop.hobo.tools':     { name: 'HoboCrop',      icon: 'fa-crop-simple' },
+        'convert.hobo.tools':  { name: 'HoboConvert',   icon: 'fa-arrows-rotate' },
+        'favicon.hobo.tools':  { name: 'HoboFavicon',   icon: 'fa-icons' },
+        'yt.hobo.tools':       { name: 'HoboYT',        icon: 'fa-circle-play' },
+    };
+
     const SERVICE_LINKS = {
         hobostreamer: [
             { label: 'Watch', href: '/' },
@@ -213,8 +241,13 @@
         const nav = document.createElement('nav');
         nav.className = 'hobo-navbar';
         const svc = _config.service;
-        const svcName = SERVICE_NAMES[svc] || 'Hobo';
         const links = SERVICE_LINKS[svc] || [];
+
+        // Resolve brand name + icon: config override > subdomain lookup > service defaults
+        const host = (typeof location !== 'undefined' && location.hostname) || '';
+        const subBrand = SUBDOMAIN_BRANDS[host];
+        const svcName = _config.brandName || (subBrand && subBrand.name) || SERVICE_NAMES[svc] || 'Hobo';
+        const svcIcon = _config.brandIcon || (subBrand && subBrand.icon) || SERVICE_ICONS[svc] || 'fa-campground';
 
         const u = _config.user;
         const accounts = getAccounts();
@@ -222,7 +255,7 @@
 
         nav.innerHTML = `
             <a class="hobo-navbar-brand" href="/">
-                <span class="flame"><i class="fa-solid fa-campground"></i></span>
+                <span class="flame"><i class="fa-solid ${svcIcon}"></i></span>
                 <div>
                     <div class="name">${svcName}</div>
                 </div>
