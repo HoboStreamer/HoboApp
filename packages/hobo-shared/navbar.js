@@ -151,10 +151,10 @@
             { label: 'Camps', href: '/camps' },
         ],
         hoboimg: [
-            { label: 'Convert', href: '/' },
-            { label: 'Compress', href: '/compress' },
-            { label: 'Resize', href: '/resize' },
-            { label: 'Crop', href: '/crop' },
+            { label: 'Convert', href: 'https://convert.hobo.tools' },
+            { label: 'Compress', href: 'https://compress.hobo.tools' },
+            { label: 'Resize', href: 'https://resize.hobo.tools' },
+            { label: 'Crop', href: 'https://crop.hobo.tools' },
         ],
         hoboyt: [
             { label: 'Download', href: '/' },
