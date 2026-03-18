@@ -33,6 +33,9 @@ const WOODS_TYPES = {
   wilderness_area:  { label: 'Wilderness Area',       icon: 'fa-mountain',       color: '#065f46', stealth: 5 },
   protected_area:   { label: 'Protected Area',        icon: 'fa-shield-halved',  color: '#047857', stealth: 3 },
   blm_usfs_land:    { label: 'Public Land (BLM/USFS)',icon: 'fa-campground',     color: '#ca8a04', stealth: 5 },
+  heath:            { label: 'Heath / Moorland',     icon: 'fa-seedling',       color: '#84cc16', stealth: 3 },
+  grassland:        { label: 'Grassland / Prairie',   icon: 'fa-wind',           color: '#a3e635', stealth: 2 },
+  meadow:           { label: 'Meadow / Clearing',     icon: 'fa-sun',            color: '#fbbf24', stealth: 2 },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -77,6 +80,15 @@ function buildWoodsQuery(lat, lon, radiusMeters) {
   // ── BLM / USFS / DNR managed land (operator tags) ──
   way["boundary"="protected_area"]["operator"~"BLM|Bureau of Land Management|USFS|Forest Service|DNR|Fish and Wildlife"](around:${radiusMeters},${lat},${lon});
   relation["boundary"="protected_area"]["operator"~"BLM|Bureau of Land Management|USFS|Forest Service|DNR|Fish and Wildlife"](around:${radiusMeters},${lat},${lon});
+
+  // ── Heath / moorland (open heath, often in highlands/coastal areas) ──
+  way["natural"="heath"](around:${radiusMeters},${lat},${lon});
+
+  // ── Grassland / prairie (open wild grassland areas) ──
+  way["natural"="grassland"](around:${radiusMeters},${lat},${lon});
+
+  // ── Meadows / clearings (open areas in or near woodland) ──
+  way["landuse"="meadow"]["name"](around:${radiusMeters},${lat},${lon});
 );
 out center body;
 >;
@@ -130,6 +142,15 @@ function classifyWoods(tags) {
 
   // Scrubland
   if (natural === 'scrub') return 'scrubland';
+
+  // Heath / moorland
+  if (natural === 'heath') return 'heath';
+
+  // Grassland / prairie
+  if (natural === 'grassland') return 'grassland';
+
+  // Meadow / clearing
+  if (landuse === 'meadow') return 'meadow';
 
   // Forest classification by leaf type
   if (natural === 'wood' || landuse === 'forest') {
@@ -233,6 +254,9 @@ function buildWoodsDescription(tags, woodsType) {
     wilderness_area: '🏔️ Federally designated wilderness — dispersed camping usually allowed',
     protected_area: '🛡️ Check local rules for camping/overnight access permissions',
     blm_usfs_land: '🏕️ Dispersed camping usually FREE for 14 days. Best for stealth camping.',
+    heath: '🌿 Open heath — limited tree cover but often remote and rarely patrolled',
+    grassland: '🌾 Open prairie — very exposed, minimal concealment. Best as transit, not camp.',
+    meadow: '🌼 Open meadow/clearing — exposed but can be secluded if surrounded by trees',
   };
   if (tips[woodsType]) parts.push(tips[woodsType]);
 

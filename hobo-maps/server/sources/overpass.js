@@ -74,6 +74,16 @@ function buildQuery(lat, lon, radiusMeters) {
   way["natural"="wood"](around:${radiusMeters},${lat},${lon});
   way["landuse"="forest"](around:${radiusMeters},${lat},${lon});
 
+  // ── Beaches (natural sand/gravel near water — great for camping) ──
+  node["natural"="beach"](around:${radiusMeters},${lat},${lon});
+  way["natural"="beach"](around:${radiusMeters},${lat},${lon});
+
+  // ── Scrubland / bushes (concealment for stealth camping) ──
+  way["natural"="scrub"](around:${radiusMeters},${lat},${lon});
+
+  // ── Heath / moorland ──
+  way["natural"="heath"](around:${radiusMeters},${lat},${lon});
+
   // ── Drinking water sources (expanded) ──
   node["amenity"="drinking_water"](around:${radiusMeters},${lat},${lon});
   node["amenity"="water_point"](around:${radiusMeters},${lat},${lon});
@@ -228,6 +238,9 @@ function inferName(tags, tourism, amenity, leisure, natural, landuse) {
     if (tags.leaf_type === 'needleleaved') return 'Conifer Forest (Dense Canopy)';
     return 'Forest Area';
   }
+  if (natural === 'beach') return tags.surface ? `Beach (${tags.surface})` : 'Beach';
+  if (natural === 'scrub') return 'Scrubland / Bushes';
+  if (natural === 'heath') return 'Heath / Moorland';
   return 'Point of Interest';
 }
 
@@ -281,6 +294,9 @@ function classifyOSM(tourism, amenity, leisure, natural, landuse, tags, building
   if (leisure === 'nature_reserve') return 'Nature Reserve';
   if ((natural === 'wood' || landuse === 'forest') && tags.leaf_type === 'needleleaved') return 'Dense Canopy (Evergreen)';
   if (natural === 'wood' || landuse === 'forest') return 'Wooded Area';
+  if (natural === 'beach') return 'Beach';
+  if (natural === 'scrub') return 'Scrubland / Bushes';
+  if (natural === 'heath') return 'Heath / Moorland';
 
   return 'Point of Interest';
 }
@@ -292,6 +308,15 @@ function computeOSMStealthRating(tags, tourism, amenity, leisure, natural, landu
   if (natural === 'wood' || landuse === 'forest') rating = 5;
   // Dense evergreen canopy = best tree cover
   if ((natural === 'wood' || landuse === 'forest') && tags.leaf_type === 'needleleaved') rating = 5;
+
+  // Scrubland / bushes — decent concealment
+  if (natural === 'scrub') rating = 3;
+
+  // Beach — exposed but can be secluded if remote
+  if (natural === 'beach') rating = 3;
+
+  // Heath — open moorland, low cover
+  if (natural === 'heath') rating = 2;
 
   // Backcountry campsites
   if (tags.backcountry === 'yes') rating = 5;

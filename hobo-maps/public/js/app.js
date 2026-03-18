@@ -223,6 +223,68 @@
   }
 
   // ═══ Search ═══
+  function buildSourceProgressHTML(sources) {
+    return `<div class="source-progress">
+      <div class="sp-header">
+        <div class="sp-bar"><div class="sp-fill" id="sp-fill"></div></div>
+        <span class="sp-count" id="sp-count">0 / ${sources.length}</span>
+      </div>
+      <div class="sp-grid">${sources.map(s =>
+        `<div class="sp-item" data-source="${s.name}" id="sp-${s.name.replace(/[^a-zA-Z0-9]/g, '')}">
+          <i class="fa-solid fa-spinner fa-spin sp-icon"></i>
+          <span class="sp-name">${s.name}</span>
+          <span class="sp-result"></span>
+        </div>`
+      ).join('')}</div>
+    </div>`;
+  }
+
+  function markSourceDone(name, status, count) {
+    const id = 'sp-' + name.replace(/[^a-zA-Z0-9]/g, '');
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('loading');
+    el.classList.add(status === 'done' ? 'done' : 'error');
+    const icon = el.querySelector('.sp-icon');
+    if (icon) {
+      icon.classList.remove('fa-spinner', 'fa-spin');
+      icon.classList.add(status === 'done' ? 'fa-check' : 'fa-xmark');
+    }
+    const res = el.querySelector('.sp-result');
+    if (res) res.textContent = status === 'done' ? (count > 0 ? count : '–') : '✗';
+  }
+
+  function updateSourceProgress(completed, total) {
+    const fill = document.getElementById('sp-fill');
+    const cnt = document.getElementById('sp-count');
+    if (fill) fill.style.width = `${(completed / total) * 100}%`;
+    if (cnt) cnt.textContent = `${completed} / ${total}`;
+  }
+
+  /** Incrementally add locations to map as they stream in */
+  function addStreamedLocations(newLocs, newBridges, newCrimeHeatmap) {
+    let added = 0;
+    if (newLocs && newLocs.length) {
+      for (const loc of newLocs) {
+        const enriched = enrichLoc(loc);
+        if (enriched.lat && enriched.lon && state.searchCenter) {
+          if (!enriched.distanceMiles) enriched.distanceMiles = haversine(state.searchCenter.lat, state.searchCenter.lon, enriched.lat, enriched.lon);
+        }
+        state.locations.push(enriched);
+        added++;
+      }
+    }
+    if (newBridges && newBridges.length) {
+      for (const b of newBridges) {
+        state.bridges.push(enrichLoc({ ...b, source: 'Bridges', type: `Bridge (${b.serviceUnder || 'Unknown'})` }));
+      }
+    }
+    if (newCrimeHeatmap && newCrimeHeatmap.length) {
+      state.crimeHeatData.push(...newCrimeHeatmap);
+    }
+    return added;
+  }
+
   async function performSearch(query) {
     if (!query?.trim()) return;
     query = query.trim();
@@ -231,69 +293,123 @@
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Searching...</span>';
     setStatus(`<i class="fa-solid fa-spinner fa-spin"></i> Searching "${query}"...`);
     hide($('#welcome-card'));
-    $('#results-list').innerHTML = '<div class="search-progress"><div class="spinner"></div><p>Searching 17 sources...</p></div>';
+    $('#results-list').innerHTML = '<div class="search-progress"><div class="spinner"></div><p>Geocoding location...</p></div>';
+
+    // Reset state
+    state.locations = [];
+    state.bridges = [];
+    state.crimeHeatData = [];
+    state.markerCache.clear();
+    state.sourceMeta = {};
 
     try {
       // Geocode
       const geoRes = await fetch(`${API}/api/geocode?q=${encodeURIComponent(query)}`);
       const geoData = await geoRes.json();
       if (!geoData.length) throw new Error('Location not found');
-      const {lat, lon, name: displayName} = geoData[0];
+      const { lat, lon, name: displayName } = geoData[0];
       const radius = parseInt($('#search-radius').value) || 15;
 
-      state.searchCenter = {lat, lon};
+      state.searchCenter = { lat, lon };
 
       // User marker
       if (state.userMarker) state.map.removeLayer(state.userMarker);
-      state.userMarker = L.marker([lat,lon], {
-        icon: L.divIcon({className:'user-marker',iconSize:[20,20],iconAnchor:[10,10]}), zIndexOffset:1000
+      state.userMarker = L.marker([lat, lon], {
+        icon: L.divIcon({ className: 'user-marker', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000
       }).addTo(state.map).bindPopup(`<b>Search Center</b><br>${displayName}`);
-      state.map.setView([lat,lon], 11, {animate:false});
+      state.map.setView([lat, lon], 11, { animate: false });
 
-      // Master search
+      // Placeholder for source progress — will be replaced once sources manifest arrives
+      $('#results-list').innerHTML = '<div class="search-progress"><div class="spinner"></div><p>Connecting to sources...</p></div>';
+
       const t0 = Date.now();
-      const res = await fetch(`${API}/api/search?lat=${lat}&lon=${lon}&radius=${radius}`);
-      const data = await res.json();
-      state.queryTime = ((Date.now()-t0)/1000).toFixed(1);
 
-      state.locations = (data.locations||[]).map(enrichLoc);
-      state.bridges = (data.bridges||[]).map(b => enrichLoc({...b, source:'Bridges', type:`Bridge (${b.serviceUnder||'Unknown'})`}));
-      state.crimeHeatData = data.crimeHeatmap || [];
+      // Use SSE streaming endpoint
+      await new Promise((resolve, reject) => {
+        const es = new EventSource(`${API}/api/search/stream?lat=${lat}&lon=${lon}&radius=${radius}`);
+        let totalSources = 17;
+        let refreshTimer = null;
+
+        function scheduleRefresh() {
+          if (refreshTimer) return;
+          refreshTimer = setTimeout(() => {
+            refreshTimer = null;
+            applyFilters();
+          }, 300);
+        }
+
+        es.addEventListener('sources', (e) => {
+          const sourceDefs = JSON.parse(e.data);
+          totalSources = sourceDefs.length;
+          $('#results-list').innerHTML = buildSourceProgressHTML(sourceDefs);
+        });
+
+        es.addEventListener('cached', (e) => {
+          const data = JSON.parse(e.data);
+          // Full cached result — load everything at once
+          state.locations = (data.locations || []).map(enrichLoc);
+          state.bridges = (data.bridges || []).map(b => enrichLoc({ ...b, source: 'Bridges', type: `Bridge (${b.serviceUnder || 'Unknown'})` }));
+          state.crimeHeatData = data.crimeHeatmap || [];
+          state.sourceMeta = data.sourceMeta || {};
+          state.queryTime = ((Date.now() - t0) / 1000).toFixed(1);
+        });
+
+        es.addEventListener('source', (e) => {
+          const msg = JSON.parse(e.data);
+          markSourceDone(msg.name, msg.status, msg.count);
+          updateSourceProgress(msg.completed, msg.total);
+          if (msg.status === 'done') {
+            const added = addStreamedLocations(msg.locations, msg.bridges, msg.crimeHeatmap);
+            state.sourceMeta[msg.name] = { count: msg.count };
+            if (added > 0 || msg.bridges?.length || msg.crimeHeatmap?.length) scheduleRefresh();
+          }
+        });
+
+        es.addEventListener('done', (e) => {
+          const msg = JSON.parse(e.data);
+          es.close();
+          state.queryTime = ((Date.now() - t0) / 1000).toFixed(1);
+          if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+          resolve(msg);
+        });
+
+        es.addEventListener('error', () => {
+          es.close();
+          if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+          reject(new Error('Connection lost during search'));
+        });
+      });
 
       // Merge in custom spots within radius
+      const radius2 = parseInt($('#search-radius').value) || 15;
       for (const c of state.customSpots) {
         if (c.lat && c.lon) {
           const d = haversine(lat, lon, c.lat, c.lon);
-          if (d <= radius) state.locations.push(enrichLoc({...c, distanceMiles: Math.round(d*10)/10, source:'Custom'}));
+          if (d <= radius2) state.locations.push(enrichLoc({ ...c, distanceMiles: Math.round(d * 10) / 10, source: 'Custom' }));
         }
       }
 
-      // Compute distances
+      // Compute distances for anything missing
       state.locations.forEach(l => {
         if (l.lat && l.lon && !l.distanceMiles) l.distanceMiles = haversine(lat, lon, l.lat, l.lon);
       });
 
-      state.markerCache.clear();
       applyFilters();
       show($('#sort-by'));
       $('#results-summary').innerHTML = `<strong>${state.locations.length}</strong> spots found`;
 
       // Fit bounds
       if (state.locations.length) {
-        const bounds = L.latLngBounds(state.locations.map(l=>[l.lat,l.lon]));
-        bounds.extend([lat,lon]);
-        state.map.flyToBounds(bounds, {padding:[50,50], maxZoom:13, duration:0.6});
+        const bounds = L.latLngBounds(state.locations.map(l => [l.lat, l.lon]));
+        bounds.extend([lat, lon]);
+        state.map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 13, duration: 0.6 });
       }
 
-      // Fetch weather
       fetchWeather(lat, lon);
 
       setStatus(`<i class="fa-solid fa-check-circle"></i> ${state.locations.length} spots near "${query}" in ${state.queryTime}s`);
       toast(`Found ${state.locations.length} locations near ${query}`);
 
-      if (data.sourceMeta) {
-        state.sourceMeta = data.sourceMeta;
-      }
     } catch (err) {
       setStatus(`<i class="fa-solid fa-exclamation-triangle"></i> ${err.message}`);
       toast(err.message, 'error');

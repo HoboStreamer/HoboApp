@@ -519,6 +519,28 @@ body {
 .search-progress .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 8px; }
 .search-progress p { font-size: 12px; color: var(--text-muted); }
 
+/* ── Source progress panel (streaming search) ── */
+.source-progress { padding: 10px 12px; }
+.sp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sp-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.sp-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--cyan)); border-radius: 3px; transition: width 0.3s ease; }
+.sp-count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; min-width: 42px; text-align: right; }
+.sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.sp-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; background: var(--bg-input); font-size: 11px; transition: background 0.25s, opacity 0.3s; }
+.sp-item .sp-icon { width: 14px; text-align: center; font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.sp-item .sp-name { flex: 1; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-item .sp-result { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); min-width: 16px; text-align: right; }
+.sp-item.done { background: var(--green-dim); }
+.sp-item.done .sp-icon { color: var(--green); }
+.sp-item.done .sp-name { color: var(--text); }
+.sp-item.done .sp-result { color: var(--green); font-weight: 600; }
+.sp-item.error { background: rgba(239,68,68,0.08); opacity: 0.6; }
+.sp-item.error .sp-icon { color: var(--red); }
+.sp-item.error .sp-name { color: var(--text-muted); text-decoration: line-through; }
+.sp-item.error .sp-result { color: var(--red); }
+@keyframes sp-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.sp-item:not(.done):not(.error) { animation: sp-pulse 1.5s ease-in-out infinite; }
+
 /* ── Mobile ── */
 @media (max-width: 768px) {
   #header { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }

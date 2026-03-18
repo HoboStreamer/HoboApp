@@ -50,6 +50,8 @@ const WATERWAY_TYPES = {
   pier:           { label: 'Pier / Dock',          icon: 'fa-anchor',          color: '#64748b', stealth: 2 },
   wetland:        { label: 'Wetland',              icon: 'fa-water',           color: '#84cc16', stealth: 3 },
   river_area:     { label: 'River Area',           icon: 'fa-water',           color: '#2563eb', stealth: 4 },
+  beach:          { label: 'Beach',                icon: 'fa-umbrella-beach',  color: '#fbbf24', stealth: 3 },
+  riverbank:      { label: 'Riverbank Access',     icon: 'fa-water',           color: '#2563eb', stealth: 4 },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -125,6 +127,15 @@ function buildWaterwayQuery(lat, lon, radiusMeters) {
 
   // ── Wetlands (marshy areas near water) ──
   way["natural"="wetland"](around:${radiusMeters},${lat},${lon});
+
+  // ── Beaches (sand/gravel along water — great for camping!) ──
+  node["natural"="beach"](around:${radiusMeters},${lat},${lon});
+  way["natural"="beach"](around:${radiusMeters},${lat},${lon});
+  node["leisure"="beach_resort"](around:${radiusMeters},${lat},${lon});
+  way["leisure"="beach_resort"](around:${radiusMeters},${lat},${lon});
+
+  // ── Riverbanks with public access ──
+  way["waterway"="riverbank"](around:${radiusMeters},${lat},${lon});
 );
 out center body;
 >;
@@ -164,6 +175,13 @@ function classifyWaterway(tags) {
 
   // Wetland
   if (natural === 'wetland') return 'wetland';
+
+  // Beach
+  if (natural === 'beach') return 'beach';
+  if (leisure === 'beach_resort') return 'beach';
+
+  // Riverbank
+  if (waterway === 'riverbank') return 'riverbank';
 
   // Ford
   if (ford) return 'ford';
@@ -271,6 +289,12 @@ function computeStealthRating(tags, type) {
 
   // Wetlands are not great for sleeping
   if (type === 'wetland') rating = 2;
+
+  // Beaches can be great stealth spots, especially remote ones
+  if (type === 'beach') rating = tags.access === 'private' ? 1 : 3;
+
+  // Riverbank access — good secluded spots
+  if (type === 'riverbank') rating = 4;
 
   // Swimming and fishing areas indicate pleasant accessible water
   if (type === 'swimming' || type === 'fishing') rating = 3;

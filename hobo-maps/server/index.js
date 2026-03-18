@@ -101,7 +101,84 @@ app.get('/api/geocode', async (req, res) => {
   }
 });
 
-// ── Master search endpoint ─────────────────────────────────
+// ── Source definitions (shared between search & stream) ─────
+function getSourceDefs(lat, lon, radius) {
+  return [
+    { name: 'RIDB', icon: 'fa-database', fn: () => ridb.search(lat, lon, radius, config.ridbApiKey) },
+    { name: 'OpenStreetMap', icon: 'fa-map', fn: () => overpass.search(lat, lon, radius) },
+    { name: 'FreeCampsites', icon: 'fa-campground', fn: () => freecampsites.search(lat, lon, radius) },
+    { name: 'iOverlander', icon: 'fa-globe', fn: () => ioverlander.search(lat, lon, radius) },
+    { name: 'Built-in DB', icon: 'fa-hard-drive', fn: () => Promise.resolve(staticData.search(lat, lon, radius)) },
+    { name: 'Bridges', icon: 'fa-bridge', fn: () => bridges.findBridges(lat, lon, radius) },
+    { name: 'Bathrooms', icon: 'fa-restroom', fn: () => bathrooms.findAllBathrooms(lat, lon, radius * 1609.34) },
+    { name: 'Resources', icon: 'fa-hand-holding-heart', fn: () => resources.findResources(lat, lon, radius) },
+    { name: 'USFS', icon: 'fa-tree', fn: () => usfs.search(lat, lon, radius) },
+    { name: 'Woods', icon: 'fa-tree', fn: () => woods.findWoods(lat, lon, radius) },
+    { name: 'Waterways', icon: 'fa-water', fn: () => waterways.findWaterways(lat, lon, radius) },
+    { name: 'NPS', icon: 'fa-mountain-sun', fn: () => nps.search(lat, lon, radius, config.npsApiKey) },
+    { name: 'OpenChargeMap', icon: 'fa-charging-station', fn: () => openchargemap.search(lat, lon, radius, config.openChargeMapKey) },
+    { name: 'WebScraper', icon: 'fa-spider', fn: () => scraper.search(lat, lon, radius) },
+    { name: 'Rain Cover', icon: 'fa-umbrella', fn: () => cover.findCover(lat, lon, radius) },
+    { name: 'Crime Intel', icon: 'fa-skull-crossbones', fn: () => crimedata.findSketchAreas(lat, lon, radius) },
+    { name: 'Harm Reduction', icon: 'fa-suitcase-medical', fn: () => harmreduction.findHarmReduction(lat, lon, radius) },
+  ];
+}
+
+/** Process a single source result into normalized locations/bridges/crimeHeatmap */
+function processSourceResult(name, data) {
+  const out = { locations: [], bridges: [], crimeHeatmap: [], count: 0 };
+  try {
+    if (name === 'Bridges' && data?.bridges) {
+      out.bridges = data.bridges.map(b => ({
+        ...b, source: 'Bridges', sourceIcon: 'fa-bridge',
+        type: `Bridge (${b.serviceUnder || 'Unknown'})`,
+      }));
+      out.count = data.bridges.length;
+    } else if (name === 'Crime Intel' && data) {
+      out.crimeHeatmap = data.heatmapPoints || [];
+      if (data.locations) out.locations = data.locations;
+      out.count = data.totalIndicators || 0;
+    } else if (name === 'Resources' && data?.resources) {
+      out.locations = data.resources.map(r => ({
+        ...r, source: 'Resources', sourceIcon: r.icon || 'fa-hand-holding-heart',
+        type: r.typeLabel || r.resourceType || 'Resource',
+      }));
+      out.count = data.total || 0;
+    } else if (name === 'Woods' && data?.woods) {
+      out.locations = data.woods.map(w => ({ ...w, source: 'Woods', sourceIcon: w.icon || 'fa-tree' }));
+      out.count = data.total || 0;
+    } else if (name === 'Waterways' && data?.waterways) {
+      out.locations = data.waterways.map(w => ({ ...w, source: 'Waterways', sourceIcon: w.icon || 'fa-water' }));
+      out.count = data.summary?.total || 0;
+    } else if (name === 'Rain Cover' && data?.cover) {
+      out.locations = data.cover.map(c => ({
+        ...c, source: 'Rain Cover', sourceIcon: c.coverIcon || 'fa-umbrella',
+        type: c.coverLabel || 'Covered Structure',
+      }));
+      out.count = data.total || 0;
+    } else if (name === 'Harm Reduction' && data?.services) {
+      out.locations = data.services.map(hr => ({
+        ...hr, source: 'Harm Reduction', sourceIcon: hr.icon || 'fa-hand-holding-heart',
+        type: hr.typeLabel || 'Harm Reduction',
+      }));
+      out.count = data.services.length;
+    } else if (name === 'Bathrooms' && data?.bathrooms) {
+      out.locations = data.bathrooms.map(b => ({
+        ...b, source: 'Bathrooms', sourceIcon: 'fa-restroom',
+        type: b.type || 'Bathroom',
+      }));
+      out.count = data.bathrooms.length;
+    } else if (Array.isArray(data)) {
+      out.locations = data;
+      out.count = data.length;
+    }
+  } catch (e) {
+    console.warn(`[Search] Error processing ${name}:`, e.message);
+  }
+  return out;
+}
+
+// ── Master search endpoint (legacy, returns all at once) ───
 app.get('/api/search', async (req, res) => {
   const lat = parseFloat(req.query.lat);
   const lon = parseFloat(req.query.lon);
@@ -115,27 +192,7 @@ app.get('/api/search', async (req, res) => {
   const cached = cache.get(cacheKey);
   if (cached) return res.json(cached);
 
-  // Run all sources in parallel with individual timeouts
-  const sources = [
-    { name: 'RIDB', fn: () => ridb.search(lat, lon, radius, config.ridbApiKey) },
-    { name: 'OpenStreetMap', fn: () => overpass.search(lat, lon, radius) },
-    { name: 'FreeCampsites', fn: () => freecampsites.search(lat, lon, radius) },
-    { name: 'iOverlander', fn: () => ioverlander.search(lat, lon, radius) },
-    { name: 'Built-in DB', fn: () => Promise.resolve(staticData.search(lat, lon, radius)) },
-    { name: 'Bridges', fn: () => bridges.findBridges(lat, lon, radius) },
-    { name: 'Bathrooms', fn: () => bathrooms.findAllBathrooms(lat, lon, radius * 1609.34) },
-    { name: 'Resources', fn: () => resources.findResources(lat, lon, radius) },
-    { name: 'USFS', fn: () => usfs.search(lat, lon, radius) },
-    { name: 'Woods', fn: () => woods.findWoods(lat, lon, radius) },
-    { name: 'Waterways', fn: () => waterways.findWaterways(lat, lon, radius) },
-    { name: 'NPS', fn: () => nps.search(lat, lon, radius, config.npsApiKey) },
-    { name: 'OpenChargeMap', fn: () => openchargemap.search(lat, lon, radius, config.openChargeMapKey) },
-    { name: 'WebScraper', fn: () => scraper.search(lat, lon, radius) },
-    { name: 'Rain Cover', fn: () => cover.findCover(lat, lon, radius) },
-    { name: 'Crime Intel', fn: () => crimedata.findSketchAreas(lat, lon, radius) },
-    { name: 'Harm Reduction', fn: () => harmreduction.findHarmReduction(lat, lon, radius) },
-  ];
-
+  const sources = getSourceDefs(lat, lon, radius);
   const TIMEOUT = 30000;
   const results = { locations: [], bridges: [], crimeHeatmap: [], sourceMeta: {} };
 
@@ -151,67 +208,119 @@ app.get('/api/search', async (req, res) => {
   for (const result of settled) {
     if (result.status !== 'fulfilled') continue;
     const { name, data } = result.value;
-    try {
-      if (name === 'Bridges' && data?.bridges) {
-        results.bridges = data.bridges.map(b => ({
-          ...b, source: 'Bridges', sourceIcon: 'fa-bridge',
-          type: `Bridge (${b.serviceUnder || 'Unknown'})`,
-        }));
-        results.sourceMeta.Bridges = { count: data.bridges.length };
-      } else if (name === 'Crime Intel' && data) {
-        results.crimeHeatmap = data.heatmapPoints || [];
-        if (data.locations) results.locations.push(...data.locations);
-        results.sourceMeta['Crime Intel'] = { count: data.totalIndicators || 0 };
-      } else if (name === 'Resources' && data?.resources) {
-        results.locations.push(...data.resources.map(r => ({
-          ...r, source: 'Resources', sourceIcon: r.icon || 'fa-hand-holding-heart',
-          type: r.typeLabel || r.resourceType || 'Resource',
-        })));
-        results.sourceMeta.Resources = { count: data.total || 0 };
-      } else if (name === 'Woods' && data?.woods) {
-        results.locations.push(...data.woods.map(w => ({
-          ...w, source: 'Woods', sourceIcon: w.icon || 'fa-tree',
-        })));
-        results.sourceMeta.Woods = { count: data.total || 0 };
-      } else if (name === 'Waterways' && data?.waterways) {
-        results.locations.push(...data.waterways.map(w => ({
-          ...w, source: 'Waterways', sourceIcon: w.icon || 'fa-water',
-        })));
-        results.sourceMeta.Waterways = { count: data.summary?.total || 0 };
-      } else if (name === 'Rain Cover' && data?.cover) {
-        results.locations.push(...data.cover.map(c => ({
-          ...c, source: 'Rain Cover', sourceIcon: c.coverIcon || 'fa-umbrella',
-          type: c.coverLabel || 'Covered Structure',
-        })));
-        results.sourceMeta['Rain Cover'] = { count: data.total || 0 };
-      } else if (name === 'Harm Reduction' && data?.services) {
-        results.locations.push(...data.services.map(hr => ({
-          ...hr, source: 'Harm Reduction', sourceIcon: hr.icon || 'fa-hand-holding-heart',
-          type: hr.typeLabel || 'Harm Reduction',
-        })));
-        results.sourceMeta['Harm Reduction'] = { count: data.services.length };
-      } else if (name === 'Bathrooms' && data?.bathrooms) {
-        results.locations.push(...data.bathrooms.map(b => ({
-          ...b, source: 'Bathrooms', sourceIcon: 'fa-restroom',
-          type: b.type || 'Bathroom',
-        })));
-        results.sourceMeta.Bathrooms = { count: data.bathrooms.length };
-      } else if (Array.isArray(data)) {
-        results.locations.push(...data);
-        results.sourceMeta[name] = { count: data.length };
-      }
-    } catch (e) {
-      console.warn(`[Search] Error processing ${name}:`, e.message);
-    }
+    const processed = processSourceResult(name, data);
+    results.locations.push(...processed.locations);
+    if (processed.bridges.length) results.bridges = processed.bridges;
+    if (processed.crimeHeatmap.length) results.crimeHeatmap = processed.crimeHeatmap;
+    results.sourceMeta[name] = { count: processed.count };
   }
 
-  // Deduplicate by spatial proximity
   results.locations = utils.dedup(results.locations);
   results.totalSources = sources.length;
   results.totalLocations = results.locations.length;
 
   cache.set(cacheKey, results);
   res.json(results);
+});
+
+// ── Streaming search endpoint (SSE) ───────────────────────
+app.get('/api/search/stream', async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  const radius = Math.min(parseFloat(req.query.radius) || 15, 50);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return res.status(400).json({ error: 'Invalid lat/lon' });
+  }
+
+  // SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const send = (event, data) => { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
+
+  // Check cache — if cached, stream everything instantly
+  const cacheKey = `search:${lat.toFixed(3)}:${lon.toFixed(3)}:${radius}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    send('cached', cached);
+    send('done', { cached: true, totalSources: cached.totalSources, totalLocations: cached.totalLocations });
+    return res.end();
+  }
+
+  const sources = getSourceDefs(lat, lon, radius);
+
+  // Send source manifest so the client can render all source indicators immediately
+  send('sources', sources.map(s => ({ name: s.name, icon: s.icon })));
+
+  const TIMEOUT = 30000;
+  const t0 = Date.now();
+  const allResults = { locations: [], bridges: [], crimeHeatmap: [], sourceMeta: {} };
+  let completed = 0;
+  let clientClosed = false;
+
+  req.on('close', () => { clientClosed = true; });
+
+  // Fire all sources in parallel — stream each result as it arrives
+  const promises = sources.map(async (s) => {
+    if (clientClosed) return;
+    try {
+      const data = await Promise.race([
+        s.fn(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT)),
+      ]);
+      const processed = processSourceResult(s.name, data);
+      allResults.locations.push(...processed.locations);
+      if (processed.bridges.length) allResults.bridges = processed.bridges;
+      if (processed.crimeHeatmap.length) allResults.crimeHeatmap = processed.crimeHeatmap;
+      allResults.sourceMeta[s.name] = { count: processed.count };
+      completed++;
+      if (!clientClosed) {
+        send('source', {
+          name: s.name, icon: s.icon, status: 'done',
+          count: processed.count,
+          locations: processed.locations,
+          bridges: processed.bridges,
+          crimeHeatmap: processed.crimeHeatmap,
+          completed, total: sources.length,
+          elapsed: Date.now() - t0,
+        });
+      }
+    } catch (err) {
+      completed++;
+      allResults.sourceMeta[s.name] = { count: 0, error: err.message };
+      if (!clientClosed) {
+        send('source', {
+          name: s.name, icon: s.icon, status: 'error',
+          error: err.message, count: 0,
+          locations: [], bridges: [], crimeHeatmap: [],
+          completed, total: sources.length,
+          elapsed: Date.now() - t0,
+        });
+      }
+    }
+  });
+
+  await Promise.allSettled(promises);
+
+  // Dedup and cache the combined results
+  allResults.locations = utils.dedup(allResults.locations);
+  allResults.totalSources = sources.length;
+  allResults.totalLocations = allResults.locations.length;
+  cache.set(cacheKey, allResults);
+
+  if (!clientClosed) {
+    send('done', {
+      totalSources: sources.length,
+      totalLocations: allResults.totalLocations,
+      elapsed: Date.now() - t0,
+    });
+    res.end();
+  }
 });
 
 // ── Individual source endpoints ────────────────────────────
