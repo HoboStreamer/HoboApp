@@ -176,7 +176,7 @@
       let user = null;
       if (token) { try { user = JSON.parse(atob(token.split('.')[1])); } catch {} }
       if (typeof HoboNavbar !== 'undefined') {
-          HoboNavbar.init({ service: 'hobomaps', brandName: 'HoboFood', brandIcon: 'fa-utensils', token, user, apiBase: 'https://hobo.tools' });
+          HoboNavbar.init({ service: 'hobofood', brandName: 'HoboFood', brandIcon: 'fa-utensils', token, user, apiBase: 'https://hobo.tools' });
       }
       if (typeof HoboAccountSwitcher !== 'undefined') {
           HoboAccountSwitcher.init({ apiBase: 'https://hobo.tools' });
