@@ -363,12 +363,47 @@ function isAnonSession() {
     return !!getActiveAccount()?.is_anon || localStorage.getItem('hobo_active_account') === 'anon';
 }
 
+/** Read hobo_token from the cross-domain cookie (domain=.hobo.tools) */
+function _getCookieToken() {
+    const m = document.cookie.match(/(?:^|; )hobo_token=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : null;
+}
+
 function getAuthToken() {
-    return isAnonSession() ? null : (localStorage.getItem('hobo_token') || getActiveAccount()?.token || null);
+    if (isAnonSession()) return null;
+    return localStorage.getItem('hobo_token') || getActiveAccount()?.token || _getCookieToken() || null;
 }
 
 function getAnonToken() {
     return localStorage.getItem('hobo_anon_token') || (getActiveAccount()?.is_anon ? getActiveAccount()?.token : null) || null;
+}
+
+/**
+ * If localStorage has no token but the cross-domain cookie does,
+ * hydrate localStorage so future getAuthToken() calls are instant.
+ * Also bootstraps the account list from /api/auth/me.
+ */
+async function _bootstrapFromCookie() {
+    if (localStorage.getItem('hobo_token')) return; // already have it
+    const cookieToken = _getCookieToken();
+    if (!cookieToken) return;
+    // Store the token in localStorage for this origin
+    localStorage.setItem('hobo_token', cookieToken);
+    // Try to populate the account list
+    try {
+        const res = await fetch(API + '/api/auth/me', {
+            headers: { Authorization: 'Bearer ' + cookieToken, 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const user = data.user || data;
+            // Bootstrap hobo_accounts + hobo_active_account
+            const accounts = [{ id: user.id, username: user.username, display_name: user.display_name || user.username, avatar_url: user.avatar_url || null, email: user.email || null, is_anon: false, token: cookieToken, added_at: Date.now() }];
+            localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+            localStorage.setItem('hobo_active_account', String(user.id));
+        }
+    } catch { /* cookie may be expired — loadUser will handle redirect */ }
 }
 
 async function apiFetch(path, opts = {}) {
@@ -566,6 +601,8 @@ function applyAnonModeUI(user) {
 
 // Load user data
 async function loadUser() {
+    // Hydrate localStorage from cross-domain cookie if needed (e.g. logged in on hobo.tools, visiting my.hobo.tools)
+    await _bootstrapFromCookie();
     const authToken = getAuthToken();
     const anonToken = getAnonToken();
     if (!authToken && !anonToken) { window.location.href = '/login'; return; }

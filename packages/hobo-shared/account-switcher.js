@@ -127,9 +127,15 @@
         return accounts;
     }
 
+    /** Read hobo_token from the cross-domain cookie (domain=.hobo.tools) */
+    function getCookieToken() {
+        const m = document.cookie.match(/(?:^|; )hobo_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+
     // ─── API ───────────────────────────────────────────────────
     async function apiFetch(path, opts = {}) {
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = localStorage.getItem(TOKEN_KEY) || getCookieToken();
         const headers = { 'Content-Type': 'application/json', ...opts.headers };
         if (token) headers.Authorization = `Bearer ${token}`;
         const res = await fetch(`${_config.apiBase}${path}`, { ...opts, headers, credentials: 'include' });

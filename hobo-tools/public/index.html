@@ -679,8 +679,15 @@
             return !!getActiveAccount()?.is_anon || localStorage.getItem('hobo_active_account') === 'anon';
         }
 
+        /** Read hobo_token from the cross-domain cookie (domain=.hobo.tools) */
+        function _getCookieToken() {
+            const m = document.cookie.match(/(?:^|; )hobo_token=([^;]*)/);
+            return m ? decodeURIComponent(m[1]) : null;
+        }
+
         function getAuthToken() {
-            return isAnonSession() ? null : localStorage.getItem('hobo_token');
+            if (isAnonSession()) return null;
+            return localStorage.getItem('hobo_token') || _getCookieToken() || null;
         }
 
         function getAnonToken() {
@@ -763,9 +770,31 @@
         }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
+        // Bootstrap localStorage from cross-domain cookie if needed
+        async function _bootstrapFromCookie() {
+            if (localStorage.getItem('hobo_token')) return;
+            const cookieToken = _getCookieToken();
+            if (!cookieToken) return;
+            localStorage.setItem('hobo_token', cookieToken);
+            try {
+                const res = await fetch('/api/auth/me', {
+                    headers: { Authorization: 'Bearer ' + cookieToken, 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const user = data.user || data;
+                    const accounts = [{ id: user.id, username: user.username, display_name: user.display_name || user.username, avatar_url: user.avatar_url || null, email: user.email || null, is_anon: false, token: cookieToken, added_at: Date.now() }];
+                    localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+                    localStorage.setItem('hobo_active_account', String(user.id));
+                }
+            } catch {}
+        }
+
         // Init
         (async () => {
             try {
+                await _bootstrapFromCookie();
                 const user = await fetchCurrentUser();
                 setSignedIn(user);
             } catch {
