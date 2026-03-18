@@ -52,7 +52,7 @@
             .hobo-navbar-login {
                 padding: 6px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
                 background: var(--accent, #c0965c); color: #fff; border: none; cursor: pointer;
-                transition: background .15s;
+                transition: background .15s; text-decoration: none; display: inline-flex; align-items: center;
             }
             .hobo-navbar-login:hover { background: var(--accent-dark, #a07840); }
 
@@ -93,6 +93,7 @@
                 display: flex; align-items: center; gap: 8px; padding: 6px 8px;
                 border-radius: 6px; cursor: pointer; font-size: 12px;
                 color: var(--text-muted, #707080); transition: background .12s;
+                text-decoration: none;
             }
             .hobo-navbar-dropdown-accounts .add-account:hover { background: var(--bg-hover, #2f2f3d); color: var(--text-primary, #e0e0e0); }
 
@@ -258,6 +259,8 @@
         const u = _config.user;
         const accounts = getAccounts();
         const isAnon = u && u.is_anon;
+        const loginHref = `https://hobo.tools/login?return=${encodeURIComponent(window.location.href)}`;
+        const addAccountHref = `https://hobo.tools/login?add_account=1&return=${encodeURIComponent(window.location.href)}`;
 
         nav.innerHTML = `
             <a class="hobo-navbar-brand" href="/">
@@ -271,10 +274,10 @@
             </div>
             <div class="hobo-navbar-spacer"></div>
             <div class="hobo-navbar-right">
-                <span class="hobo-network-badge" title="Connected to Hobo Network"><i class="fa-solid fa-campground"></i> Hobo Network</span>
+                <a class="hobo-network-badge" href="https://hobo.tools" title="Connected to Hobo Network"><i class="fa-solid fa-campground"></i> Hobo Network</a>
                 <div id="hobo-bell-mount"></div>
                 ${u ? avatarImg(u, 64, 'hobo-navbar-avatar', 'hobo-avatar-btn') :
-                    `<button class="hobo-navbar-login" id="hobo-login-btn">Sign In</button>`}
+                    `<a class="hobo-navbar-login" id="hobo-login-btn" href="${escapeAttr(loginHref)}">Sign In</a>`}
             </div>
         `;
 
@@ -306,10 +309,10 @@
                         <span style="width:24px;text-align:center"><i class="fa-solid fa-user-secret"></i></span>
                         <span>Switch to Anonymous</span>
                     </div>
-                    <div class="add-account" id="hobo-add-account">
+                    <a class="add-account" id="hobo-add-account" href="${escapeAttr(addAccountHref)}">
                         <span style="width:24px;text-align:center"><i class="fa-solid fa-plus"></i></span>
                         <span>Add another account</span>
-                    </div>
+                    </a>
                 </div>
                 <div class="hobo-navbar-dropdown-menu">
                     <a href="https://my.hobo.tools"><span class="icon"><i class="fa-solid fa-user"></i></span> My Account</a>
@@ -342,10 +345,6 @@
                 });
             });
 
-            dropdown.querySelector('#hobo-add-account')?.addEventListener('click', () => {
-                window.location.href = `https://hobo.tools/login?add_account=1&return=${encodeURIComponent(window.location.href)}`;
-            });
-
             dropdown.querySelector('#hobo-logout-btn')?.addEventListener('click', () => {
                 dropdown.classList.remove('open');
                 if (_config.onLogout) _config.onLogout();
@@ -359,9 +358,11 @@
                 }
             });
         } else {
-            nav.querySelector('#hobo-login-btn')?.addEventListener('click', () => {
-                if (_config.onLogin) _config.onLogin();
-                else window.location.href = `https://hobo.tools/login?return=${encodeURIComponent(window.location.href)}`;
+            nav.querySelector('#hobo-login-btn')?.addEventListener('click', (event) => {
+                if (!_config.onLogin) return;
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                _config.onLogin();
             });
         }
 

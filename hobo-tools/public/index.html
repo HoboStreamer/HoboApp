@@ -286,6 +286,124 @@
         .feature h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 4px; }
         .feature p { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.55; }
 
+        /* ─── Tool spotlight ─── */
+        .toolspotlight { padding: 12px 0 60px; }
+        .toolspotlight-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+            gap: 18px;
+        }
+        .tool-card {
+            position: relative;
+            overflow: hidden;
+            padding: 28px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background:
+                linear-gradient(135deg, rgba(59,130,246,0.08), rgba(192,150,92,0.06)),
+                var(--bg-card);
+            backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-soft);
+        }
+        .tool-card::after {
+            content: '';
+            position: absolute;
+            inset: auto -60px -80px auto;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,130,246,0.16), transparent 68%);
+            pointer-events: none;
+        }
+        .tool-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9fcbff;
+            background: rgba(59,130,246,0.12);
+            border: 1px solid rgba(59,130,246,0.2);
+        }
+        .tool-card h3 {
+            font-size: clamp(1.35rem, 2.4vw, 2rem);
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+        }
+        .tool-card > p,
+        .tool-side > p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+        .tool-columns {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .tool-column {
+            padding: 18px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .tool-column h4,
+        .tool-side h4 {
+            font-size: 0.92rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+        .tool-column p {
+            margin-top: 10px;
+            color: var(--text-secondary);
+            font-size: 0.84rem;
+            line-height: 1.55;
+        }
+        .domain-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .domain-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(11,12,18,0.45);
+            color: var(--text-primary);
+            font-size: 0.82rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+        .domain-pill i {
+            color: var(--accent-light);
+            font-size: 0.8rem;
+        }
+        .tool-side {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .tool-side-note {
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(192,150,92,0.15);
+            background: rgba(192,150,92,0.07);
+            color: var(--text-secondary);
+            font-size: 0.86rem;
+            line-height: 1.6;
+        }
+
         /* ─── CTA banner ─── */
         .cta-banner {
             margin: 40px 0 60px;
@@ -377,6 +495,7 @@
                 grid-column: span 6;
             }
             .stats-ribbon { gap: 32px; }
+            .toolspotlight-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 640px) {
             .shell { width: min(100% - 24px, 1200px); }
@@ -387,6 +506,7 @@
             .hero-cta { flex-direction: column; align-items: center; }
             .hero-cta .btn { width: 100%; max-width: 320px; }
             .stats-ribbon { gap: 24px; }
+            .tool-columns { grid-template-columns: 1fr; }
             .footer-inner { flex-direction: column; text-align: center; }
         }
     </style>
@@ -409,7 +529,7 @@
                 </div>
                 <div class="stats-ribbon">
                     <div class="stat"><span class="stat-number">7</span><span class="stat-label">Services</span></div>
-                    <div class="stat"><span class="stat-number">20+</span><span class="stat-label">Tools</span></div>
+                    <div class="stat"><span class="stat-number">25+</span><span class="stat-label">Tools</span></div>
                     <div class="stat"><span class="stat-number">34</span><span class="stat-label">Themes</span></div>
                     <div class="stat"><span class="stat-number">100%</span><span class="stat-label">Free</span></div>
                 </div>
@@ -464,7 +584,7 @@
                         <a class="bento-card bento-third reveal reveal-delay-2" href="https://img.hobo.tools" target="_blank" rel="noopener" style="--card-accent: #3b82f6;">
                             <div class="card-icon"><i class="fa-solid fa-images"></i></div>
                             <div class="card-title">HoboImg</div>
-                            <div class="card-desc">Convert, compress, resize, and crop images in any format. 18 dedicated subdomains — one for each format and operation.</div>
+                            <div class="card-desc">The image-tool hub for the whole network. Jump into convert, compress, resize, crop, favicon generation, or dedicated format domains like PNG, JPG, WebP, AVIF, HEIC, GIF, TIFF, BMP, and more.</div>
                             <span class="card-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Image Tools</span>
                             <div class="card-glow"></div>
                         </a>
@@ -486,6 +606,70 @@
                             <span class="card-tag"><i class="fa-solid fa-sliders"></i> Account Hub</span>
                             <div class="card-glow"></div>
                         </a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="toolspotlight">
+                <div class="shell">
+                    <div class="section-title reveal">
+                        <h2>Every tool domain gets its own lane</h2>
+                        <p>Start at the main hub, or jump straight into the exact workflow you need. The image stack is split into dedicated domains so the whole thing feels fast, focused, and easy to remember.</p>
+                    </div>
+                    <div class="toolspotlight-grid">
+                        <div class="tool-card reveal">
+                            <div class="tool-badge"><i class="fa-solid fa-sparkles"></i> HoboImg ecosystem</div>
+                            <h3>One image hub. Eighteen direct-entry workflows.</h3>
+                            <p>Use <strong>img.hobo.tools</strong> as the front door, then jump into dedicated domains for format conversions, quick edits, and one-click utility tools. Same account, same themes, same lightweight feel across the whole stack.</p>
+                            <div class="tool-columns">
+                                <div class="tool-column">
+                                    <h4>Format &amp; export domains</h4>
+                                    <div class="domain-pills">
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> png.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> jpg.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> jpeg.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> webp.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> avif.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> heic.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> heif.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-bezier-curve"></i> svg.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-film"></i> gif.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-icons"></i> ico.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> tiff.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-file-image"></i> bmp.hobo.tools</span>
+                                    </div>
+                                    <p>Dedicated entry points for the formats people actually search for, share, and convert every day.</p>
+                                </div>
+                                <div class="tool-column">
+                                    <h4>Quick-action domains</h4>
+                                    <div class="domain-pills">
+                                        <span class="domain-pill"><i class="fa-solid fa-images"></i> img.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-arrows-rotate"></i> convert.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-compress"></i> compress.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> resize.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-crop-simple"></i> crop.hobo.tools</span>
+                                        <span class="domain-pill"><i class="fa-solid fa-icons"></i> favicon.hobo.tools</span>
+                                    </div>
+                                    <p>Open exactly the tool you want without extra menus, upsells, or bloated app chrome.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tool-card tool-side reveal reveal-delay-1">
+                            <div>
+                                <h4>Other live tool domains</h4>
+                                <div class="domain-pills">
+                                    <span class="domain-pill"><i class="fa-solid fa-circle-play"></i> yt.hobo.tools</span>
+                                    <span class="domain-pill"><i class="fa-solid fa-map-location-dot"></i> maps.hobo.tools</span>
+                                    <span class="domain-pill"><i class="fa-solid fa-utensils"></i> food.hobo.tools</span>
+                                    <span class="domain-pill"><i class="fa-solid fa-user-gear"></i> my.hobo.tools</span>
+                                </div>
+                            </div>
+                            <p>The rest of the network plugs into the same account system too, so your tools, streaming, maps, food resources, and notifications all stay connected.</p>
+                            <div class="tool-side-note">
+                                <strong style="color:var(--text-primary)">Unified notifications now matter more.</strong><br>
+                                Stream alerts, follows, comments, replies, likes, and account activity all feed back into one inbox instead of getting lost across domains.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -555,7 +739,7 @@
                             <div class="feature-icon"><i class="fa-solid fa-bell"></i></div>
                             <div>
                                 <h3>Unified notifications</h3>
-                                <p>One notification center for streams going live, follows, and network activity.</p>
+                                <p>One notification center for streams going live, follows, comments, replies, likes, and network activity.</p>
                             </div>
                         </div>
                         <div class="feature reveal reveal-delay-1">
@@ -619,7 +803,7 @@
                     </a>
                     <a class="quick-card" href="https://img.hobo.tools">
                         <div class="quick-icon"><i class="fa-solid fa-images"></i></div>
-                        <div><h3>Image tools</h3><p>Convert, compress, resize</p></div>
+                        <div><h3>Image tools</h3><p>18 dedicated domains for formats and quick edits</p></div>
                     </a>
                     <a class="quick-card" href="https://yt.hobo.tools">
                         <div class="quick-icon"><i class="fa-solid fa-circle-play"></i></div>

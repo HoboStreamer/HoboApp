@@ -170,6 +170,123 @@ a:hover { color: var(--gold); }
     box-shadow: var(--glow-gold);
 }
 
+/* ── MODE PICKER ───────────────────────────────────────── */
+.mode-strip {
+    position: relative;
+    z-index: 2;
+    padding: 0 24px 24px;
+    margin-top: -18px;
+}
+.mode-strip-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+}
+.mode-strip-head {
+    text-align: center;
+    margin-bottom: 22px;
+}
+.mode-strip-head .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: var(--gold-bright);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.mode-strip-head h2 {
+    font-size: clamp(1.7rem, 3vw, 2.5rem);
+    letter-spacing: -0.03em;
+    margin-bottom: 10px;
+}
+.mode-strip-head p {
+    max-width: 760px;
+    margin: 0 auto;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+.mode-card {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    border-radius: 22px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    box-shadow: 0 14px 40px rgba(0,0,0,0.28);
+}
+.mode-card::after {
+    content: '';
+    position: absolute;
+    inset: auto -50px -70px auto;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    opacity: 0.55;
+    pointer-events: none;
+}
+.mode-card.mode-world::after { background: radial-gradient(circle, rgba(192,150,92,0.2), transparent 68%); }
+.mode-card.mode-canvas::after { background: radial-gradient(circle, rgba(124,92,191,0.24), transparent 68%); }
+.mode-card.mode-future::after { background: radial-gradient(circle, rgba(92,184,192,0.2), transparent 68%); }
+.mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+.mode-world .mode-pill { color: var(--gold-bright); background: rgba(192,150,92,0.12); border: 1px solid rgba(192,150,92,0.2); }
+.mode-canvas .mode-pill { color: var(--purple-bright); background: rgba(124,92,191,0.12); border: 1px solid rgba(124,92,191,0.2); }
+.mode-future .mode-pill { color: var(--cyan-bright); background: rgba(92,184,192,0.12); border: 1px solid rgba(92,184,192,0.2); }
+.mode-card h3 {
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+}
+.mode-card p {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 16px;
+}
+.mode-points {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.mode-point {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+}
+.mode-point i {
+    color: var(--text-primary);
+    margin-top: 2px;
+}
+.mode-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+
 /* ── HERO ──────────────────────────────────────────────── */
 .hero {
     position: relative;
@@ -942,6 +1059,7 @@ a:hover { color: var(--gold); }
 
 /* ── RESPONSIVE ────────────────────────────────────────── */
 @media (max-width: 900px) {
+    .mode-grid { grid-template-columns: 1fr; }
     .showcase { grid-template-columns: 1fr; gap: 40px; }
     .showcase.reverse { direction: ltr; }
     .infographic-inner { grid-template-columns: repeat(2, 1fr); }
@@ -952,6 +1070,7 @@ a:hover { color: var(--gold); }
     .nav-links a:not(.nav-cta) { display: none; }
     .section { padding: 60px 16px; }
     .hero { padding: 100px 16px 60px; }
+    .mode-strip { padding: 0 16px 18px; }
     .hero-actions { flex-direction: column; }
     .btn-hero { width: 100%; justify-content: center; }
     .infographic-inner { grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -1034,6 +1153,49 @@ a:hover { color: var(--gold); }
     <div class="scroll-hint">
         <span>Scroll to explore</span>
         <i class="fa-solid fa-chevron-down"></i>
+    </div>
+</section>
+
+<!-- ════════════════════════ PICK YOUR MODE ═════════════════ -->
+<section class="mode-strip" aria-labelledby="mode-strip-title">
+    <div class="mode-strip-inner">
+        <div class="mode-strip-head reveal">
+            <div class="eyebrow"><i class="fa-solid fa-compass"></i> Pick your mode</div>
+            <h2 id="mode-strip-title">Two live experiences now. A wider platform later.</h2>
+            <p>HoboQuest is not just one page anymore. Right now it has a full browser MMORPG and a separate real-time canvas, with room to grow into a bigger collection of Hobo-made games.</p>
+        </div>
+        <div class="mode-grid reveal stagger">
+            <article class="mode-card mode-world" style="--i:0">
+                <div class="mode-pill"><i class="fa-solid fa-gamepad"></i> MMORPG</div>
+                <h3>HoboGame is the main progression world</h3>
+                <p>The survival RPG is the deep lane: combat, gathering, crafting, dungeons, PvP, base building, and long-term character growth.</p>
+                <div class="mode-points">
+                    <div class="mode-point"><i class="fa-solid fa-swords"></i><span>Persistent character progression with skill grinds, gear tiers, and world exploration.</span></div>
+                    <div class="mode-point"><i class="fa-solid fa-house"></i><span>Best for players who want a full game loop instead of a quick drop-in creative session.</span></div>
+                </div>
+                <a class="mode-link" href="/game"><i class="fa-solid fa-arrow-right"></i> Launch the MMORPG</a>
+            </article>
+            <article class="mode-card mode-canvas" style="--i:1">
+                <div class="mode-pill"><i class="fa-solid fa-palette"></i> Canvas</div>
+                <h3>Pixel Canvas is its own social sandbox</h3>
+                <p>The canvas is a separate mode built around art, territory, and collaboration. Jump in fast, place pixels live, and watch the board evolve with the community.</p>
+                <div class="mode-points">
+                    <div class="mode-point"><i class="fa-solid fa-users"></i><span>Made for live collaboration, fast sessions, and chaotic community art projects.</span></div>
+                    <div class="mode-point"><i class="fa-solid fa-expand"></i><span>Ideal if you want a creative experience instead of leveling, looting, and combat.</span></div>
+                </div>
+                <a class="mode-link" href="/canvas"><i class="fa-solid fa-arrow-right"></i> Open the canvas</a>
+            </article>
+            <article class="mode-card mode-future" style="--i:2">
+                <div class="mode-pill"><i class="fa-solid fa-rocket"></i> Expansion</div>
+                <h3>This homepage is built to grow past two modes</h3>
+                <p>More games will plug into the same HoboQuest identity over time, so the landing page should read like a platform instead of a single-project microsite.</p>
+                <div class="mode-points">
+                    <div class="mode-point"><i class="fa-solid fa-layer-group"></i><span>Future entries can live beside the MMORPG and canvas without collapsing the layout.</span></div>
+                    <div class="mode-point"><i class="fa-solid fa-code-branch"></i><span>Open-source contributions can turn new prototypes into permanent modes on the platform.</span></div>
+                </div>
+                <a class="mode-link" href="#features"><i class="fa-solid fa-arrow-right"></i> Explore the platform</a>
+            </article>
+        </div>
     </div>
 </section>
 
@@ -1324,7 +1486,7 @@ a:hover { color: var(--gold); }
         <div class="reveal" style="text-align:center">
             <div class="section-label"><i class="fa-solid fa-rocket"></i> On the Horizon</div>
             <div class="section-title">More Games Coming</div>
-            <div class="section-desc" style="margin:0 auto">HoboQuest is a growing platform. New games and experiences are in development. Stay tuned.</div>
+            <div class="section-desc" style="margin:0 auto">HoboQuest is growing into a multi-game platform. The MMORPG and Canvas are just the first two permanent lanes, with more community-built modes on the roadmap.</div>
         </div>
         <div class="coming-soon-grid reveal stagger">
             <div class="coming-soon-card" style="--i:0">
