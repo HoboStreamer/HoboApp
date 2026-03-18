@@ -127,6 +127,7 @@
     const SERVICE_NAMES = {
         hobostreamer: 'HoboStreamer', hoboquest: 'HoboQuest',
         hobotools: 'HoboTools', hobomaps: 'HoboMaps',
+        hoboimg: 'HoboImg', hoboyt: 'HoboYT',
     };
 
     const SERVICE_LINKS = {
@@ -148,6 +149,15 @@
         hobomaps: [
             { label: 'Map', href: '/' },
             { label: 'Camps', href: '/camps' },
+        ],
+        hoboimg: [
+            { label: 'Convert', href: '/' },
+            { label: 'Compress', href: '/compress' },
+            { label: 'Resize', href: '/resize' },
+            { label: 'Crop', href: '/crop' },
+        ],
+        hoboyt: [
+            { label: 'Download', href: '/' },
         ],
     };
 

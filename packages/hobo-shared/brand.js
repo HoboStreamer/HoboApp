@@ -15,6 +15,8 @@ const BRAND = Object.freeze({
         login:    'https://hobo.tools',
         maps:     'https://maps.hobo.tools',
         dl:       'https://dl.hobo.tools',
+        img:      'https://img.hobo.tools',
+        yt:       'https://yt.hobo.tools',
         streamer: 'https://hobostreamer.com',
         quest:    'https://hobo.quest',
         discord:  'https://discord.gg/M6MuRUaeJj',
@@ -43,6 +45,8 @@ const BRAND = Object.freeze({
         { id: 'hoboquest',    name: 'HoboQuest',     url: 'https://hobo.quest',        description: 'Community MMORPG & Canvas' },
         { id: 'hobotools',    name: 'HoboTools',     url: 'https://hobo.tools',        description: 'Nomadic Toolkit & Utilities' },
         { id: 'hobomaps',     name: 'HoboMaps',      url: 'https://maps.hobo.tools',   description: 'Camp & Shelter Locator' },
+        { id: 'hoboimg',      name: 'HoboImg',       url: 'https://img.hobo.tools',    description: 'Image Converter & Tools' },
+        { id: 'hoboyt',       name: 'HoboYT',        url: 'https://yt.hobo.tools',     description: 'YouTube Downloader' },
     ]),
 });
 
