@@ -9,6 +9,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const http = require('http');
+const cookieParser = require('cookie-parser');
 
 const PORT = parseInt(process.env.PORT) || 3301;
 const MAPS_API = process.env.MAPS_API || 'http://127.0.0.1:3300';
@@ -25,11 +26,22 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net', 'unpkg.com', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'],
       fontSrc: ["'self'", 'fonts.gstatic.com', 'cdnjs.cloudflare.com'],
       imgSrc: ["'self'", 'data:', 'image.tmdb.org', '*.tile.openstreetmap.org', '*.basemaps.cartocdn.com', 'server.arcgisonline.com'],
-      connectSrc: ["'self'", 'nominatim.openstreetmap.org'],
+      connectSrc: ["'self'", 'nominatim.openstreetmap.org', 'https://hobo.tools'],
     },
   },
 }));
 app.use(rateLimit({ windowMs: 60000, max: 60 }));
+app.use(cookieParser());
+
+// Serve hobo-shared client-side libs
+const sharedPath = path.resolve(__dirname, '..', '..', 'packages', 'hobo-shared');
+app.use('/shared', express.static(sharedPath, {
+  setHeaders(res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+  },
+}));
 
 // Static files
 app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1d' }));

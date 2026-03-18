@@ -127,13 +127,13 @@
     const SERVICE_NAMES = {
         hobostreamer: 'HoboStreamer', hoboquest: 'HoboQuest',
         hobotools: 'HoboTools', hobomaps: 'HoboMaps',
-        hoboimg: 'HoboImg', hoboyt: 'HoboYT',
+        hobofood: 'HoboFood', hoboimg: 'HoboImg', hoboyt: 'HoboYT',
     };
 
     const SERVICE_ICONS = {
         hobostreamer: 'fa-tower-broadcast', hoboquest: 'fa-hat-wizard',
         hobotools: 'fa-screwdriver-wrench', hobomaps: 'fa-map-location-dot',
-        hoboimg: 'fa-images', hoboyt: 'fa-circle-play',
+        hobofood: 'fa-utensils', hoboimg: 'fa-images', hoboyt: 'fa-circle-play',
     };
 
     // Subdomain → brand override for multi-subdomain services (HoboImg)
@@ -156,6 +156,8 @@
         'convert.hobo.tools':  { name: 'HoboConvert',   icon: 'fa-arrows-rotate' },
         'favicon.hobo.tools':  { name: 'HoboFavicon',   icon: 'fa-icons' },
         'yt.hobo.tools':       { name: 'HoboYT',        icon: 'fa-circle-play' },
+        'maps.hobo.tools':     { name: 'HoboMaps',      icon: 'fa-map-location-dot' },
+        'food.hobo.tools':     { name: 'HoboFood',      icon: 'fa-utensils' },
     };
 
     const SERVICE_LINKS = {
@@ -177,6 +179,10 @@
         hobomaps: [
             { label: 'Map', href: '/' },
             { label: 'Camps', href: '/camps' },
+        ],
+        hobofood: [
+            { label: 'Food Banks', href: '/' },
+            { label: 'Meal Plan', href: '/#meal-plan' },
         ],
         hoboimg: [
             { label: 'Convert', href: 'https://convert.hobo.tools' },

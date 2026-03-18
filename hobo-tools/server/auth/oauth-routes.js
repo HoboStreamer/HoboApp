@@ -97,7 +97,7 @@ router.post('/confirm', (req, res) => {
     `).run(code, client_id, user.id, redirect_uri, scope || 'profile theme', expiresAt);
 
     // Also set cookie to this account so hobo.tools itself knows the active session
-    res.cookie('hobo_token', token, { httpOnly: false, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'Lax', secure: true, path: '/' });
+    res.cookie('hobo_token', token, { httpOnly: false, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'Lax', secure: true, path: '/', domain: '.hobo.tools' });
 
     const sep = redirect_uri.includes('?') ? '&' : '?';
     res.json({ redirect: `${redirect_uri}${sep}code=${code}&state=${state || ''}` });

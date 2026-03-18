@@ -321,6 +321,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
 </div>
 
 <!-- Shared scripts -->
+<script src="/shared/theme-loader.js"></script>
 <script src="/shared/navbar.js"></script>
 <script src="/shared/notification-ui.js"></script>
 <script src="/shared/account-switcher.js"></script>
@@ -498,6 +499,9 @@ async function setTheme(themeId) {
         if (activeTheme) {
             applyThemeToPage(activeTheme);
             localStorage.setItem('hobo_theme', JSON.stringify({ id: activeTheme.id, slug: activeTheme.slug, name: activeTheme.name, variables: activeTheme.variables || {} }));
+            // Sync theme choice cross-domain via cookie + HoboThemeLoader
+            if (typeof HoboThemeLoader !== 'undefined') HoboThemeLoader.save(activeTheme.slug || activeTheme.id, activeTheme.variables);
+            else document.cookie = `hobo_theme_id=${encodeURIComponent(activeTheme.slug || activeTheme.id)};path=/;max-age=${365*24*60*60};domain=.hobo.tools;SameSite=Lax;Secure`;
         }
         renderThemes();
     } catch (err) {

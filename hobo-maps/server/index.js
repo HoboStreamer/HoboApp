@@ -12,6 +12,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const NodeCache = require('node-cache');
+const cookieParser = require('cookie-parser');
 
 const config = require('./config');
 
@@ -26,13 +27,14 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "static.cloudflareinsights.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "image.tmdb.org", "*.wp.com"],
-      connectSrc: ["'self'", "nominatim.openstreetmap.org", "api.weather.gov", "api.open-meteo.com", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com"],
+      connectSrc: ["'self'", "nominatim.openstreetmap.org", "api.weather.gov", "api.open-meteo.com", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "https://hobo.tools"],
       fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
       frameSrc: ["'none'"],
     },
   },
 }));
 app.use(cors({ origin: ['https://maps.hobo.tools', 'https://food.hobo.tools', 'https://hobo.tools', 'http://localhost:3300', 'http://localhost:3301'] }));
+app.use(cookieParser());
 app.use(express.json());
 
 // Rate limiter
@@ -44,6 +46,16 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 // ── Static files ───────────────────────────────────────────
+// Serve hobo-shared client-side libs
+const sharedPath = path.resolve(__dirname, '..', '..', 'packages', 'hobo-shared');
+app.use('/shared', express.static(sharedPath, {
+  setHeaders(res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+  },
+}));
+
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   maxAge: '1h',
   extensions: ['html'],

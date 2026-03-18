@@ -50,7 +50,7 @@
     }
 
     function setAuthCookie(token) {
-        document.cookie = `hobo_token=${token};path=/;max-age=${60 * 60 * 24 * 30};SameSite=Lax`;
+        document.cookie = `hobo_token=${token};path=/;max-age=${60 * 60 * 24 * 30};domain=.hobo.tools;SameSite=Lax;Secure`;
     }
 
     function normalizeAccount(user, token) {

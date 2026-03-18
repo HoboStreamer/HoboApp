@@ -367,6 +367,26 @@
   </div>
 </div>
 
+<script src="/shared/theme-loader.js"></script>
+<script src="/shared/navbar.js"></script>
+<script src="/shared/account-switcher.js"></script>
 <script src="/js/app.js"></script>
+<script>
+(function () {
+    function getCookie(name) {
+        const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+    const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+    let user = null;
+    if (token) { try { user = JSON.parse(atob(token.split('.')[1])); } catch {} }
+    if (typeof HoboNavbar !== 'undefined') {
+        HoboNavbar.init({ service: 'hobomaps', token, user, apiBase: 'https://hobo.tools' });
+    }
+    if (typeof HoboAccountSwitcher !== 'undefined') {
+        HoboAccountSwitcher.init({ apiBase: 'https://hobo.tools' });
+    }
+})();
+</script>
 </body>
 </html>
