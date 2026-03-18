@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas — Collaborative Pixel Art</title>
+    <meta name="description" content="A 512x512 collaborative pixel canvas. Place pixels, create art together.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/game.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #1e1e24;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        /* Top bar */
+        .canvas-topbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: #252530;
+            border-bottom: 1px solid #333340;
+        }
+        .canvas-topbar a { color: #b0b0b8; text-decoration: none; font-size: 14px; }
+        .canvas-topbar a:hover { color: #e0e0e0; }
+        .canvas-topbar h2 { font-size: 16px; font-weight: 600; color: #e0e0e0; }
+        .canvas-topbar .spacer { flex: 1; }
+        .canvas-topbar .auth-link {
+            padding: 6px 14px;
+            background: #c0965c;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .canvas-topbar .auth-link:hover { background: #a07840; }
+        .canvas-topbar .user-badge {
+            font-size: 13px;
+            color: #b0b0b8;
+        }
+        /* Fill remaining viewport below topbar */
+        #page-canvas {
+            height: calc(100vh - 48px);
+        }
+        .canvas-layout {
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="canvas-topbar">
+    <a href="/"><i class="fa-solid fa-arrow-left"></i> HoboQuest</a>
+    <h2><i class="fa-solid fa-palette"></i> Canvas</h2>
+    <div class="spacer"></div>
+    <span class="user-badge" id="canvas-user-badge"></span>
+    <a href="/auth/login" class="auth-link" id="canvas-auth-btn" style="display:none"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
+</div>
+
+<section id="page-canvas" class="page" style="display:block">
+    <div class="canvas-layout">
+        <!-- Left Sidebar -->
+        <div class="canvas-sidebar">
+            <div class="canvas-card">
+                <h3><i class="fa-solid fa-palette"></i> Palette</h3>
+                <div id="canvas-color-preview" class="canvas-color-preview"></div>
+                <div class="canvas-palette" id="canvas-palette"></div>
+                <div class="canvas-status" id="canvas-status">Select a color to place</div>
+                <div class="canvas-cooldown" id="canvas-cooldown"></div>
+                <div class="canvas-coords" id="canvas-coords">Hover over the canvas</div>
+            </div>
+            <div class="canvas-card">
+                <h3><i class="fa-solid fa-circle-info"></i> Info</h3>
+                <div class="canvas-hover" id="canvas-hover">Hover over a tile to see details</div>
+            </div>
+            <div class="canvas-card">
+                <h3><i class="fa-solid fa-question-circle"></i> Controls</h3>
+                <div class="canvas-help">
+                    <span><kbd>Click</kbd> / <kbd>Tap</kbd> Place tile</span>
+                    <span><kbd>Right-drag</kbd> / <kbd>Drag</kbd> Pan around</span>
+                    <span><kbd>Scroll</kbd> / <kbd>Pinch</kbd> Zoom in/out</span>
+                    <span><kbd>Arrows</kbd> Move cursor</span>
+                    <span><kbd>Space</kbd> / <kbd>Enter</kbd> Place at cursor</span>
+                    <span><kbd>R</kbd> Reset view</span>
+                    <span style="margin-top:4px;opacity:0.7"><i class="fa-solid fa-paint-roller"></i> You can paint over other players' tiles after a short tile cooldown</span>
+                </div>
+            </div>
+        </div>
+        <!-- Canvas Stage -->
+        <div class="canvas-stage-wrap">
+            <div class="canvas-toolbar">
+                <div class="canvas-toolbar-left">
+                    <button class="btn btn-outline btn-sm" onclick="resetCanvasCamera()" title="Reset View"><i class="fa-solid fa-expand"></i></button>
+                    <button class="btn btn-outline btn-sm active" id="canvas-grid-btn" onclick="canvasToggleGrid()" title="Toggle Grid"><i class="fa-solid fa-border-all"></i></button>
+                    <button class="btn btn-outline btn-sm" onclick="centerCanvasCursor()" title="Go to Cursor"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+                <div class="canvas-toolbar-right">
+                    <span class="canvas-place-count" id="canvas-place-count"></span>
+                    <span class="canvas-online" id="canvas-online"><i class="fa-solid fa-users"></i> 0 online</span>
+                </div>
+            </div>
+            <div class="canvas-stage">
+                <canvas id="canvas-board"></canvas>
+                <div class="canvas-login-prompt" id="canvas-login-prompt" style="display:none">
+                    <i class="fa-solid fa-lock"></i> <a href="/auth/login">Log in</a> to place tiles
+                </div>
+            </div>
+        </div>
+        <!-- Right Sidebar -->
+        <div class="canvas-sidebar canvas-sidebar-right">
+            <div class="canvas-card">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Activity</h3>
+                <div class="canvas-activity" id="canvas-activity">No recent activity</div>
+            </div>
+            <div class="canvas-card">
+                <h3><i class="fa-solid fa-users"></i> Online</h3>
+                <div class="canvas-presence" id="canvas-presence">No one here yet</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="/js/app-bridge.js"></script>
+<script>
+    currentPage = 'canvas';
+    // Update auth UI
+    if (currentUser) {
+        document.getElementById('canvas-user-badge').textContent = currentUser.display_name || currentUser.username;
+    } else {
+        document.getElementById('canvas-auth-btn').style.display = '';
+    }
+</script>
+<script src="/js/canvas.js"></script>
+<script>
+    // Auto-bootstrap canvas on page load
+    if (typeof loadCanvasPage === 'function') loadCanvasPage();
+</script>
+
+</body>
+</html>

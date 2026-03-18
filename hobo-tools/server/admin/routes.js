@@ -12,6 +12,39 @@ const router = express.Router();
 
 module.exports = function createAdminRoutes(db, notificationService, sesService, requireAuth) {
 
+    function getEmailMetrics() {
+        const summary = {
+            total: db.prepare('SELECT COUNT(*) AS count FROM email_delivery_log').get().count,
+            sent: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE status = 'sent'").get().count,
+            failed: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE status = 'failed'").get().count,
+            sent_24h: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE status = 'sent' AND created_at >= datetime('now', '-1 day')").get().count,
+            failed_24h: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE status = 'failed' AND created_at >= datetime('now', '-1 day')").get().count,
+            password_resets_24h: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE email_type = 'password_reset' AND created_at >= datetime('now', '-1 day')").get().count,
+            notifications_24h: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE email_type LIKE 'notification:%' AND created_at >= datetime('now', '-1 day')").get().count,
+            tests_24h: db.prepare("SELECT COUNT(*) AS count FROM email_delivery_log WHERE email_type = 'test' AND created_at >= datetime('now', '-1 day')").get().count,
+            last_sent_at: db.prepare("SELECT created_at FROM email_delivery_log WHERE status = 'sent' ORDER BY created_at DESC LIMIT 1").get()?.created_at || null,
+            last_failed_at: db.prepare("SELECT created_at FROM email_delivery_log WHERE status = 'failed' ORDER BY created_at DESC LIMIT 1").get()?.created_at || null,
+        };
+
+        const byType = db.prepare(`
+            SELECT email_type, status, COUNT(*) AS count
+            FROM email_delivery_log
+            WHERE created_at >= datetime('now', '-30 day')
+            GROUP BY email_type, status
+            ORDER BY count DESC, email_type ASC
+            LIMIT 20
+        `).all();
+
+        const recent = db.prepare(`
+            SELECT id, email_type, recipient, subject, status, error_message, created_at
+            FROM email_delivery_log
+            ORDER BY created_at DESC
+            LIMIT 20
+        `).all();
+
+        return { summary, by_type: byType, recent };
+    }
+
     // ─── Admin middleware ──────────────────────────────────
     function requireAdmin(req, res, next) {
         if (!req.user || req.user.role !== 'admin') {
@@ -30,7 +63,7 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
     router.get('/ses', (req, res) => {
         try {
             const status = sesService.getStatus();
-            res.json({ ok: true, ses: status });
+            res.json({ ok: true, ses: status, metrics: getEmailMetrics() });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }

@@ -37,6 +37,7 @@ function initDb(dbPath) {
             display_name TEXT,
             x REAL DEFAULT 4096,
             y REAL DEFAULT 4096,
+            coins INTEGER DEFAULT 0,
             mining_xp INTEGER DEFAULT 0,
             fishing_xp INTEGER DEFAULT 0,
             woodcut_xp INTEGER DEFAULT 0,
@@ -324,6 +325,31 @@ function initDb(dbPath) {
             defeated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     `);
+
+    // ═══════════════════════════════════════════════════════════
+    // Migrations — safe column additions for existing DBs
+    // ═══════════════════════════════════════════════════════════
+
+    const cols = db.prepare("PRAGMA table_info(game_players)").all().map(c => c.name);
+    if (!cols.includes('coins')) {
+        try { db.exec('ALTER TABLE game_players ADD COLUMN coins INTEGER DEFAULT 0'); } catch {}
+    }
+
+    // Canvas pixel table used by old stub — add alias view if needed
+    try {
+        db.exec(`CREATE TABLE IF NOT EXISTS canvas_pixels (
+            x INTEGER NOT NULL,
+            y INTEGER NOT NULL,
+            color TEXT DEFAULT '#FFFFFF',
+            placed_by INTEGER,
+            placed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (x, y)
+        )`);
+        db.exec(`CREATE TABLE IF NOT EXISTS canvas_cooldowns (
+            user_id INTEGER PRIMARY KEY,
+            last_place DATETIME
+        )`);
+    } catch {}
 
     console.log('[hobo-quest] Database initialized');
     return db;

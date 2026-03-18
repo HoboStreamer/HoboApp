@@ -1,11 +1,12 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════
-// HoboQuest — Express Server
+// HoboQuest — Express + WebSocket Server
 // Community MMORPG & Canvas at hobo.quest
 // Authenticates via hobo.tools OAuth2 + RS256 JWT verification.
 // ═══════════════════════════════════════════════════════════════
 
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -17,6 +18,7 @@ const jwt = require('jsonwebtoken');
 const config = require('./config');
 
 const app = express();
+const server = http.createServer(app);
 
 // ── Trust proxy (Cloudflare → Nginx → Node) ────────────────
 app.set('trust proxy', 2);
@@ -96,6 +98,32 @@ const { initDb } = require('./db/database');
 const db = initDb(config.db.path);
 app.locals.db = db;
 
+// ── Game Systems Initialization ─────────────────────────────
+const dbAdapter = require('./game/db-adapter');
+const gameAuth = require('./game/game-auth');
+const game = require('./game/game-engine');
+const gameServer = require('./game/game-server');
+const canvasService = require('./canvas/canvas-service');
+const canvasServer = require('./canvas/canvas-server');
+
+// Wire db-adapter to the SQLite instance
+dbAdapter.setDb(db);
+
+// Configure JWT auth for game WebSocket connections
+gameAuth.configure({ publicKey, jwtIssuer: config.jwt.issuer });
+
+// Initialize game database tables + world state
+game.initGameDb();
+console.log('[hobo-quest] Game engine ready');
+
+// Initialize canvas database tables
+canvasService.initDb();
+console.log('[hobo-quest] Canvas service ready');
+
+// Initialize WebSocket servers (noServer mode)
+gameServer.init(server);
+canvasServer.init();
+
 // ── OAuth2 Callback (exchange code for token) ───────────────
 const authRoutes = require('./auth/routes');
 app.use('/auth', authRoutes);
@@ -103,9 +131,11 @@ app.use('/auth', authRoutes);
 // ── API Routes ──────────────────────────────────────────────
 const gameRoutes = require('./api/game-routes');
 const canvasRoutes = require('./api/canvas-routes');
+const internalRoutes = require('./api/internal-routes');
 
+app.use('/api/game/canvas', canvasRoutes);
 app.use('/api/game', gameRoutes);
-app.use('/api/canvas', canvasRoutes);
+app.use('/api/internal', internalRoutes);
 
 // ── Health ──────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -115,14 +145,58 @@ app.get('/api/health', (_req, res) => {
 // ── Static Files ────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// ── Game & Canvas Pages ─────────────────────────────────────
+app.get('/game', (_req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'game.html'));
+});
+app.get('/canvas', (_req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'canvas.html'));
+});
+
 // ── SPA Fallback ────────────────────────────────────────────
 app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// ── WebSocket Upgrade Handler ───────────────────────────────
+server.on('upgrade', (req, socket, head) => {
+    const url = req.url || '';
+
+    if (url.startsWith('/ws/game')) {
+        gameServer.handleUpgrade(req, socket, head);
+    } else if (url.startsWith('/ws/canvas')) {
+        canvasServer.handleUpgrade(req, socket, head);
+    } else {
+        socket.destroy();
+    }
+});
+
 // ── Start Server ────────────────────────────────────────────
 const PORT = config.port;
-app.listen(PORT, () => {
-    console.log(`[hobo-quest] Server running on port ${PORT}`);
-    console.log(`[hobo-quest] ${config.baseUrl}`);
+server.listen(PORT, () => {
+    console.log('[hobo-quest] Server running on port ' + PORT);
+    console.log('[hobo-quest] ' + config.baseUrl);
+    console.log('[hobo-quest] WebSocket: ws://localhost:' + PORT + '/ws/game');
+    console.log('[hobo-quest] WebSocket: ws://localhost:' + PORT + '/ws/canvas');
+});
+
+// ── Graceful Shutdown ───────────────────────────────────────
+process.on('SIGTERM', () => {
+    console.log('[hobo-quest] SIGTERM received — shutting down');
+    gameServer.close();
+    canvasServer.close();
+    server.close(() => {
+        db.close();
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('[hobo-quest] SIGINT received — shutting down');
+    gameServer.close();
+    canvasServer.close();
+    server.close(() => {
+        db.close();
+        process.exit(0);
+    });
 });

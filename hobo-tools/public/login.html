@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign In — Hobo Network</title>
 <meta name="description" content="Sign in to the Hobo Network — your identity across HoboStreamer, HoboQuest, and HoboTools.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -14,7 +15,8 @@
     --text:#e0e0e0;--text-muted:#707080;--text-dim:#505060;
     --live-red:#e74c3c;--success:#2ecc71;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+html{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow-x:hidden;overflow-y:auto}
+body{min-height:100dvh;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow-x:hidden;overflow-y:auto}
 
 /* Animated background */
 .bg-canvas{position:fixed;inset:0;z-index:0}
@@ -58,7 +60,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 /* Container */
 .login-container{
-    position:relative;z-index:10;height:100%;display:flex;align-items:center;justify-content:center;padding:20px;
+    position:relative;z-index:10;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;
 }
 
 /* Card */
@@ -151,6 +153,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .services .icons{display:flex;justify-content:center;gap:10px}
 .services .icons span{font-size:16px;opacity:0.4;transition:opacity .2s}
 .services .icons span:hover{opacity:0.8}
+.inline-link{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:none;font-weight:600}
+.inline-link:hover{color:#dbb077}
+.panel-note{font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:16px}
 
 /* Toast */
 .login-toast{
@@ -212,6 +217,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     .login-card{padding:28px 24px;border-radius:16px}
     .logo .flame{font-size:36px}
     .logo h1{font-size:18px}
+    .login-container{padding:16px}
+}
+
+@media(max-height:820px){
+    .login-container{align-items:flex-start;padding-top:24px;padding-bottom:24px}
+}
+
+@media(max-width:380px){
+    .login-card{padding:24px 18px;border-radius:14px}
+    .tab-bar button{font-size:12px;padding:8px 6px}
 }
 </style>
 </head>
@@ -227,9 +242,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 <div class="login-container">
     <div class="login-card">
         <div class="logo">
-            <span class="flame">🔥</span>
+            <span class="flame"><i class="fa-solid fa-campground"></i></span>
             <h1>Hobo Network</h1>
-            <p>One account across all services</p>
+            <p>One account. All of Hobo.</p>
         </div>
 
         <!-- Tab bar (hidden when chooser is shown) -->
@@ -245,10 +260,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
             <div class="divider"><span>or</span></div>
             <div class="chooser-actions">
                 <button class="action-btn" onclick="showAuthForm('login')">
-                    🔑 Use another account
+                    <i class="fa-solid fa-key"></i> Use another account
                 </button>
                 <button class="action-btn" onclick="showAuthForm('register')">
-                    ✨ Create a new account
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Create a new account
+                </button>
+                <button class="action-btn" onclick="showForgotForm()">
+                    <i class="fa-solid fa-lock-open"></i> Forgot password
                 </button>
             </div>
         </div>
@@ -264,12 +282,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
                 <div class="field">
                     <label>Password</label>
                     <input type="password" name="password" placeholder="Your password" required autocomplete="current-password">
-                    <button type="button" class="toggle-password" onclick="togglePw(this)">👁</button>
+                    <button type="button" class="toggle-password" onclick="togglePw(this)"><i class="fa-solid fa-eye"></i></button>
                 </div>
                 <button type="submit" class="submit-btn" id="login-submit">
                     Sign In →
                 </button>
             </form>
+            <a class="inline-link" onclick="showForgotForm()">Forgot your password?</a>
             <a class="back-link" id="login-back" onclick="showChooser()" style="display:none">← Back to saved accounts</a>
         </div>
 
@@ -292,31 +311,69 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
                 <div class="field">
                     <label>Password</label>
                     <input type="password" name="password" placeholder="Min 6 characters" required minlength="6" autocomplete="new-password">
-                    <button type="button" class="toggle-password" onclick="togglePw(this)">👁</button>
+                    <button type="button" class="toggle-password" onclick="togglePw(this)"><i class="fa-solid fa-eye"></i></button>
                 </div>
                 <div class="field">
                     <label>Confirm Password</label>
                     <input type="password" name="password_confirm" placeholder="Repeat password" required autocomplete="new-password">
                 </div>
                 <button type="submit" class="submit-btn" id="register-submit">
-                    Create Account 🔥
+                    Create Account <i class="fa-solid fa-campground"></i>
                 </button>
             </form>
             <a class="back-link" id="register-back" onclick="showChooser()" style="display:none">← Back to saved accounts</a>
         </div>
 
+        <!-- Forgot Password Form -->
+        <div class="form-panel" id="panel-forgot">
+            <div class="message" id="forgot-msg"></div>
+            <p class="panel-note">Enter your email address. If that email exists, a reset link will be sent.</p>
+            <form id="forgot-form" onsubmit="handleForgotPassword(event)">
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" name="email" placeholder="you@email.com" required autocomplete="email">
+                </div>
+                <button type="submit" class="submit-btn" id="forgot-submit">
+                    Send Reset Link <i class="fa-solid fa-envelope"></i>
+                </button>
+            </form>
+            <a class="back-link" id="forgot-back" onclick="returnFromRecovery()">← Back</a>
+        </div>
+
+        <!-- Reset Password Form -->
+        <div class="form-panel" id="panel-reset">
+            <div class="message" id="reset-msg"></div>
+            <p class="panel-note" id="reset-note">Choose a new password for your account.</p>
+            <form id="reset-form" onsubmit="handleResetPassword(event)">
+                <input type="hidden" name="token" id="reset-token">
+                <div class="field">
+                    <label>New Password</label>
+                    <input type="password" name="new_password" placeholder="Min 6 characters" required minlength="6" autocomplete="new-password">
+                    <button type="button" class="toggle-password" onclick="togglePw(this)"><i class="fa-solid fa-eye"></i></button>
+                </div>
+                <div class="field">
+                    <label>Confirm New Password</label>
+                    <input type="password" name="confirm_password" placeholder="Repeat password" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="submit-btn" id="reset-submit">
+                    Reset Password <i class="fa-solid fa-lock"></i>
+                </button>
+            </form>
+            <a class="back-link" id="reset-back" onclick="showAuthForm('login')">← Back to sign in</a>
+        </div>
+
         <div class="divider"><span>or</span></div>
         <button class="anon-btn" onclick="continueAnonymous()">
-            🫥 Continue Anonymously
+            <i class="fa-solid fa-user-secret"></i> Continue Anonymously
         </button>
 
         <div class="services">
             <p>Works across the entire network</p>
             <div class="icons">
-                <span title="HoboStreamer">📺</span>
-                <span title="HoboQuest">⚔️</span>
-                <span title="HoboTools">🔧</span>
-                <span title="HoboMaps">🗺️</span>
+                <span title="HoboStreamer"><i class="fa-solid fa-tower-broadcast"></i></span>
+                <span title="HoboQuest"><i class="fa-solid fa-shield-halved"></i></span>
+                <span title="HoboTools"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+                <span title="HoboMaps"><i class="fa-solid fa-map"></i></span>
             </div>
         </div>
     </div>
@@ -345,13 +402,27 @@ const clientName = params.get('client_name') || params.get('client_id') || '';
 })();
 
 // ── Saved Accounts ──────────────────────────────────────────
+function clearAuthCookie() {
+    document.cookie = 'hobo_token=;path=/;max-age=0;SameSite=Lax';
+    document.cookie = 'hobo_token=;path=/;max-age=0;domain=.hobo.tools;SameSite=Lax';
+}
+
+function setAuthCookie(token) {
+    document.cookie = `hobo_token=${token};path=/;max-age=${60*60*24*30};domain=.hobo.tools;SameSite=Lax;Secure`;
+}
+
 function getSavedAccounts() {
     try { return JSON.parse(localStorage.getItem('hobo_accounts') || '[]').filter(a => a && a.token && !a.is_anon); }
     catch { return []; }
 }
 
+function getAllAccounts() {
+    try { return JSON.parse(localStorage.getItem('hobo_accounts') || '[]').filter(a => a && a.token); }
+    catch { return []; }
+}
+
 function saveAccount(user, token) {
-    const accounts = getSavedAccounts();
+    const accounts = getAllAccounts().filter(a => !a.is_anon);
     const idx = accounts.findIndex(a => a.id === user.id);
     const entry = {
         id: user.id,
@@ -369,6 +440,25 @@ function saveAccount(user, token) {
     return entry;
 }
 
+function saveAnonAccount(user, token) {
+    const accounts = getAllAccounts().filter(a => !a.is_anon);
+    const entry = {
+        id: 'anon',
+        username: user.username,
+        display_name: user.display_name || user.username,
+        avatar_url: null,
+        email: null,
+        token,
+        is_anon: true,
+        anon_number: user.anon_number || null,
+    };
+    accounts.push(entry);
+    localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+    localStorage.setItem('hobo_anon_token', token);
+    localStorage.setItem('hobo_active_account', 'anon');
+    return entry;
+}
+
 function removeAccount(id) {
     const accounts = getSavedAccounts().filter(a => a.id !== id);
     localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
@@ -379,23 +469,32 @@ function removeAccount(id) {
 // ── View Management ─────────────────────────────────────────
 let hasAccounts = false;
 
+function setPrimaryExtrasVisible(visible) {
+    const display = visible ? '' : 'none';
+    document.querySelectorAll('.login-card > .divider').forEach(d => d.style.display = display);
+    const anonBtn = document.querySelector('.anon-btn');
+    if (anonBtn) anonBtn.style.display = display;
+}
+
+function setActivePanel(panelId, { showTabs = true, activeTab = null, showExtras = true } = {}) {
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.getElementById('auth-tabs').style.display = showTabs ? '' : 'none';
+    document.getElementById(panelId).classList.add('active');
+    setPrimaryExtrasVisible(showExtras);
+    if (activeTab) {
+        const buttons = document.querySelectorAll('.tab-bar button');
+        const idx = activeTab === 'register' ? 1 : 0;
+        buttons[idx]?.classList.add('active');
+    }
+}
+
 function showChooser() {
-    document.getElementById('auth-tabs').style.display = 'none';
-    document.getElementById('panel-chooser').classList.add('active');
-    document.getElementById('panel-login').classList.remove('active');
-    document.getElementById('panel-register').classList.remove('active');
-    document.querySelector('.divider')?.style && (document.querySelectorAll('.login-card > .divider').forEach(d => d.style.display = ''));
-    document.querySelector('.anon-btn')?.style && (document.querySelector('.anon-btn').style.display = '');
+    setActivePanel('panel-chooser', { showTabs: false, showExtras: true });
 }
 
 function showAuthForm(tab) {
-    document.getElementById('panel-chooser').classList.remove('active');
-    document.getElementById('auth-tabs').style.display = '';
-    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
-    const tabIdx = tab === 'login' ? 0 : 1;
-    document.querySelectorAll('.tab-bar button')[tabIdx].classList.add('active');
-    document.getElementById('panel-' + tab).classList.add('active');
+    setActivePanel('panel-' + tab, { showTabs: true, activeTab: tab, showExtras: true });
     // Show "back" links if we have saved accounts
     if (hasAccounts) {
         document.getElementById('login-back').style.display = '';
@@ -403,11 +502,25 @@ function showAuthForm(tab) {
     }
 }
 
-function switchTab(tab) {
-    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById('panel-' + tab).classList.add('active');
+function switchTab(tab, evt) {
+    if (evt?.preventDefault) evt.preventDefault();
+    showAuthForm(tab);
+}
+
+function showForgotForm() {
+    const forgotBack = document.getElementById('forgot-back');
+    forgotBack.textContent = hasAccounts ? '← Back to saved accounts' : '← Back to sign in';
+    setActivePanel('panel-forgot', { showTabs: false, showExtras: false });
+}
+
+function returnFromRecovery() {
+    if (hasAccounts) return showChooser();
+    showAuthForm('login');
+}
+
+function showResetForm(token) {
+    document.getElementById('reset-token').value = token || '';
+    setActivePanel('panel-reset', { showTabs: false, showExtras: false });
 }
 
 // ── Render Account Chooser ──────────────────────────────────
@@ -429,8 +542,8 @@ function renderChooser() {
         const item = document.createElement('div');
         item.className = 'account-item' + (String(account.id) === String(activeId) ? ' active-account' : '');
         const avatarContent = account.avatar_url
-            ? `<img src="${escapeHtml(account.avatar_url)}" alt="" onerror="this.parentElement.textContent='🔥'">`
-            : '🔥';
+            ? `<img src="${escapeHtml(account.avatar_url)}" alt="" onerror="this.parentElement.innerHTML='<i class=\'fa-solid fa-campground\'></i>'">`
+            : '<i class="fa-solid fa-campground"></i>';
         item.innerHTML = `
             <div class="avatar">${avatarContent}</div>
             <div class="info">
@@ -438,7 +551,7 @@ function renderChooser() {
                 <div class="detail">${escapeHtml(account.username)}${account.email ? ' · ' + escapeHtml(account.email) : ''}</div>
             </div>
             <span class="arrow">→</span>
-            <button class="remove-btn" title="Remove this saved account" onclick="event.stopPropagation(); removeAccount(${account.id})">✕</button>
+            <button class="remove-btn" title="Remove this saved account" onclick="event.stopPropagation(); removeAccount(${account.id})"><i class="fa-solid fa-xmark"></i></button>
         `;
         item.addEventListener('click', () => selectAccount(account));
         list.appendChild(item);
@@ -456,7 +569,7 @@ async function selectAccount(account) {
     // Set this as the active account
     localStorage.setItem('hobo_token', account.token);
     localStorage.setItem('hobo_active_account', account.id);
-    document.cookie = `hobo_token=${account.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+    setAuthCookie(account.token);
 
     if (isOAuth) {
         // Call /oauth/confirm to get the redirect URL
@@ -489,7 +602,7 @@ async function selectAccount(account) {
         }
     } else {
         // Not OAuth — just switch the active account and go home
-        toast('Switched to ' + (account.display_name || account.username) + ' 🔥', 'success');
+        toast('Switched to ' + (account.display_name || account.username) + ' <i class="fa-solid fa-campground"></i>', 'success');
         setTimeout(() => window.location.href = getReturnUrl(), 600);
     }
 }
@@ -498,7 +611,7 @@ async function selectAccount(account) {
 function togglePw(btn) {
     const input = btn.previousElementSibling;
     input.type = input.type === 'password' ? 'text' : 'password';
-    btn.textContent = input.type === 'password' ? '👁' : '🙈';
+    btn.innerHTML = input.type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
 }
 
 // Show message
@@ -512,7 +625,7 @@ function showMsg(id, text, type) {
 // Toast
 function toast(text, type = 'success') {
     const el = document.getElementById('toast');
-    el.textContent = text;
+    el.innerHTML = text;
     el.className = 'login-toast ' + type + ' show';
     setTimeout(() => el.classList.remove('show'), 3000);
 }
@@ -554,7 +667,7 @@ async function handleLogin(e) {
 
         // Store token & save account
         localStorage.setItem('hobo_token', data.token);
-        document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+        setAuthCookie(data.token);
         saveAccount(data.user, data.token);
 
         if (isOAuth) {
@@ -572,10 +685,10 @@ async function handleLogin(e) {
             });
             const confirmData = await confirmRes.json();
             if (!confirmRes.ok) throw new Error(confirmData.error || 'Authorization failed');
-            toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! 🔥');
+            toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! <i class="fa-solid fa-campground"></i>');
             setTimeout(() => window.location.href = confirmData.redirect, 800);
         } else {
-            toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! 🔥');
+            toast('Welcome back, ' + (data.user.display_name || data.user.username) + '! <i class="fa-solid fa-campground"></i>');
             setTimeout(() => window.location.href = getReturnUrl(), 800);
         }
     } catch (err) {
@@ -615,7 +728,7 @@ async function handleRegister(e) {
         if (!res.ok) throw new Error(data.error || 'Registration failed');
 
         localStorage.setItem('hobo_token', data.token);
-        document.cookie = `hobo_token=${data.token};path=/;max-age=${60*60*24*30};SameSite=Lax`;
+        setAuthCookie(data.token);
         saveAccount(data.user, data.token);
 
         if (isOAuth) {
@@ -632,15 +745,85 @@ async function handleRegister(e) {
             });
             const confirmData = await confirmRes.json();
             if (!confirmRes.ok) throw new Error(confirmData.error || 'Authorization failed');
-            toast('Account created! Welcome to the network 🔥');
+            toast('Account created! Welcome to the network <i class="fa-solid fa-campground"></i>');
             setTimeout(() => window.location.href = confirmData.redirect, 800);
         } else {
-            toast('Account created! Welcome to the network 🔥');
+            toast('Account created! Welcome to the network <i class="fa-solid fa-campground"></i>');
             setTimeout(() => window.location.href = getReturnUrl(), 800);
         }
     } catch (err) {
         showMsg('register-msg', err.message, 'error');
-        btn.textContent = 'Create Account 🔥';
+        btn.innerHTML = 'Create Account <i class="fa-solid fa-campground"></i>';
+        btn.classList.remove('loading');
+    }
+}
+
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const btn = document.getElementById('forgot-submit');
+    const form = new FormData(e.target);
+    btn.classList.add('loading');
+    btn.textContent = 'Sending...';
+    ripple(btn, e);
+
+    try {
+        const res = await fetch(API_BASE + '/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: form.get('email') }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to send reset link');
+        showMsg('forgot-msg', data.message || 'If that email exists, a reset link has been sent.', 'success');
+        e.target.reset();
+    } catch (err) {
+        showMsg('forgot-msg', err.message, 'error');
+    } finally {
+        btn.innerHTML = 'Send Reset Link <i class="fa-solid fa-envelope"></i>';
+        btn.classList.remove('loading');
+    }
+}
+
+async function validateResetToken(token) {
+    const res = await fetch(API_BASE + '/api/auth/reset-password/validate?token=' + encodeURIComponent(token));
+    const data = await res.json();
+    if (!res.ok || !data.valid) throw new Error(data.error || 'Invalid or expired reset link');
+    return data;
+}
+
+async function handleResetPassword(e) {
+    e.preventDefault();
+    const btn = document.getElementById('reset-submit');
+    const form = new FormData(e.target);
+
+    if (form.get('new_password') !== form.get('confirm_password')) {
+        showMsg('reset-msg', 'Passwords do not match', 'error');
+        return;
+    }
+
+    btn.classList.add('loading');
+    btn.textContent = 'Resetting...';
+    ripple(btn, e);
+
+    try {
+        const res = await fetch(API_BASE + '/api/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: form.get('token'), new_password: form.get('new_password') }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Password reset failed');
+        showMsg('reset-msg', data.message || 'Password reset complete. You can sign in now.', 'success');
+        setTimeout(() => {
+            params.delete('token');
+            const cleanUrl = window.location.pathname === '/reset-password' ? '/login' : window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+            showAuthForm('login');
+        }, 1200);
+    } catch (err) {
+        showMsg('reset-msg', err.message, 'error');
+    } finally {
+        btn.innerHTML = 'Reset Password <i class="fa-solid fa-lock"></i>';
         btn.classList.remove('loading');
     }
 }
@@ -651,12 +834,9 @@ async function continueAnonymous() {
         const res = await fetch(API_BASE + '/api/auth/anon-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
-        localStorage.setItem('hobo_anon_token', data.token);
-        localStorage.setItem('hobo_active_account', 'anon');
-
-        const allAccounts = JSON.parse(localStorage.getItem('hobo_accounts') || '[]');
-        allAccounts.push({ id: data.user.id, username: data.user.username, display_name: data.user.display_name, is_anon: true, anon_number: data.user.anon_number, token: data.token });
-        localStorage.setItem('hobo_accounts', JSON.stringify(allAccounts));
+        clearAuthCookie();
+        localStorage.removeItem('hobo_token');
+        saveAnonAccount(data.user, data.token);
 
         toast('Browsing as Anonymous #' + data.user.anon_number);
         setTimeout(() => window.location.href = getReturnUrl(), 600);
@@ -669,6 +849,34 @@ async function continueAnonymous() {
 (function init() {
     const accounts = getSavedAccounts();
     hasAccounts = accounts.length > 0;
+    const resetToken = params.get('token');
+
+    if (window.location.pathname === '/forgot-password') {
+        showForgotForm();
+        return;
+    }
+
+    if (window.location.pathname === '/reset-password' || resetToken) {
+        showResetForm(resetToken || '');
+        if (resetToken) {
+            validateResetToken(resetToken)
+                .then((data) => {
+                    document.getElementById('reset-note').textContent = `Choose a new password for @${data.username}.`;
+                })
+                .catch((err) => {
+                    showMsg('reset-msg', err.message, 'error');
+                    document.getElementById('reset-submit').disabled = true;
+                    document.getElementById('reset-submit').classList.add('loading');
+                    document.getElementById('reset-submit').textContent = 'Reset Link Invalid';
+                });
+        } else {
+            showMsg('reset-msg', 'Missing reset token. Request a new reset link to continue.', 'error');
+            document.getElementById('reset-submit').disabled = true;
+            document.getElementById('reset-submit').classList.add('loading');
+            document.getElementById('reset-submit').textContent = 'Reset Link Required';
+        }
+        return;
+    }
 
     if (hasAccounts) {
         // Show account chooser

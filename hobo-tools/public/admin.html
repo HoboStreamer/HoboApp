@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel — Hobo Network</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+    --bg:#0d0d14;--bg-secondary:#151520;--bg-card:#1a1a26;--bg-input:#1c1c28;--bg-tertiary:#222233;
+    --border:#2a2a3a;--border-focus:#c0965c;
+    --accent:#c0965c;--accent-glow:rgba(192,150,92,0.4);--accent-dark:#a07840;--accent-light:#dbb077;
+    --text:#e0e0e0;--text-secondary:#b0b0b8;--text-muted:#707080;
+    --live-red:#e74c3c;--success:#2ecc71;--warning:#f59e0b;--danger:#ef4444;
+    --shadow:0 4px 20px rgba(0,0,0,0.3);
+}
+html{height:100%;background:var(--bg)}
+body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding-bottom:40px}
+
+/* Layout */
+.page{max-width:1200px;margin:0 auto;padding:20px}
+.page-title{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.page-title h1{font-size:22px;font-weight:800}
+.page-title .badge{font-size:10px;padding:3px 10px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(231,76,60,0.15);color:#e74c3c}
+
+/* Section tabs */
+.section-tabs-shell{display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.section-tabs-wrap{flex:1;min-width:0;position:relative;display:flex;align-items:center}
+.section-tabs{
+    display:flex;gap:4px;background:var(--bg-secondary);border-radius:10px;padding:4px;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;min-width:0;
+}
+.section-tabs::-webkit-scrollbar{height:0}
+.section-tabs button{
+    flex-shrink:0;padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;
+    background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.section-tabs button.active{background:var(--bg-card);color:var(--accent-light)}
+.section-tabs button:hover:not(.active){color:var(--text)}
+.tabs-scroll-btn{
+    width:34px;height:34px;flex:0 0 34px;border:none;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    background:var(--bg-secondary);color:var(--text-muted);cursor:pointer;transition:all .15s;opacity:0;pointer-events:none;
+}
+.tabs-scroll-btn.visible{opacity:1;pointer-events:auto}
+.tabs-scroll-btn:hover{color:var(--accent-light);background:var(--bg-card)}
+.tabs-scroll-btn:disabled{opacity:.3;pointer-events:none}
+
+/* Section */
+.section{display:none;animation:sec-in .2s ease}
+.section.active{display:block}
+@keyframes sec-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.stat-card .value{font-size:24px;font-weight:800;color:var(--accent-light)}
+.stat-card .label{font-size:11px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* Cards */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+/* Tables */
+.admin-table{width:100%;border-collapse:collapse;font-size:13px}
+.admin-table thead{border-bottom:2px solid var(--border)}
+.admin-table th{padding:10px 8px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)}
+.admin-table td{padding:10px 8px;border-bottom:1px solid var(--border)}
+.admin-table tbody tr:hover{background:rgba(192,150,92,0.03)}
+
+/* Buttons */
+.btn{padding:8px 16px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--accent-dark);color:var(--accent-light)}
+.btn-danger{background:rgba(231,76,60,0.1);color:var(--live-red);border:1px solid rgba(231,76,60,0.2)}
+.btn-danger:hover{background:rgba(231,76,60,0.2)}
+.btn-success{background:rgba(46,204,113,0.1);color:var(--success);border:1px solid rgba(46,204,113,0.2)}
+.btn-success:hover{background:rgba(46,204,113,0.2)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Form fields */
+.form-field{margin-bottom:14px}
+.form-field label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.form-field input,.form-field select,.form-field textarea{
+    width:100%;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:13px;outline:none;transition:border-color .2s;
+}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--accent)}
+
+/* Input inline */
+.input-row{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.input-row input,.input-row select{
+    padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);font-size:13px;outline:none;flex:1;min-width:160px;
+}
+.input-row input:focus{border-color:var(--accent)}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+.badge-success{background:rgba(46,204,113,0.15);color:#2ecc71}
+.badge-danger{background:rgba(231,76,60,0.15);color:#e74c3c}
+.badge-warning{background:rgba(245,158,11,0.15);color:#f59e0b}
+.badge-info{background:rgba(52,152,219,0.15);color:#3498db}
+.badge-admin{background:rgba(231,76,60,0.15);color:#e74c3c}
+.badge-global_mod{background:rgba(155,89,182,0.15);color:#9b59b6}
+.badge-streamer{background:rgba(155,89,182,0.15);color:#9b59b6}
+.badge-user{background:rgba(52,152,219,0.15);color:#3498db}
+
+/* Loading */
+.muted{color:var(--text-muted);font-size:13px}
+.loading{text-align:center;padding:40px;color:var(--text-muted)}
+
+/* Toast */
+.toast-container{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;animation:toast-in .25s ease;box-shadow:var(--shadow)}
+.toast-success{background:#2ecc71}
+.toast-error{background:#e74c3c}
+.toast-info{background:#3498db}
+.toast-warning{background:#f59e0b}
+@keyframes toast-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* Sub-tabs */
+.sub-tabs{display:flex;gap:4px;margin-bottom:16px}
+.sub-tabs button{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer}
+.sub-tabs button.active{background:var(--bg-card);color:var(--accent-light);border-color:var(--accent-dark)}
+
+/* Setting rows */
+.setting-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.setting-row label{flex:1}
+.setting-row label strong{font-size:13px}
+.setting-row label small{font-size:11px;color:var(--text-muted)}
+
+/* Storage bars */
+.storage-bar{background:var(--bg-tertiary);border-radius:4px;height:14px;overflow:hidden;position:relative}
+.storage-bar-fill{height:100%;border-radius:4px;transition:width .5s}
+
+/* Sensitive fields */
+.sensitive-field{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sensitive-field input{flex:1}
+.sensitive-actions{display:flex;gap:4px}
+
+@media(max-width:800px){
+    .page{padding:12px}
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:500px){
+    .stats-grid{grid-template-columns:1fr}
+    .admin-table{font-size:11px}
+    .section-tabs-shell{gap:6px}
+    .tabs-scroll-btn{width:30px;height:30px;flex-basis:30px;border-radius:8px}
+}
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+<div class="toast-container" id="toast-container"></div>
+
+<div class="page">
+    <div class="page-title">
+        <h1><i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i> Admin Panel</h1>
+        <span class="badge" id="admin-role-badge">ADMIN</span>
+    </div>
+
+    <div class="section-tabs-shell">
+        <button class="tabs-scroll-btn" id="main-tabs-left" onclick="scrollMainTabs(-1)" title="Scroll left" aria-label="Scroll left">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <div class="section-tabs-wrap">
+            <div class="section-tabs" id="main-tabs">
+                <button class="admin-tab-btn active" onclick="showTab('dashboard',this)"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
+                <button class="admin-tab-btn" onclick="showTab('users',this)"><i class="fa-solid fa-users"></i> Users</button>
+                <button class="admin-tab-btn" onclick="showTab('streams',this)"><i class="fa-solid fa-broadcast-tower"></i> Streams</button>
+                <button class="admin-tab-btn" onclick="showTab('bans',this)"><i class="fa-solid fa-ban"></i> Bans</button>
+                <button class="admin-tab-btn" onclick="showTab('chat-logs',this)"><i class="fa-solid fa-message"></i> Chat Logs</button>
+                <button class="admin-tab-btn" onclick="showTab('moderators',this)"><i class="fa-solid fa-shield-halved"></i> Moderators</button>
+                <button class="admin-tab-btn" onclick="showTab('settings',this)"><i class="fa-solid fa-gear"></i> Settings</button>
+                <button class="admin-tab-btn" onclick="showTab('tts',this)"><i class="fa-solid fa-volume-high"></i> TTS</button>
+                <button class="admin-tab-btn" onclick="showTab('cashouts',this)"><i class="fa-solid fa-money-bill-transfer"></i> Cashouts</button>
+                <button class="admin-tab-btn" onclick="showTab('vpn',this)"><i class="fa-solid fa-user-shield"></i> VPN Queue</button>
+                <button class="admin-tab-btn" onclick="showTab('pastes',this)"><i class="fa-solid fa-paste"></i> Pastes</button>
+                <button class="admin-tab-btn" onclick="showTab('storage',this)"><i class="fa-solid fa-hard-drive"></i> Storage</button>
+                <button class="admin-tab-btn" onclick="showTab('notifications',this)"><i class="fa-solid fa-bell"></i> Notifications</button>
+                <button class="admin-tab-btn" onclick="showTab('ses',this)"><i class="fa-solid fa-envelope"></i> SES</button>
+                <button class="admin-tab-btn" onclick="showTab('vkeys',this)"><i class="fa-solid fa-key"></i> Keys</button>
+                <button class="admin-tab-btn" onclick="showTab('audit',this)"><i class="fa-solid fa-clipboard-list"></i> Audit</button>
+            </div>
+        </div>
+        <button class="tabs-scroll-btn" id="main-tabs-right" onclick="scrollMainTabs(1)" title="Scroll right" aria-label="Scroll right">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="section active" id="sec-dashboard">
+        <div class="stats-grid" id="dashboard-stats"><div class="loading">Loading stats...</div></div>
+        <div class="card">
+            <h3><i class="fa-solid fa-server"></i> System Health</h3>
+            <div id="health-info" class="muted">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Users -->
+    <div class="section" id="sec-users">
+        <div class="input-row">
+            <input type="text" id="user-search" placeholder="Search users by name or email..." onkeydown="if(event.key==='Enter')loadUsers()">
+            <button class="btn btn-primary" onclick="loadUsers()"><i class="fa-solid fa-search"></i> Search</button>
+        </div>
+        <div id="users-content"><div class="loading">Loading...</div></div>
+        <div id="users-pager" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px"></div>
+    </div>
+
+    <!-- Streams -->
+    <div class="section" id="sec-streams">
+        <div id="streams-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Bans -->
+    <div class="section" id="sec-bans">
+        <div id="bans-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Chat Logs -->
+    <div class="section" id="sec-chat-logs">
+        <div class="input-row">
+            <input type="text" id="chat-search-q" placeholder="Search messages..." onkeydown="if(event.key==='Enter')searchChatLogs()">
+            <input type="text" id="chat-search-uid" placeholder="User ID (optional)" style="max-width:140px" onkeydown="if(event.key==='Enter')searchChatLogs()">
+            <button class="btn btn-primary" onclick="searchChatLogs()"><i class="fa-solid fa-search"></i> Search</button>
+        </div>
+        <div id="chat-logs-content"><p class="muted">Enter a search query or user ID</p></div>
+        <div id="chat-logs-pager" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px"></div>
+    </div>
+
+    <!-- Moderators -->
+    <div class="section" id="sec-moderators">
+        <div class="input-row">
+            <input type="text" id="mod-username" placeholder="Username to promote..." onkeydown="if(event.key==='Enter')promoteMod()">
+            <button class="btn btn-primary" onclick="promoteMod()"><i class="fa-solid fa-shield-halved"></i> Promote to Global Mod</button>
+        </div>
+        <div id="mods-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Settings -->
+    <div class="section" id="sec-settings">
+        <div class="sub-tabs" id="settings-sub-tabs">
+            <button class="active" onclick="showSettingsSub('tools',this)">Hobo.Tools</button>
+            <button onclick="showSettingsSub('streamer',this)">HoboStreamer</button>
+        </div>
+        <div id="settings-tools" class="settings-sub active"></div>
+        <div id="settings-streamer" class="settings-sub" style="display:none"></div>
+    </div>
+
+    <!-- TTS -->
+    <div class="section" id="sec-tts">
+        <div id="tts-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Cashouts -->
+    <div class="section" id="sec-cashouts">
+        <div id="cashouts-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- VPN Queue -->
+    <div class="section" id="sec-vpn">
+        <div id="vpn-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Pastes -->
+    <div class="section" id="sec-pastes">
+        <div id="pastes-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Storage -->
+    <div class="section" id="sec-storage">
+        <div id="storage-content"><div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing storage...</div></div>
+    </div>
+
+    <!-- Notifications (Broadcast) -->
+    <div class="section" id="sec-notifications">
+        <div class="card">
+            <h3><i class="fa-solid fa-bullhorn"></i> Broadcast Notification</h3>
+            <p class="muted" style="margin-bottom:16px">Send a notification to all users across the Hobo Network.</p>
+            <div class="form-field">
+                <label>Title</label>
+                <input type="text" id="broadcast-title" placeholder="Notification title...">
+            </div>
+            <div class="form-field">
+                <label>Message</label>
+                <textarea id="broadcast-msg" rows="3" placeholder="Message body..." style="resize:vertical"></textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                <div class="form-field">
+                    <label>Icon (emoji)</label>
+                    <input type="text" id="broadcast-icon" value="📢" style="text-align:center">
+                </div>
+                <div class="form-field">
+                    <label>Priority</label>
+                    <select id="broadcast-priority">
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>URL (optional)</label>
+                    <input type="text" id="broadcast-url" placeholder="https://...">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="sendBroadcast()"><i class="fa-solid fa-paper-plane"></i> Send Broadcast</button>
+        </div>
+    </div>
+
+    <!-- SES -->
+    <div class="section" id="sec-ses">
+        <div class="card">
+            <h3><i class="fa-solid fa-envelope"></i> Amazon SES Configuration</h3>
+            <div id="ses-content"><div class="loading">Loading...</div></div>
+        </div>
+    </div>
+
+    <!-- Verification Keys -->
+    <div class="section" id="sec-vkeys">
+        <div class="input-row">
+            <input type="text" id="vkey-username" placeholder="Username to reserve..." onkeydown="if(event.key==='Enter')generateVKey()">
+            <input type="text" id="vkey-note" placeholder="Note (optional)">
+            <button class="btn btn-primary" onclick="generateVKey()"><i class="fa-solid fa-key"></i> Generate Key</button>
+        </div>
+        <div id="vkeys-content"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Audit Log -->
+    <div class="section" id="sec-audit">
+        <div id="audit-content"><div class="loading">Loading...</div></div>
+        <div id="audit-pager" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px"></div>
+    </div>
+</div>
+
+<!-- Shared scripts -->
+<script src="/shared/navbar.js"></script>
+<script src="/shared/notification-ui.js"></script>
+<script src="/shared/account-switcher.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Hobo Network — Unified Admin Panel
+   ═══════════════════════════════════════════════════════════════ */
+
+const API = window.location.origin;
+const token = localStorage.getItem('hobo_token');
+let currentUser = null;
+
+// ── Helpers ──────────────────────────────────────────────────
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+function timeAgo(dateStr) {
+    const d = new Date(dateStr);
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+    return d.toLocaleDateString();
+}
+
+function fmtBytes(bytes) {
+    if (!bytes || bytes < 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0, val = bytes;
+    while (val >= 1024 && i < units.length - 1) { val /= 1024; i++; }
+    return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function fmtDuration(sec) {
+    if (!sec) return '—';
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+}
+
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+async function api(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...opts.headers };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const fetchOpts = { ...opts, headers, credentials: 'include' };
+    if (opts.body && typeof opts.body === 'object') fetchOpts.body = JSON.stringify(opts.body);
+    const res = await fetch(API + path, fetchOpts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+}
+
+// ── Tab switching ────────────────────────────────────────────
+let currentTab = 'dashboard';
+const tabLoaders = {
+    dashboard: loadDashboard,
+    users: loadUsers,
+    streams: loadStreams,
+    bans: loadBans,
+    'chat-logs': () => {}, // manual search
+    moderators: loadModerators,
+    settings: loadSettings,
+    tts: loadTTS,
+    cashouts: loadCashouts,
+    vpn: loadVPNQueue,
+    pastes: loadPastesAdmin,
+    storage: loadStorage,
+    notifications: () => {},
+    ses: loadSES,
+    vkeys: loadVKeys,
+    audit: loadAudit,
+};
+
+function showTab(id, btn) {
+    currentTab = id;
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#main-tabs .admin-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('sec-' + id)?.classList.add('active');
+    btn?.classList.add('active');
+    btn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    setTimeout(checkMainTabsOverflow, 180);
+    tabLoaders[id]?.();
+}
+
+function checkMainTabsOverflow() {
+    const tabs = document.getElementById('main-tabs');
+    if (!tabs) return;
+    const left = document.getElementById('main-tabs-left');
+    const right = document.getElementById('main-tabs-right');
+    const hasOverflow = tabs.scrollWidth > tabs.clientWidth + 2;
+    const atStart = tabs.scrollLeft <= 1;
+    const atEnd = tabs.scrollLeft >= tabs.scrollWidth - tabs.clientWidth - 1;
+    left?.classList.toggle('visible', hasOverflow && !atStart);
+    right?.classList.toggle('visible', hasOverflow && !atEnd);
+}
+
+function scrollMainTabs(dir) {
+    const tabs = document.getElementById('main-tabs');
+    if (!tabs) return;
+    tabs.scrollBy({ left: dir * 180, behavior: 'smooth' });
+    let checks = 0;
+    let lastPos = tabs.scrollLeft;
+    const poll = setInterval(() => {
+        checkMainTabsOverflow();
+        if (tabs.scrollLeft === lastPos || ++checks > 12) clearInterval(poll);
+        lastPos = tabs.scrollLeft;
+    }, 60);
+}
+
+function initMainTabsOverflow() {
+    const tabs = document.getElementById('main-tabs');
+    if (!tabs) return;
+    tabs.addEventListener('scroll', checkMainTabsOverflow, { passive: true });
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(checkMainTabsOverflow).observe(tabs);
+    }
+    window.addEventListener('resize', checkMainTabsOverflow);
+    setTimeout(checkMainTabsOverflow, 100);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Dashboard
+// ═══════════════════════════════════════════════════════════════
+async function loadDashboard() {
+    const statsEl = document.getElementById('dashboard-stats');
+    const healthEl = document.getElementById('health-info');
+
+    // Load both hobo-tools health and hobostreamer stats in parallel
+    const [toolsHealth, streamerStats] = await Promise.allSettled([
+        api('/api/admin/health'),
+        api('/api/admin/streamer/stats'),
+    ]);
+
+    const th = toolsHealth.status === 'fulfilled' ? toolsHealth.value.health : null;
+    const ss = streamerStats.status === 'fulfilled' ? (streamerStats.value.stats || streamerStats.value) : null;
+
+    const stats = [
+        { label: 'Registered Users', value: th?.users || 0, icon: 'fa-users' },
+        { label: 'Active Sessions', value: th?.active_sessions || 0, icon: 'fa-plug' },
+        { label: 'Active Streams', value: ss?.streams?.live || ss?.activeStreams || 0, icon: 'fa-broadcast-tower' },
+        { label: 'Total Streams', value: ss?.streams?.total || ss?.totalStreams || 0, icon: 'fa-video' },
+        { label: 'Active Bans', value: ss?.users?.banned || ss?.activeBans || 0, icon: 'fa-ban' },
+        { label: 'Notifications', value: th?.total_notifications || 0, icon: 'fa-bell' },
+        { label: 'Unread Notifs', value: th?.unread_notifications || 0, icon: 'fa-bell-slash' },
+        { label: 'Anon Users', value: th?.anon_users || 0, icon: 'fa-ghost' },
+    ];
+
+    statsEl.innerHTML = stats.map(s => `
+        <div class="stat-card">
+            <div class="value">${typeof s.value === 'number' ? s.value.toLocaleString() : s.value}</div>
+            <div class="label"><i class="fa-solid ${s.icon}"></i> ${s.label}</div>
+        </div>
+    `).join('');
+
+    // Health details
+    if (th) {
+        const mem = th.memory;
+        const upH = Math.floor(th.uptime / 3600);
+        const upM = Math.floor((th.uptime % 3600) / 60);
+        healthEl.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;font-size:13px">
+                <div><strong>Uptime:</strong> ${upH}h ${upM}m</div>
+                <div><strong>Heap Used:</strong> ${fmtBytes(mem?.heapUsed)}</div>
+                <div><strong>Heap Total:</strong> ${fmtBytes(mem?.heapTotal)}</div>
+                <div><strong>RSS:</strong> ${fmtBytes(mem?.rss)}</div>
+                <div><strong>SES:</strong> ${th.ses_enabled ? '<span style="color:var(--success)">Enabled</span>' : '<span style="color:var(--text-muted)">Disabled</span>'}</div>
+            </div>
+        `;
+    } else {
+        healthEl.innerHTML = '<p class="muted">Could not load health data</p>';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Users (from hobo-tools central user DB)
+// ═══════════════════════════════════════════════════════════════
+let usersOffset = 0;
+async function loadUsers() {
+    const c = document.getElementById('users-content');
+    const pager = document.getElementById('users-pager');
+    const search = document.getElementById('user-search')?.value.trim() || '';
+    c.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+        const params = new URLSearchParams({ limit: '50', offset: String(usersOffset) });
+        if (search) params.set('search', search);
+        const data = await api(`/api/admin/users?${params}`);
+        const users = data.users || [];
+        const total = data.total || 0;
+
+        if (!users.length) { c.innerHTML = '<p class="muted">No users found</p>'; pager.innerHTML = ''; return; }
+
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr>
+                    <th>Username</th><th>Display Name</th><th>Email</th><th>Role</th><th>Created</th><th>Last Seen</th><th>Actions</th>
+                </tr></thead>
+                <tbody>${users.map(u => `
+                    <tr>
+                        <td><strong>${esc(u.username)}</strong></td>
+                        <td>${esc(u.display_name || '-')}</td>
+                        <td style="font-size:11px">${esc(u.email || '-')}</td>
+                        <td><span class="badge badge-${u.role}">${esc(u.role)}</span></td>
+                        <td style="font-size:11px">${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
+                        <td style="font-size:11px">${u.last_seen ? timeAgo(u.last_seen) : 'Never'}</td>
+                        <td style="display:flex;gap:4px;align-items:center">
+                            <select onchange="changeUserRole('${u.id}',this.value)" style="padding:4px 6px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:11px">
+                                ${['user','streamer','global_mod','admin'].map(r =>
+                                    `<option value="${r}" ${r===u.role?'selected':''}>${r}</option>`
+                                ).join('')}
+                            </select>
+                            ${u.is_banned ?
+                                `<button class="btn btn-sm btn-success" onclick="toggleBan('${u.id}','${esc(u.username)}',false)"><i class="fa-solid fa-user-check"></i></button>` :
+                                `<button class="btn btn-sm btn-danger" onclick="toggleBan('${u.id}','${esc(u.username)}',true)"><i class="fa-solid fa-ban"></i></button>`
+                            }
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+
+        const pages = Math.ceil(total / 50);
+        const curPage = Math.floor(usersOffset / 50) + 1;
+        pager.innerHTML = pages > 1 ? `
+            <button class="btn btn-sm btn-outline" ${usersOffset <= 0 ? 'disabled' : ''} onclick="usersOffset=Math.max(0,usersOffset-50);loadUsers()"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="muted">Page ${curPage} / ${pages} (${total} total)</span>
+            <button class="btn btn-sm btn-outline" ${curPage >= pages ? 'disabled' : ''} onclick="usersOffset+=50;loadUsers()"><i class="fa-solid fa-chevron-right"></i></button>
+        ` : `<span class="muted">${total} users</span>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; pager.innerHTML = ''; }
+}
+
+async function changeUserRole(userId, role) {
+    try {
+        await api(`/api/admin/users/${userId}/role`, { method: 'PUT', body: { role } });
+        toast(`Role updated to ${role}`, 'success');
+    } catch (e) { toast(e.message, 'error'); loadUsers(); }
+}
+
+async function toggleBan(userId, username, ban) {
+    if (ban) {
+        const reason = prompt(`Ban ${username}? Enter reason:`);
+        if (reason === null) return;
+        try {
+            await api(`/api/admin/users/${userId}/ban`, { method: 'PUT', body: { banned: true, reason } });
+            toast(`${username} banned`, 'success');
+            loadUsers();
+        } catch (e) { toast(e.message, 'error'); }
+    } else {
+        try {
+            await api(`/api/admin/users/${userId}/ban`, { method: 'PUT', body: { banned: false } });
+            toast(`${username} unbanned`, 'success');
+            loadUsers();
+        } catch (e) { toast(e.message, 'error'); }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Streams (via hobostreamer proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadStreams() {
+    const c = document.getElementById('streams-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/streamer/streams');
+        const streams = data.streams || [];
+        if (!streams.length) { c.innerHTML = '<p class="muted">No active streams</p>'; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr>
+                    <th>Title</th><th>Streamer</th><th>Protocol</th><th>Viewers</th><th>Started</th><th>Actions</th>
+                </tr></thead>
+                <tbody>${streams.map(s => `
+                    <tr>
+                        <td>${esc(s.title || 'Untitled')}</td>
+                        <td><strong>${esc(s.username || '-')}</strong></td>
+                        <td><span class="badge badge-info">${esc(s.protocol)}</span></td>
+                        <td>${s.viewer_count || 0}</td>
+                        <td>${s.started_at ? timeAgo(s.started_at) : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="endStream('${s.id}')"><i class="fa-solid fa-stop"></i> End</button>
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function endStream(id) {
+    if (!confirm('Force end this stream?')) return;
+    try {
+        await api(`/api/admin/streamer/streams/${id}`, { method: 'DELETE' });
+        toast('Stream ended', 'success');
+        loadStreams();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Bans (via hobostreamer proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadBans() {
+    const c = document.getElementById('bans-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/streamer/bans');
+        const bans = data.bans || [];
+        if (!bans.length) { c.innerHTML = '<p class="muted">No active bans</p>'; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr>
+                    <th>User</th><th>Reason</th><th>Banned By</th><th>Banned At</th><th>Expires</th><th>Actions</th>
+                </tr></thead>
+                <tbody>${bans.map(b => `
+                    <tr>
+                        <td><strong>${esc(b.username || b.user_id)}</strong></td>
+                        <td>${esc(b.reason || '-')}</td>
+                        <td>${esc(b.banned_by_username || '-')}</td>
+                        <td>${b.created_at ? timeAgo(b.created_at) : '-'}</td>
+                        <td>${b.expires_at ? new Date(b.expires_at).toLocaleString() : 'Permanent'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline" onclick="unbanStreamer('${b.user_id}')"><i class="fa-solid fa-user-check"></i> Unban</button>
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function unbanStreamer(userId) {
+    try {
+        await api(`/api/admin/streamer/users/${userId}/ban`, { method: 'DELETE' });
+        toast('User unbanned on HoboStreamer', 'success');
+        loadBans();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Chat Logs (via hobostreamer mod proxy)
+// ═══════════════════════════════════════════════════════════════
+let chatLogsOffset = 0;
+async function searchChatLogs() {
+    chatLogsOffset = 0;
+    await fetchChatLogs();
+}
+
+async function fetchChatLogs() {
+    const c = document.getElementById('chat-logs-content');
+    const pager = document.getElementById('chat-logs-pager');
+    const q = document.getElementById('chat-search-q')?.value.trim() || '';
+    const uid = document.getElementById('chat-search-uid')?.value.trim() || '';
+    if (!q && !uid) { c.innerHTML = '<p class="muted">Enter a search query or user ID</p>'; return; }
+    c.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+        const params = new URLSearchParams({ limit: '50', offset: String(chatLogsOffset) });
+        if (q) params.set('q', q);
+        if (uid) params.set('user_id', uid);
+        const data = await api(`/api/admin/streamer-mod/chat/search?${params}`);
+        const msgs = data.messages || [];
+        const total = data.total || 0;
+
+        if (!msgs.length) { c.innerHTML = '<p class="muted">No messages found</p>'; pager.innerHTML = ''; return; }
+
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr><th>Time</th><th>User</th><th>Message</th><th>Stream</th></tr></thead>
+                <tbody>${msgs.map(m => `
+                    <tr>
+                        <td style="white-space:nowrap;font-size:11px">${m.timestamp ? timeAgo(m.timestamp) : '-'}</td>
+                        <td style="white-space:nowrap;color:${esc(m.profile_color || '#999')}">${esc(m.display_name || m.username || 'anon')}</td>
+                        <td style="word-break:break-word">${esc(m.message)}</td>
+                        <td style="font-size:11px">${m.stream_id || '-'}</td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+
+        const pages = Math.ceil(total / 50);
+        const curPage = Math.floor(chatLogsOffset / 50) + 1;
+        pager.innerHTML = pages > 1 ? `
+            <button class="btn btn-sm btn-outline" ${chatLogsOffset<=0?'disabled':''} onclick="chatLogsOffset=Math.max(0,chatLogsOffset-50);fetchChatLogs()"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="muted">Page ${curPage}/${pages} (${total} results)</span>
+            <button class="btn btn-sm btn-outline" ${curPage>=pages?'disabled':''} onclick="chatLogsOffset+=50;fetchChatLogs()"><i class="fa-solid fa-chevron-right"></i></button>
+        ` : `<span class="muted">${total} results</span>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; pager.innerHTML = ''; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Moderators (via hobostreamer proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadModerators() {
+    const c = document.getElementById('mods-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/streamer/moderators');
+        const mods = data.moderators || [];
+        if (!mods.length) { c.innerHTML = '<p class="muted">No global moderators yet</p>'; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr><th>Username</th><th>Display Name</th><th>Last Seen</th><th>Actions</th></tr></thead>
+                <tbody>${mods.map(m => `
+                    <tr>
+                        <td><strong>${esc(m.username)}</strong></td>
+                        <td>${esc(m.display_name || m.username)}</td>
+                        <td>${m.last_seen ? timeAgo(m.last_seen) : 'Never'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="demoteMod('${m.id}','${esc(m.username)}')"><i class="fa-solid fa-user-minus"></i> Demote</button>
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function promoteMod() {
+    const username = document.getElementById('mod-username')?.value.trim();
+    if (!username) return toast('Enter a username', 'error');
+    try {
+        await api('/api/admin/streamer/moderators', { method: 'POST', body: { username } });
+        toast(`${username} promoted to global moderator`, 'success');
+        document.getElementById('mod-username').value = '';
+        loadModerators();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function demoteMod(id, username) {
+    if (!confirm(`Demote ${username} from global moderator?`)) return;
+    try {
+        await api(`/api/admin/streamer/moderators/${id}`, { method: 'DELETE' });
+        toast(`${username} demoted`, 'success');
+        loadModerators();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Settings (dual: hobo-tools + hobostreamer)
+// ═══════════════════════════════════════════════════════════════
+let currentSettingsSub = 'tools';
+function showSettingsSub(sub, btn) {
+    currentSettingsSub = sub;
+    document.querySelectorAll('#settings-sub-tabs button').forEach(b => b.classList.remove('active'));
+    btn?.classList.add('active');
+    document.getElementById('settings-tools').style.display = sub === 'tools' ? 'block' : 'none';
+    document.getElementById('settings-streamer').style.display = sub === 'streamer' ? 'block' : 'none';
+    if (sub === 'tools') loadToolsSettings();
+    else loadStreamerSettings();
+}
+
+async function loadSettings() {
+    loadToolsSettings();
+}
+
+async function loadToolsSettings() {
+    const c = document.getElementById('settings-tools');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/settings');
+        const settings = data.settings || {};
+        const keys = Object.keys(settings);
+        if (!keys.length) { c.innerHTML = '<p class="muted">No settings configured</p>'; return; }
+        c.innerHTML = `
+            <form id="tools-settings-form" style="max-width:700px">
+                ${keys.map(key => {
+                    const s = settings[key];
+                    const isSensitive = /(password|secret|token|private|credential|api[_-]?key|bearer)/i.test(key);
+                    if (s.type === 'boolean') return `
+                        <div class="setting-row">
+                            <label for="ts-${esc(key)}"><strong>${esc(key)}</strong></label>
+                            <input type="checkbox" id="ts-${esc(key)}" data-key="${esc(key)}" data-type="boolean" ${s.value==='true'?'checked':''} style="width:18px;height:18px;cursor:pointer">
+                        </div>`;
+                    return `
+                        <div class="setting-row" style="flex-direction:column;align-items:stretch">
+                            <label for="ts-${esc(key)}"><strong>${esc(key)}</strong></label>
+                            <input type="${isSensitive?'password':'text'}" id="ts-${esc(key)}" data-key="${esc(key)}" data-type="${esc(s.type||'string')}" value="${esc(s.value)}"
+                                style="margin-top:4px;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+                        </div>`;
+                }).join('')}
+                <div style="margin-top:16px"><button type="button" class="btn btn-primary" onclick="saveToolsSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button></div>
+            </form>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function saveToolsSettings() {
+    const inputs = document.querySelectorAll('#tools-settings-form [data-key]');
+    try {
+        for (const input of inputs) {
+            const key = input.dataset.key;
+            const value = input.dataset.type === 'boolean' ? (input.checked ? 'true' : 'false') : input.value;
+            // Skip masked secrets
+            if (value.startsWith('••••')) continue;
+            await api('/api/admin/settings', { method: 'PUT', body: { key, value, type: input.dataset.type } });
+        }
+        toast('Hobo.Tools settings saved', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadStreamerSettings() {
+    const c = document.getElementById('settings-streamer');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/streamer/settings');
+        const settings = data.settings || [];
+        if (!settings.length) { c.innerHTML = '<p class="muted">No HoboStreamer settings found</p>'; return; }
+        c.innerHTML = `
+            <form id="streamer-settings-form" style="max-width:700px">
+                ${settings.map(s => {
+                    const isSensitive = /(password|secret|token|private|credential|api[_-]?key|bearer)/i.test(s.key);
+                    if (s.type === 'boolean') return `
+                        <div class="setting-row">
+                            <label for="ss-${esc(s.key)}"><strong>${esc(s.key)}</strong><br><small>${esc(s.description||'')}</small></label>
+                            <input type="checkbox" id="ss-${esc(s.key)}" data-key="${esc(s.key)}" data-type="boolean" ${s.value==='true'?'checked':''} style="width:18px;height:18px;cursor:pointer">
+                        </div>`;
+                    if (s.type === 'number') return `
+                        <div class="setting-row" style="flex-direction:column;align-items:stretch">
+                            <label for="ss-${esc(s.key)}"><strong>${esc(s.key)}</strong><br><small>${esc(s.description||'')}</small></label>
+                            <input type="number" id="ss-${esc(s.key)}" data-key="${esc(s.key)}" data-type="number" value="${esc(s.value)}"
+                                style="margin-top:4px;width:200px;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+                        </div>`;
+                    return `
+                        <div class="setting-row" style="flex-direction:column;align-items:stretch">
+                            <label for="ss-${esc(s.key)}"><strong>${esc(s.key)}</strong><br><small>${esc(s.description||'')}</small></label>
+                            <input type="${isSensitive?'password':'text'}" id="ss-${esc(s.key)}" data-key="${esc(s.key)}" data-type="${esc(s.type||'string')}" value="${esc(s.value)}"
+                                style="margin-top:4px;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+                        </div>`;
+                }).join('')}
+                <div style="margin-top:16px"><button type="button" class="btn btn-primary" onclick="saveStreamerSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button></div>
+            </form>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function saveStreamerSettings() {
+    const inputs = document.querySelectorAll('#streamer-settings-form [data-key]');
+    const settings = {};
+    inputs.forEach(input => {
+        const key = input.dataset.key;
+        settings[key] = input.dataset.type === 'boolean' ? (input.checked ? 'true' : 'false') : input.value;
+    });
+    try {
+        await api('/api/admin/streamer/settings', { method: 'PUT', body: { settings } });
+        toast('HoboStreamer settings saved', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TTS (via hobostreamer TTS proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadTTS() {
+    const c = document.getElementById('tts-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const [settingsRes, voicesRes] = await Promise.all([
+            api('/api/admin/streamer-tts/admin/settings'),
+            api('/api/admin/streamer-tts/voices'),
+        ]);
+        const s = settingsRes.settings || {};
+        const voices = voicesRes.voices || [];
+        const byEngine = (engine) => voices.filter(v => v.engine === engine);
+        const voiceOptions = (list) => list.map(v => `<option value="${esc(v.id)}" ${v.id === s.defaultVoice ? 'selected' : ''}>${esc(v.name)} (${esc(v.rarity || 'standard')})${v.available ? '' : ' ⚠ unavailable'}</option>`).join('');
+
+        c.innerHTML = `
+            <form id="tts-form" style="display:grid;gap:16px;max-width:760px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-sliders"></i> TTS Configuration</h3>
+                    <div class="setting-row"><label><strong>Enabled</strong><br><small>Allow TTS requests on HoboStreamer.</small></label><input type="checkbox" id="tts-enabled" ${s.enabled ? 'checked' : ''} style="width:18px;height:18px"></div>
+                    <div class="form-field"><label>Provider</label><select id="tts-provider"><option value="espeak-ng" ${s.provider === 'espeak-ng' ? 'selected' : ''}>espeak-ng</option><option value="google-cloud" ${s.provider === 'google-cloud' ? 'selected' : ''}>Google Cloud</option><option value="amazon-polly" ${s.provider === 'amazon-polly' ? 'selected' : ''}>Amazon Polly</option></select></div>
+                    <div class="form-field"><label>Default Voice</label><select id="tts-default-voice"><optgroup label="espeak-ng">${voiceOptions(byEngine('espeak-ng'))}</optgroup><optgroup label="Google Cloud">${voiceOptions(byEngine('google-cloud'))}</optgroup><optgroup label="Amazon Polly">${voiceOptions(byEngine('amazon-polly'))}</optgroup></select></div>
+                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+                        <div class="form-field"><label>Max Message Length</label><input type="number" id="tts-max-length" value="${esc(s.maxLength || 200)}"></div>
+                        <div class="form-field"><label>Max Queue / User</label><input type="number" id="tts-max-per-user" value="${esc(s.maxQueuePerUser || 3)}"></div>
+                        <div class="form-field"><label>Max Global Queue</label><input type="number" id="tts-max-global" value="${esc(s.maxQueueGlobal || 20)}"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fa-brands fa-google"></i> Google Cloud</h3>
+                    <div class="form-field"><label>API Key</label><input type="password" id="tts-google-api-key" value="${esc(s.googleApiKey || '')}" autocomplete="off"></div>
+                    <div class="form-field"><label>Service Account JSON</label><textarea id="tts-google-sa" rows="4" style="resize:vertical">${esc(s.googleServiceAccount || '')}</textarea></div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fa-brands fa-aws"></i> Amazon Polly</h3>
+                    <div class="form-field"><label>AWS Access Key ID</label><input type="password" id="tts-aws-key" value="${esc(s.awsAccessKeyId || '')}" autocomplete="off"></div>
+                    <div class="form-field"><label>AWS Secret Access Key</label><input type="password" id="tts-aws-secret" value="${esc(s.awsSecretAccessKey || '')}" autocomplete="off"></div>
+                    <div class="form-field"><label>AWS Region</label><input type="text" id="tts-aws-region" value="${esc(s.awsRegion || 'us-east-1')}"></div>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <button type="button" class="btn btn-primary" onclick="saveTTS()"><i class="fa-solid fa-floppy-disk"></i> Save TTS Settings</button>
+                    <button type="button" class="btn btn-outline" onclick="testTTSVoice()"><i class="fa-solid fa-volume-high"></i> Test Voice</button>
+                </div>
+            </form>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function saveTTS() {
+    try {
+        await api('/api/admin/streamer-tts/admin/settings', {
+            method: 'PUT',
+            body: {
+                settings: {
+                    tts_enabled: document.getElementById('tts-enabled').checked,
+                    tts_provider: document.getElementById('tts-provider').value,
+                    tts_default_voice: document.getElementById('tts-default-voice').value,
+                    tts_max_length: parseInt(document.getElementById('tts-max-length').value, 10) || 200,
+                    tts_max_queue_per_user: parseInt(document.getElementById('tts-max-per-user').value, 10) || 3,
+                    tts_max_queue_global: parseInt(document.getElementById('tts-max-global').value, 10) || 20,
+                    tts_google_api_key: document.getElementById('tts-google-api-key').value,
+                    tts_google_service_account: document.getElementById('tts-google-sa').value,
+                    tts_aws_access_key_id: document.getElementById('tts-aws-key').value,
+                    tts_aws_secret_access_key: document.getElementById('tts-aws-secret').value,
+                    tts_aws_region: document.getElementById('tts-aws-region').value || 'us-east-1',
+                },
+            },
+        });
+        toast('TTS settings saved', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function testTTSVoice() {
+    try {
+        const voiceId = document.getElementById('tts-default-voice').value;
+        const result = await api('/api/admin/streamer-tts/admin/test', {
+            method: 'POST',
+            body: { voiceId, text: 'Hello, this is a HoboStreamer voice test from the unified admin panel.' },
+        });
+        if (!result.audio || !result.mimeType) {
+            toast('No audio returned from the provider', 'warning');
+            return;
+        }
+        const binary = atob(result.audio);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const url = URL.createObjectURL(new Blob([bytes], { type: result.mimeType }));
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        await audio.play();
+        toast(`Testing ${result.voiceName || voiceId}`, 'info');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Cashouts (via funds proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadCashouts() {
+    const c = document.getElementById('cashouts-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/streamer-funds/cashouts/pending');
+        const cashouts = data.cashouts || [];
+        if (!cashouts.length) { c.innerHTML = '<p class="muted">No pending cashouts</p>'; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr><th>User</th><th>Amount</th><th>USD</th><th>PayPal</th><th>Requested</th><th>Actions</th></tr></thead>
+                <tbody>${cashouts.map(co => `
+                    <tr>
+                        <td><strong>${esc(co.username || '-')}</strong></td>
+                        <td>${Number(co.amount || 0).toLocaleString()} CF</td>
+                        <td>$${((Number(co.amount) || 0) * 0.01).toFixed(2)}</td>
+                        <td>${esc(co.paypal_email || '-')}</td>
+                        <td>${co.created_at ? timeAgo(co.created_at) : '-'}</td>
+                        <td style="display:flex;gap:6px">
+                            <button class="btn btn-sm btn-success" onclick="approveCashout('${co.id}')"><i class="fa-solid fa-check"></i> Approve</button>
+                            <button class="btn btn-sm btn-danger" onclick="denyCashout('${co.id}')"><i class="fa-solid fa-xmark"></i> Deny</button>
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function approveCashout(id) {
+    try {
+        await api(`/api/admin/streamer-funds/cashout/${id}/approve`, { method: 'POST' });
+        toast('Cashout approved', 'success');
+        loadCashouts();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function denyCashout(id) {
+    const reason = prompt('Denial reason:');
+    if (reason === null) return;
+    try {
+        await api(`/api/admin/streamer-funds/cashout/${id}/deny`, { method: 'POST', body: { reason } });
+        toast('Cashout denied', 'info');
+        loadCashouts();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VPN queue (via admin proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadVPNQueue() {
+    const c = document.getElementById('vpn-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/streamer/vpn-queue');
+        const queue = data.queue || [];
+        if (!queue.length) { c.innerHTML = '<p class="muted">VPN approval queue empty</p>'; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr><th>User</th><th>IP</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>${queue.map(item => `
+                    <tr>
+                        <td><strong>${esc(item.username || item.user_id || '-')}</strong></td>
+                        <td>${esc(item.ip_address || '-')}</td>
+                        <td>${esc(item.reason || '-')}</td>
+                        <td><span class="badge badge-${item.status === 'approved' ? 'success' : item.status === 'denied' ? 'danger' : 'warning'}">${esc(item.status || 'pending')}</span></td>
+                        <td>${item.status === 'pending' ? `
+                            <div style="display:flex;gap:6px">
+                                <button class="btn btn-sm btn-success" onclick="updateVPNStatus('${item.id}','approved')"><i class="fa-solid fa-check"></i> Approve</button>
+                                <button class="btn btn-sm btn-danger" onclick="updateVPNStatus('${item.id}','denied')"><i class="fa-solid fa-xmark"></i> Deny</button>
+                            </div>` : '<span class="muted">Handled</span>'}
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function updateVPNStatus(id, status) {
+    try {
+        await api(`/api/admin/streamer/vpn-queue/${id}`, { method: 'PUT', body: { status } });
+        toast(`VPN request ${status}`, status === 'approved' ? 'success' : 'info');
+        loadVPNQueue();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Pastes (via pastes proxy + streamer settings)
+// ═══════════════════════════════════════════════════════════════
+async function loadPastesAdmin() {
+    const c = document.getElementById('pastes-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const [statsData, configData] = await Promise.all([
+            api('/api/admin/streamer-pastes/admin/stats'),
+            api('/api/admin/streamer-pastes/config'),
+        ]);
+        const s = statsData.stats || {};
+        const cfg = configData || {};
+        c.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><div class="value">${Number(s.total || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-paste"></i> Total Pastes</div></div>
+                <div class="stat-card"><div class="value">${Number(s.textPastes || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-code"></i> Text Pastes</div></div>
+                <div class="stat-card"><div class="value">${Number(s.screenshots || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-image"></i> Screenshots</div></div>
+                <div class="stat-card"><div class="value">${Number(s.forks || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-code-fork"></i> Forks</div></div>
+            </div>
+            <div class="card">
+                <h3><i class="fa-solid fa-sliders"></i> Paste Limits</h3>
+                <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+                    <div class="form-field"><label>Max Paste Size (KB)</label><input type="number" id="paste-max-size-kb" value="${esc(cfg.maxSizeKb || 512)}"></div>
+                    <div class="form-field"><label>Max Image Size (MB)</label><input type="number" id="paste-screenshot-max-mb" value="${esc(cfg.screenshotMaxSizeMb || 8)}"></div>
+                    <div class="form-field"><label>Cooldown (seconds)</label><input type="number" id="paste-cooldown" value="${esc(cfg.cooldownSeconds || 30)}"></div>
+                    <div class="form-field"><label>Max / User / Day</label><input type="number" id="paste-max-per-day" value="${esc(cfg.maxPerUserPerDay || 50)}"></div>
+                </div>
+                <div class="setting-row"><label><strong>Allow anonymous pastes</strong></label><input type="checkbox" id="paste-anon" ${cfg.anonAllowed !== false ? 'checked' : ''} style="width:18px;height:18px"></div>
+                <div class="setting-row"><label><strong>Allow image uploads</strong></label><input type="checkbox" id="paste-image-upload" ${cfg.imageUploadEnabled !== false ? 'checked' : ''} style="width:18px;height:18px"></div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+                    <button class="btn btn-primary" onclick="savePasteAdminConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Paste Settings</button>
+                    <button class="btn btn-danger" onclick="deleteAllPasteForks()"><i class="fa-solid fa-trash-can"></i> Delete All Forks (${Number(s.forks || 0).toLocaleString()})</button>
+                </div>
+            </div>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function savePasteAdminConfig() {
+    try {
+        await api('/api/admin/streamer/settings', {
+            method: 'PUT',
+            body: {
+                settings: {
+                    paste_max_size_kb: document.getElementById('paste-max-size-kb').value,
+                    paste_screenshot_max_size_mb: document.getElementById('paste-screenshot-max-mb').value,
+                    paste_cooldown_seconds: document.getElementById('paste-cooldown').value,
+                    paste_max_per_user_per_day: document.getElementById('paste-max-per-day').value,
+                    paste_anon_allowed: document.getElementById('paste-anon').checked ? 'true' : 'false',
+                    paste_image_upload_enabled: document.getElementById('paste-image-upload').checked ? 'true' : 'false',
+                },
+            },
+        });
+        toast('Paste settings saved', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteAllPasteForks() {
+    if (!confirm('Delete all forked pastes? This cannot be undone.')) return;
+    try {
+        const data = await api('/api/admin/streamer-pastes/admin/forks', { method: 'DELETE' });
+        toast(`Deleted ${Number(data.deleted || 0).toLocaleString()} forked paste(s)`, 'success');
+        loadPastesAdmin();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Storage (via hobostreamer proxy)
+// ═══════════════════════════════════════════════════════════════
+async function loadStorage() {
+    const c = document.getElementById('storage-content');
+    c.innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing storage...</div>';
+    try {
+        const data = await api('/api/admin/streamer/storage');
+        const d = data.disk || {};
+        const usePct = d.total ? ((d.used / d.total) * 100).toFixed(1) : 0;
+        const dataPct = d.total ? ((data.dataTotal?.bytes || 0) / d.total * 100).toFixed(1) : 0;
+        const pctColor = parseFloat(usePct) >= 90 ? 'var(--danger)' : parseFloat(usePct) >= 75 ? 'var(--warning)' : 'var(--success)';
+        const breakdown = (data.breakdown || []).sort((a, b) => b.bytes - a.bytes);
+        const maxB = Math.max(...breakdown.map(b => b.bytes), 1);
+
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-hard-drive"></i> Disk Usage</h3>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px">
+                        <span>${fmtBytes(d.used)} used of ${fmtBytes(d.total)}</span>
+                        <span style="font-weight:700;color:${pctColor}">${usePct}%</span>
+                    </div>
+                    <div class="storage-bar">
+                        <div class="storage-bar-fill" style="background:${pctColor};width:${usePct}%"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--text-muted)">
+                        <span>${fmtBytes(d.available)} available</span>
+                        <span>Mount: ${esc(d.mount || '/')}</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-database"></i> Data Summary</h3>
+                    <div class="stats-grid" style="margin:0">
+                        <div class="stat-card" style="padding:10px"><div class="value" style="font-size:18px">${fmtBytes(data.dataTotal?.bytes || 0)}</div><div class="label">Total Data</div></div>
+                        <div class="stat-card" style="padding:10px"><div class="value" style="font-size:18px">${(data.dataTotal?.files || 0).toLocaleString()}</div><div class="label">Files</div></div>
+                        <div class="stat-card" style="padding:10px"><div class="value" style="font-size:18px">${fmtBytes(data.database?.bytes || 0)}</div><div class="label">Database</div></div>
+                        <div class="stat-card" style="padding:10px"><div class="value" style="font-size:18px">${dataPct}%</div><div class="label">% of Disk</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom:12px"><i class="fa-solid fa-folder-tree"></i> Storage Breakdown</h3>
+            <div style="display:grid;gap:8px;margin-bottom:24px">
+                ${breakdown.map(b => `
+                    <div style="display:grid;grid-template-columns:140px 1fr 100px 80px;align-items:center;gap:12px;padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px">
+                        <span style="font-weight:600;font-size:13px"><i class="fa-solid ${esc(b.icon || 'fa-folder')}" style="width:18px;text-align:center;margin-right:6px;color:var(--accent)"></i>${esc(b.name)}</span>
+                        <div class="storage-bar"><div class="storage-bar-fill" style="background:var(--accent);width:${(b.bytes/maxB*100).toFixed(1)}%"></div></div>
+                        <span style="text-align:right;font-weight:600;font-size:12px">${fmtBytes(b.bytes)}</span>
+                        <span style="text-align:right;font-size:11px;color:var(--text-muted)">${b.files?.toLocaleString() || 0} files</span>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <h3><i class="fa-solid fa-video"></i> VOD Management</h3>
+                <div style="display:flex;gap:8px">
+                    <select id="vod-sort" onchange="loadVodTable()" style="padding:6px 10px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px">
+                        <option value="size">Sort by Size</option>
+                        <option value="date">Sort by Date</option>
+                        <option value="duration">Sort by Duration</option>
+                    </select>
+                    <button class="btn btn-sm btn-danger" id="vod-bulk-btn" disabled onclick="bulkDeleteVods()"><i class="fa-solid fa-trash-can"></i> Delete Selected</button>
+                </div>
+            </div>
+            <div id="vod-table"><div class="loading">Loading VODs...</div></div>
+        `;
+        loadVodTable();
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function loadVodTable() {
+    const c = document.getElementById('vod-table');
+    if (!c) return;
+    const sort = document.getElementById('vod-sort')?.value || 'size';
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api(`/api/admin/streamer/storage/vods?sort=${sort}&order=desc&limit=100`);
+        const vods = data.vods || [];
+        if (!vods.length) { c.innerHTML = '<p class="muted">No VODs found</p>'; return; }
+
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr>
+                    <th style="width:32px"><input type="checkbox" onchange="toggleAllVods(this.checked)" style="cursor:pointer"></th>
+                    <th>Title</th><th>User</th><th style="text-align:right">Size</th><th style="text-align:right">Duration</th><th>Date</th>
+                </tr></thead>
+                <tbody>${vods.map(v => `
+                    <tr>
+                        <td><input type="checkbox" class="vod-cb" value="${v.id}" onchange="updateVodSelection()" style="cursor:pointer"></td>
+                        <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.title||'')}">${esc(v.title || '(untitled)')}</td>
+                        <td>${esc(v.username || '-')}</td>
+                        <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">${fmtBytes(v.diskSize || v.file_size || 0)}</td>
+                        <td style="text-align:right;color:var(--text-secondary)">${fmtDuration(v.duration_seconds)}</td>
+                        <td>${v.created_at ? timeAgo(v.created_at) : '-'}</td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>
+            ${data.total > 100 ? `<p class="muted" style="margin-top:8px;font-size:11px">Showing top 100 of ${data.total.toLocaleString()} VODs</p>` : ''}`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+function toggleAllVods(checked) { document.querySelectorAll('.vod-cb').forEach(cb => cb.checked = checked); updateVodSelection(); }
+function updateVodSelection() {
+    const n = document.querySelectorAll('.vod-cb:checked').length;
+    const btn = document.getElementById('vod-bulk-btn');
+    if (btn) { btn.disabled = n === 0; btn.innerHTML = `<i class="fa-solid fa-trash-can"></i> Delete Selected${n ? ` (${n})` : ''}`; }
+}
+
+async function bulkDeleteVods() {
+    const ids = [...document.querySelectorAll('.vod-cb:checked')].map(cb => parseInt(cb.value));
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} VOD(s)?`)) return;
+    try {
+        const data = await api('/api/admin/streamer/storage/vods/bulk', { method: 'DELETE', body: { ids } });
+        toast(`Deleted ${data.deleted || 0} VOD(s), freed ${fmtBytes(data.freed || 0)}`, 'success');
+        loadStorage();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Broadcast Notification
+// ═══════════════════════════════════════════════════════════════
+async function sendBroadcast() {
+    const title = document.getElementById('broadcast-title')?.value.trim();
+    const message = document.getElementById('broadcast-msg')?.value.trim();
+    const icon = document.getElementById('broadcast-icon')?.value.trim() || '📢';
+    const priority = document.getElementById('broadcast-priority')?.value || 'normal';
+    const url = document.getElementById('broadcast-url')?.value.trim();
+    if (!title) return toast('Title required', 'error');
+    if (!confirm(`Send broadcast "${title}" to all users?`)) return;
+    try {
+        const data = await api('/api/admin/broadcast', { method: 'POST', body: { title, message, icon, priority, url } });
+        toast(`Broadcast sent to ${data.sent || 0} users`, 'success');
+        document.getElementById('broadcast-title').value = '';
+        document.getElementById('broadcast-msg').value = '';
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SES Configuration
+// ═══════════════════════════════════════════════════════════════
+async function loadSES() {
+    const c = document.getElementById('ses-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/ses');
+        const ses = data.ses || {};
+        const metrics = data.metrics || {};
+        const summary = metrics.summary || {};
+        const byType = Array.isArray(metrics.by_type) ? metrics.by_type : [];
+        const recent = Array.isArray(metrics.recent) ? metrics.recent : [];
+        c.innerHTML = `
+            <div class="stats-grid" style="margin-bottom:16px">
+                <div class="stat-card"><div class="value">${Number(summary.sent || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-paper-plane"></i> Emails Sent</div></div>
+                <div class="stat-card"><div class="value">${Number(summary.failed || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-triangle-exclamation"></i> Failed</div></div>
+                <div class="stat-card"><div class="value">${Number(summary.sent_24h || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-clock"></i> Sent · 24h</div></div>
+                <div class="stat-card"><div class="value">${Number(summary.password_resets_24h || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-key"></i> Password Resets · 24h</div></div>
+                <div class="stat-card"><div class="value">${Number(summary.notifications_24h || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-bell"></i> Notification Emails · 24h</div></div>
+                <div class="stat-card"><div class="value">${Number(summary.tests_24h || 0).toLocaleString()}</div><div class="label"><i class="fa-solid fa-vial"></i> Test Emails · 24h</div></div>
+            </div>
+
+            <div class="card" style="padding:16px;margin-bottom:16px">
+                <h3 style="margin-bottom:10px"><i class="fa-solid fa-chart-line"></i> Email Delivery Metrics</h3>
+                <div class="muted" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+                    <div><strong>Total Logged:</strong> ${Number(summary.total || 0).toLocaleString()}</div>
+                    <div><strong>Failed · 24h:</strong> ${Number(summary.failed_24h || 0).toLocaleString()}</div>
+                    <div><strong>Last Sent:</strong> ${summary.last_sent_at ? esc(timeAgo(summary.last_sent_at)) : 'Never'}</div>
+                    <div><strong>Last Failure:</strong> ${summary.last_failed_at ? esc(timeAgo(summary.last_failed_at)) : 'Never'}</div>
+                </div>
+            </div>
+
+            <form id="ses-form" style="max-width:600px;margin-bottom:16px">
+                <div class="setting-row">
+                    <label><strong>SES Enabled</strong></label>
+                    <input type="checkbox" id="ses-enabled" ${ses.enabled ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
+                </div>
+                <div class="form-field"><label>AWS Region</label><input type="text" id="ses-region" value="${esc(ses.region || '')}" placeholder="us-east-1"></div>
+                <div class="form-field"><label>Access Key ID</label><input type="password" id="ses-key-id" value="${esc(ses.access_key_id || '')}" placeholder="AKIA..." autocomplete="off"></div>
+                <div class="form-field"><label>Secret Access Key</label><input type="password" id="ses-secret" value="${esc(ses.secret_access_key || '')}" placeholder="wJal..." autocomplete="off"></div>
+                <div class="form-field"><label>From Email</label><input type="email" id="ses-from-email" value="${esc(ses.from_email || '')}" placeholder="noreply@hobo.tools"></div>
+                <div class="form-field"><label>From Name</label><input type="text" id="ses-from-name" value="${esc(ses.from_name || '')}" placeholder="Hobo Network"></div>
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button type="button" class="btn btn-primary" onclick="saveSES()"><i class="fa-solid fa-floppy-disk"></i> Save SES Config</button>
+                    <button type="button" class="btn btn-outline" onclick="testSES()"><i class="fa-solid fa-paper-plane"></i> Send Test Email</button>
+                </div>
+            </form>
+
+            <div class="card" style="padding:16px;margin-bottom:16px">
+                <h3 style="margin-bottom:10px"><i class="fa-solid fa-layer-group"></i> Delivery Breakdown · 30 days</h3>
+                ${byType.length ? `
+                    <table class="admin-table">
+                        <thead><tr><th>Email Type</th><th>Status</th><th>Count</th></tr></thead>
+                        <tbody>
+                            ${byType.map(row => `
+                                <tr>
+                                    <td>${esc(row.email_type)}</td>
+                                    <td>${row.status === 'sent' ? '<span class="badge badge-success">Sent</span>' : '<span class="badge badge-danger">Failed</span>'}</td>
+                                    <td>${Number(row.count || 0).toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`
+                : '<p class="muted">No email activity logged yet.</p>'}
+            </div>
+
+            <div class="card" style="padding:16px">
+                <h3 style="margin-bottom:10px"><i class="fa-solid fa-clock-rotate-left"></i> Recent Email Activity</h3>
+                ${recent.length ? `
+                    <table class="admin-table">
+                        <thead><tr><th>When</th><th>Type</th><th>Recipient</th><th>Status</th><th>Subject</th><th>Error</th></tr></thead>
+                        <tbody>
+                            ${recent.map(row => `
+                                <tr>
+                                    <td style="white-space:nowrap">${esc(timeAgo(row.created_at))}</td>
+                                    <td>${esc(row.email_type)}</td>
+                                    <td>${esc(row.recipient)}</td>
+                                    <td>${row.status === 'sent' ? '<span class="badge badge-success">Sent</span>' : '<span class="badge badge-danger">Failed</span>'}</td>
+                                    <td>${esc(row.subject || '-')}</td>
+                                    <td style="font-size:11px;color:var(--text-muted)">${esc(row.error_message || '-')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`
+                : '<p class="muted">No email activity logged yet.</p>'}
+            </div>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+async function saveSES() {
+    try {
+        await api('/api/admin/ses', { method: 'PUT', body: {
+            enabled: document.getElementById('ses-enabled').checked,
+            region: document.getElementById('ses-region').value,
+            access_key_id: document.getElementById('ses-key-id').value,
+            secret_access_key: document.getElementById('ses-secret').value,
+            from_email: document.getElementById('ses-from-email').value,
+            from_name: document.getElementById('ses-from-name').value,
+        }});
+        toast('SES configuration saved', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function testSES() {
+    const email = prompt('Send test email to:');
+    if (!email) return;
+    try {
+        await api('/api/admin/ses/test', { method: 'POST', body: { email } });
+        toast('Test email sent', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Verification Keys
+// ═══════════════════════════════════════════════════════════════
+const secretStore = {};
+async function loadVKeys() {
+    const c = document.getElementById('vkeys-content');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api('/api/admin/verification-keys');
+        const keys = data.keys || [];
+        keys.forEach(k => { if (k.key) secretStore[`vk-${k.id}`] = k.key; });
+        if (!keys.length) { c.innerHTML = '<p class="muted">No verification keys generated yet</p>'; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr><th>Key</th><th>Reserved Username</th><th>Status</th><th>Note</th><th>Created</th><th>Actions</th></tr></thead>
+                <tbody>${keys.map(k => `
+                    <tr>
+                        <td><code id="vk-${k.id}" style="font-size:12px;color:var(--text-muted)">••••••••</code></td>
+                        <td><strong>${esc(k.target_username)}</strong></td>
+                        <td><span class="badge badge-${k.status==='active'?'success':k.status==='used'?'info':'danger'}">${esc(k.status)}</span></td>
+                        <td style="font-size:12px">${esc(k.note || '-')}</td>
+                        <td style="font-size:11px">${k.created_at ? new Date(k.created_at).toLocaleDateString() : '-'}</td>
+                        <td style="display:flex;gap:4px">
+                            ${k.status === 'active' ? `
+                                <button class="btn btn-sm btn-outline" onclick="revealVKey('vk-${k.id}')"><i class="fa-solid fa-eye"></i></button>
+                                <button class="btn btn-sm btn-outline" onclick="copyVKey('vk-${k.id}')"><i class="fa-solid fa-copy"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="revokeVKey('${k.id}')"><i class="fa-solid fa-trash"></i></button>
+                            ` : k.status === 'used' ? `<span class="muted">Used by ${esc(k.used_by_name || '?')}</span>` : '<span class="muted">Revoked</span>'}
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+function revealVKey(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const revealed = el.dataset.revealed === 'true';
+    el.textContent = revealed ? '••••••••' : (secretStore[id] || '••••••••');
+    el.dataset.revealed = revealed ? 'false' : 'true';
+    el.style.color = revealed ? 'var(--text-muted)' : 'var(--accent-light)';
+}
+
+function copyVKey(id) {
+    const val = secretStore[id];
+    if (!val) return toast('No key to copy', 'error');
+    navigator.clipboard.writeText(val).then(() => toast('Key copied', 'success')).catch(() => toast('Copy failed', 'error'));
+}
+
+async function generateVKey() {
+    const username = document.getElementById('vkey-username')?.value.trim();
+    const note = document.getElementById('vkey-note')?.value.trim();
+    if (!username) return toast('Enter a username', 'error');
+    try {
+        const data = await api('/api/admin/verification-keys', { method: 'POST', body: { target_username: username, note } });
+        const key = data.key;
+        if (key?.id && key?.key) secretStore[`vk-${key.id}`] = key.key;
+        toast('Verification key generated', 'success');
+        document.getElementById('vkey-username').value = '';
+        document.getElementById('vkey-note').value = '';
+        loadVKeys();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function revokeVKey(id) {
+    if (!confirm('Revoke this verification key?')) return;
+    try {
+        await api(`/api/admin/verification-keys/${id}`, { method: 'DELETE' });
+        toast('Key revoked', 'success');
+        loadVKeys();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Audit Log
+// ═══════════════════════════════════════════════════════════════
+let auditOffset = 0;
+async function loadAudit() {
+    const c = document.getElementById('audit-content');
+    const pager = document.getElementById('audit-pager');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api(`/api/admin/audit?limit=50&offset=${auditOffset}`);
+        const entries = data.entries || [];
+        if (!entries.length) { c.innerHTML = '<p class="muted">No audit entries</p>'; pager.innerHTML = ''; return; }
+        c.innerHTML = `
+            <table class="admin-table">
+                <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+                <tbody>${entries.map(e => `
+                    <tr>
+                        <td style="white-space:nowrap;font-size:11px">${e.created_at ? timeAgo(e.created_at) : '-'}</td>
+                        <td><strong>${esc(e.username || e.user_id || '-')}</strong></td>
+                        <td><span class="badge badge-info">${esc(e.action)}</span></td>
+                        <td style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.details || '')}">${esc(e.details || '-')}</td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>`;
+
+        const hasMore = entries.length >= 50;
+        pager.innerHTML = `
+            <button class="btn btn-sm btn-outline" ${auditOffset<=0?'disabled':''} onclick="auditOffset=Math.max(0,auditOffset-50);loadAudit()"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="muted">Offset ${auditOffset}</span>
+            <button class="btn btn-sm btn-outline" ${!hasMore?'disabled':''} onclick="auditOffset+=50;loadAudit()"><i class="fa-solid fa-chevron-right"></i></button>
+        `;
+    } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; pager.innerHTML = ''; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Initialization
+// ═══════════════════════════════════════════════════════════════
+async function init() {
+    if (!token) { window.location.href = '/login'; return; }
+    try {
+        const data = await api('/api/auth/me');
+        currentUser = data.user || data;
+        if (currentUser.role !== 'admin') {
+            document.querySelector('.page').innerHTML = '<div class="card" style="text-align:center;padding:60px"><h3 style="color:var(--live-red)"><i class="fa-solid fa-lock"></i> Access Denied</h3><p class="muted" style="margin-top:8px">Admin privileges required.</p></div>';
+            return;
+        }
+        // Init navbar
+        if (window.HoboNavbar) {
+            HoboNavbar.init({ service: 'hobotools', token, user: currentUser });
+            const bellMount = HoboNavbar.getBellMount();
+            if (bellMount && window.HoboNotifications) {
+                HoboNotifications.init({ mountEl: bellMount, apiBase: API, token });
+            }
+        }
+        initMainTabsOverflow();
+        // Load dashboard
+        loadDashboard();
+    } catch (e) {
+        document.querySelector('.page').innerHTML = `<div class="card" style="text-align:center;padding:60px"><h3 style="color:var(--live-red)"><i class="fa-solid fa-circle-exclamation"></i> Error</h3><p class="muted" style="margin-top:8px">${esc(e.message)}</p></div>`;
+    }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[Unit]
+Description=HoboMaps — Survival Map for North America
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/hobo-maps
+Environment=NODE_ENV=production
+ExecStart=/home/ubuntu/.nvm/versions/node/v20.20.1/bin/node /opt/hobo-maps/server/index.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/opt/hobo-maps
+
+[Install]
+WantedBy=multi-user.target

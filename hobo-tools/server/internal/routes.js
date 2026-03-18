@@ -255,4 +255,166 @@ router.post('/issue-token', (req, res) => {
     res.json({ token, user: { id: user.id, username: user.username, display_name: user.display_name, role: user.role, avatar_url: user.avatar_url } });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// Unified Anon Identity Resolution (cross-service)
+// ═══════════════════════════════════════════════════════════════
+
+// ── Resolve Anon by IP ───────────────────────────────────────
+// POST /internal/resolve-anon
+// Body: { ip }
+// Called by hobostreamer and hobo-quest to get or create a unified
+// anon identity for a given IP address. Single source of truth.
+router.post('/resolve-anon', (req, res) => {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: 'ip required' });
+
+    const db = getDb(req);
+    const { v4: uuidv4 } = require('uuid');
+
+    try {
+        // Check if this IP already has an anon
+        const byIpLog = db.prepare(`
+            SELECT a.* FROM anon_users a
+            INNER JOIN anon_ip_log l ON l.anon_id = a.id
+            WHERE l.ip = ?
+            ORDER BY a.id ASC LIMIT 1
+        `).get(ip);
+        if (byIpLog) {
+            db.prepare('UPDATE anon_users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(byIpLog.id);
+            db.prepare(`
+                UPDATE anon_ip_log SET last_seen = CURRENT_TIMESTAMP
+                WHERE anon_id = ? AND ip = ?
+            `).run(byIpLog.id, ip);
+            return res.json({
+                anon_number: byIpLog.anon_number,
+                anon_id: `anon_${byIpLog.id}`,
+                display_name: byIpLog.display_name || `Anonymous #${byIpLog.anon_number}`,
+                username: `anon${byIpLog.anon_number}`,
+                is_new: false,
+            });
+        }
+
+        // Check by creating IP
+        const byCreatingIp = db.prepare('SELECT * FROM anon_users WHERE ip = ? ORDER BY id ASC LIMIT 1').get(ip);
+        if (byCreatingIp) {
+            db.prepare('UPDATE anon_users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(byCreatingIp.id);
+            // Ensure IP log entry exists
+            try {
+                db.prepare('INSERT OR IGNORE INTO anon_ip_log (anon_id, ip) VALUES (?, ?)').run(byCreatingIp.id, ip);
+            } catch { /* ok */ }
+            return res.json({
+                anon_number: byCreatingIp.anon_number,
+                anon_id: `anon_${byCreatingIp.id}`,
+                display_name: byCreatingIp.display_name || `Anonymous #${byCreatingIp.anon_number}`,
+                username: `anon${byCreatingIp.anon_number}`,
+                is_new: false,
+            });
+        }
+
+        // Create new anon
+        const maxNum = db.prepare('SELECT MAX(anon_number) as max FROM anon_users').get().max || 0;
+        const anonNumber = maxNum + 1;
+        const sessionToken = uuidv4();
+
+        const result = db.prepare(
+            'INSERT INTO anon_users (anon_number, session_token, ip) VALUES (?, ?, ?)'
+        ).run(anonNumber, sessionToken, ip);
+
+        // Log IP
+        try {
+            db.prepare('INSERT INTO anon_ip_log (anon_id, ip) VALUES (?, ?)').run(result.lastInsertRowid, ip);
+        } catch { /* ok */ }
+
+        console.log(`[Internal] New unified anon #${anonNumber} for IP ${ip}`);
+        res.json({
+            anon_number: anonNumber,
+            anon_id: `anon_${result.lastInsertRowid}`,
+            display_name: `Anonymous #${anonNumber}`,
+            username: `anon${anonNumber}`,
+            is_new: true,
+        });
+    } catch (err) {
+        console.error('[Internal] resolve-anon error:', err);
+        res.status(500).json({ error: 'Failed to resolve anon identity' });
+    }
+});
+
+// ── Admin: IP → Anon/Account Lookup ──────────────────────────
+// GET /internal/anon-admin?ip=X
+// Returns all anonymous identities AND registered accounts
+// associated with a given IP address.
+router.get('/anon-admin', (req, res) => {
+    const { ip } = req.query;
+    if (!ip) return res.status(400).json({ error: 'ip query param required' });
+
+    const db = getDb(req);
+
+    try {
+        // Get all anons seen from this IP
+        const anons = db.prepare(`
+            SELECT a.id, a.anon_number, a.display_name, a.ip AS creating_ip,
+                   a.total_messages, a.total_commands, a.first_seen, a.last_seen,
+                   l.first_seen AS ip_first_seen, l.last_seen AS ip_last_seen
+            FROM anon_users a
+            INNER JOIN anon_ip_log l ON l.anon_id = a.id
+            WHERE l.ip = ?
+            ORDER BY a.anon_number ASC
+        `).all(ip);
+
+        // Get all registered users who have logged in from this IP
+        const users = db.prepare(`
+            SELECT DISTINCT u.id, u.username, u.display_name, u.role, u.is_banned,
+                   u.anon_number, u.created_at
+            FROM users u
+            INNER JOIN ip_log il ON il.user_id = u.id
+            WHERE il.ip = ?
+            ORDER BY u.created_at ASC
+        `).all(ip);
+
+        // Get all IPs for each anon (cross-reference)
+        const anonIps = {};
+        for (const a of anons) {
+            const ips = db.prepare('SELECT ip, first_seen, last_seen FROM anon_ip_log WHERE anon_id = ?').all(a.id);
+            anonIps[a.anon_number] = ips;
+        }
+
+        res.json({
+            ip,
+            anonymous_identities: anons,
+            registered_accounts: users,
+            anon_ip_map: anonIps,
+        });
+    } catch (err) {
+        console.error('[Internal] anon-admin error:', err);
+        res.status(500).json({ error: 'Failed to lookup IP data' });
+    }
+});
+
+// ── Admin: List All Anon Identities ──────────────────────────
+// GET /internal/anon-list?limit=100&offset=0
+router.get('/anon-list', (req, res) => {
+    const db = getDb(req);
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const offset = parseInt(req.query.offset) || 0;
+
+    try {
+        const total = db.prepare('SELECT COUNT(*) as cnt FROM anon_users').get().cnt;
+        const anons = db.prepare(`
+            SELECT a.id, a.anon_number, a.display_name, a.ip AS creating_ip,
+                   a.total_messages, a.total_commands, a.first_seen, a.last_seen
+            FROM anon_users a ORDER BY a.anon_number DESC LIMIT ? OFFSET ?
+        `).all(limit, offset);
+
+        // Attach IP list to each anon
+        for (const a of anons) {
+            a.ips = db.prepare('SELECT ip, last_seen FROM anon_ip_log WHERE anon_id = ?').all(a.id);
+        }
+
+        res.json({ total, anons, limit, offset });
+    } catch (err) {
+        console.error('[Internal] anon-list error:', err);
+        res.status(500).json({ error: 'Failed to list anons' });
+    }
+});
+
 module.exports = router;

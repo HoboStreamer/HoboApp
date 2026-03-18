@@ -10,6 +10,94 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
+const ROLE_PRIORITY = {
+    user: 0,
+    streamer: 1,
+    global_mod: 2,
+    admin: 3,
+};
+
+function previewFromVars(vars) {
+    return JSON.stringify({
+        bg: vars['--bg-primary'] || '#0d0d0f',
+        accent: vars['--accent'] || '#c0965c',
+        text: vars['--text-primary'] || '#e8e6e3',
+    });
+}
+
+function resolveHoboStreamerDbPath() {
+    const candidates = [
+        process.env.HOBOSTREAMER_DB_PATH,
+        '/opt/hobostreamer/data/hobostreamer.db',
+        path.resolve(process.cwd(), '..', 'hobostreamer', 'data', 'hobostreamer.db'),
+        path.resolve(__dirname, '..', '..', '..', 'hobostreamer', 'data', 'hobostreamer.db'),
+    ].filter(Boolean);
+
+    return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
+
+function syncLinkedHoboStreamerRoles(db) {
+    const hsDbPath = resolveHoboStreamerDbPath();
+    if (!hsDbPath) return;
+
+    let hsDb;
+    try {
+        hsDb = new Database(hsDbPath, { readonly: true, fileMustExist: true });
+        const rows = db.prepare(`
+            SELECT
+                u.id AS user_id,
+                u.username,
+                u.role AS current_role,
+                u.legacy_id,
+                la.service_user_id,
+                la.service_username
+            FROM users u
+            LEFT JOIN linked_accounts la
+                ON la.user_id = u.id
+               AND la.service = 'hobostreamer'
+            WHERE u.legacy_source = 'hobostreamer'
+               OR la.service_user_id IS NOT NULL
+               OR la.service_username IS NOT NULL
+        `).all();
+
+        const selectById = hsDb.prepare('SELECT id, username, role FROM users WHERE id = ?');
+        const selectByUsername = hsDb.prepare('SELECT id, username, role FROM users WHERE LOWER(username) = LOWER(?)');
+        const updateRole = db.prepare('UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+
+        let synced = 0;
+        for (const row of rows) {
+            const lookupId = Number.parseInt(row.service_user_id || row.legacy_id, 10);
+            const lookupUsername = row.service_username || row.username;
+            let sourceUser = null;
+
+            if (Number.isFinite(lookupId)) {
+                sourceUser = selectById.get(lookupId);
+            }
+            if (!sourceUser && lookupUsername) {
+                sourceUser = selectByUsername.get(lookupUsername);
+            }
+            if (!sourceUser || !ROLE_PRIORITY.hasOwnProperty(sourceUser.role)) {
+                continue;
+            }
+
+            const currentRank = ROLE_PRIORITY[row.current_role] ?? 0;
+            const sourceRank = ROLE_PRIORITY[sourceUser.role] ?? 0;
+            if (sourceRank > currentRank) {
+                updateRole.run(sourceUser.role, row.user_id);
+                synced += 1;
+            }
+        }
+
+        if (synced > 0) {
+            console.log(`[DB] Synced ${synced} hobo.tools role(s) from linked HoboStreamer accounts`);
+        }
+    } catch (err) {
+        console.warn('[DB] Role sync from HoboStreamer skipped:', err.message);
+    } finally {
+        try { hsDb?.close(); } catch {}
+    }
+}
+
 function initDb(dbPath) {
     const dir = path.dirname(path.resolve(dbPath));
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -196,6 +284,40 @@ function initDb(dbPath) {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
+        -- Email delivery log (SES metrics / admin visibility)
+        CREATE TABLE IF NOT EXISTS email_delivery_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email_type TEXT NOT NULL,
+            recipient TEXT NOT NULL,
+            subject TEXT,
+            status TEXT NOT NULL CHECK(status IN ('sent', 'failed')),
+            error_message TEXT,
+            user_id INTEGER,
+            notification_id TEXT,
+            metadata TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+            FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_email_delivery_created ON email_delivery_log(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_email_delivery_status ON email_delivery_log(status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_email_delivery_type ON email_delivery_log(email_type, created_at DESC);
+
+        -- Password reset tokens
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT UNIQUE NOT NULL,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME,
+            requested_ip TEXT,
+            requested_user_agent TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id, used_at, expires_at);
+        CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at);
+
         -- ═══════════════════════════════════════════════════════
         -- Anonymous Users & Multi-Account Sessions
         -- ═══════════════════════════════════════════════════════
@@ -275,6 +397,23 @@ function initDb(dbPath) {
         CREATE INDEX IF NOT EXISTS idx_vkeys_status ON verification_keys(status);
     `);
 
+    // ── Anon IP tracking (unified cross-service anon resolution) ──
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS anon_ip_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                anon_id INTEGER NOT NULL,
+                ip TEXT NOT NULL,
+                first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (anon_id) REFERENCES anon_users(id) ON DELETE CASCADE,
+                UNIQUE(anon_id, ip)
+            );
+            CREATE INDEX IF NOT EXISTS idx_anon_ip_log_ip ON anon_ip_log(ip);
+            CREATE INDEX IF NOT EXISTS idx_anon_ip_log_anon ON anon_ip_log(anon_id);
+        `);
+    } catch (e) { /* already exists */ }
+
     // ── Migration: Add columns that may not exist ────────────
     const migrations = [
         { table: 'linked_accounts', column: 'service_username', sql: "ALTER TABLE linked_accounts ADD COLUMN service_username TEXT" },
@@ -282,6 +421,7 @@ function initDb(dbPath) {
         { table: 'users', column: 'anon_number', sql: "ALTER TABLE users ADD COLUMN anon_number INTEGER" },
         { table: 'users', column: 'name_effect', sql: "ALTER TABLE users ADD COLUMN name_effect TEXT" },
         { table: 'users', column: 'particle_effect', sql: "ALTER TABLE users ADD COLUMN particle_effect TEXT" },
+        { table: 'anon_users', column: 'ip', sql: "ALTER TABLE anon_users ADD COLUMN ip TEXT" },
     ];
     for (const m of migrations) {
         const cols = db.prepare(`PRAGMA table_info(${m.table})`).all();
@@ -358,19 +498,41 @@ function initDb(dbPath) {
         for (const [k, v, t] of defaults) insertSetting.run(k, v, t);
     }
 
-    // ── Seed Built-in Themes ─────────────────────────────────
-    const themeCount = db.prepare('SELECT COUNT(*) as cnt FROM themes WHERE is_builtin = 1').get().cnt;
-    if (themeCount === 0) {
+    // ── Sync Built-in Themes ─────────────────────────────────
+    {
         const { BUILTIN_THEMES } = require('hobo-shared/theme-sync');
-        const insertTheme = db.prepare(`
-            INSERT OR IGNORE INTO themes (id, name, slug, description, mode, variables, is_builtin, is_public)
-            VALUES (?, ?, ?, ?, ?, ?, 1, 1)
+        const upsertTheme = db.prepare(`
+            INSERT INTO themes (id, name, slug, description, mode, variables, preview_colors, is_builtin, is_public, tags, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                slug = excluded.slug,
+                description = excluded.description,
+                mode = excluded.mode,
+                variables = excluded.variables,
+                preview_colors = excluded.preview_colors,
+                is_builtin = 1,
+                is_public = 1,
+                tags = excluded.tags,
+                updated_at = CURRENT_TIMESTAMP
         `);
         for (const t of BUILTIN_THEMES) {
-            insertTheme.run(t.id, t.name, t.slug, t.description, t.mode, JSON.stringify(t.variables));
+            upsertTheme.run(
+                t.id,
+                t.name,
+                t.slug,
+                t.description,
+                t.mode,
+                JSON.stringify(t.variables || {}),
+                previewFromVars(t.variables || {}),
+                JSON.stringify(t.tags || [])
+            );
         }
-        console.log(`[DB] Seeded ${BUILTIN_THEMES.length} built-in themes`);
+        console.log(`[DB] Synced ${BUILTIN_THEMES.length} built-in themes`);
     }
+
+    // ── Sync Roles From Linked HoboStreamer Accounts ────────
+    syncLinkedHoboStreamerRoles(db);
 
     // ── Helper: getSetting ───────────────────────────────────
     db.getSetting = function (key) {

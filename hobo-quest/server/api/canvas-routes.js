@@ -1,97 +1,202 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════════
-// HoboQuest — Canvas API Routes (stub)
-// Collaborative pixel canvas (r/place style).
-// Will be fully populated when canvas migrates from hobostreamer.
-// ═══════════════════════════════════════════════════════════════
+/**
+ * HoboQuest — Canvas API Routes (Full)
+ * Ported from hobostreamer/server/game/canvas-routes.js
+ * Delegates to canvas-service for all logic.
+ */
 
 const express = require('express');
+const canvasService = require('../canvas/canvas-service');
+
 const router = express.Router();
 
-function getDb(req) { return req.app.locals.db; }
+function requestIp(req) {
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
+}
 
-// ── Get Canvas State (batch) ────────────────────────────────
-// Returns all pixels — client caches and applies deltas via WebSocket.
-router.get('/state', (req, res) => {
-    const db = getDb(req);
-    const pixels = db.prepare('SELECT x, y, color FROM canvas_pixels').all();
-    res.json({ size: 512, pixels });
-});
-
-// ── Get Single Pixel ────────────────────────────────────────
-router.get('/pixel/:x/:y', (req, res) => {
-    const db = getDb(req);
-    const x = parseInt(req.params.x);
-    const y = parseInt(req.params.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > 511 || y > 511) {
-        return res.status(400).json({ error: 'Invalid coordinates (0-511)' });
-    }
-    const pixel = db.prepare('SELECT x, y, color, placed_by, placed_at FROM canvas_pixels WHERE x = ? AND y = ?').get(x, y);
-    res.json({ pixel: pixel || { x, y, color: '#FFFFFF', placed_by: null } });
-});
-
-// ── Place Pixel ─────────────────────────────────────────────
-router.post('/pixel', (req, res) => {
-    const { requireAuth } = req.app.locals;
+// Auth middleware adapters — pull from app.locals
+function optionalAuth(req, res, next) {
+    const fn = req.app.locals.optionalAuth;
+    if (fn) return fn(req, res, next);
+    next();
+}
+function requireAuth(req, res, next) {
+    const fn = req.app.locals.requireAuth;
+    if (fn) return fn(req, res, next);
+    res.status(401).json({ error: 'Auth required' });
+}
+function requireStaff(req, res, next) {
     requireAuth(req, res, () => {
-        const db = getDb(req);
-        const config = req.app.locals.config;
-        const userId = req.user.sub || req.user.id;
-        const { x, y, color } = req.body;
-
-        // Validate
-        const px = parseInt(x);
-        const py = parseInt(y);
-        if (!Number.isFinite(px) || !Number.isFinite(py) || px < 0 || py < 0 || px > 511 || py > 511) {
-            return res.status(400).json({ error: 'Invalid coordinates (0-511)' });
-        }
-        if (!color || !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-            return res.status(400).json({ error: 'Invalid color (hex #RRGGBB)' });
-        }
-
-        // Cooldown check
-        const role = req.user.role || 'user';
-        const cooldownSecs = role === 'admin' || role === 'global_mod'
-            ? config.canvas.cooldowns.staff
-            : config.canvas.cooldowns.default;
-
-        const lastPlace = db.prepare('SELECT last_place FROM canvas_cooldowns WHERE user_id = ?').get(userId);
-        if (lastPlace) {
-            const elapsed = (Date.now() - new Date(lastPlace.last_place + 'Z').getTime()) / 1000;
-            if (elapsed < cooldownSecs) {
-                return res.status(429).json({
-                    error: 'Cooldown active',
-                    remaining: Math.ceil(cooldownSecs - elapsed),
-                });
-            }
-        }
-
-        // Place
-        db.prepare(`
-            INSERT INTO canvas_pixels (x, y, color, placed_by, placed_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(x, y) DO UPDATE SET
-                color = ?, placed_by = ?, placed_at = CURRENT_TIMESTAMP
-        `).run(px, py, color, userId, color, userId);
-
-        db.prepare(`
-            INSERT INTO canvas_cooldowns (user_id, last_place)
-            VALUES (?, CURRENT_TIMESTAMP)
-            ON CONFLICT(user_id) DO UPDATE SET last_place = CURRENT_TIMESTAMP
-        `).run(userId);
-
-        // TODO: Broadcast via WebSocket to all connected clients
-        res.json({ success: true, pixel: { x: px, y: py, color, placed_by: userId } });
+        const role = req.user?.role;
+        if (role === 'admin' || role === 'global_mod' || role === 'mod') return next();
+        res.status(403).json({ error: 'Staff access required' });
     });
+}
+function requireAdmin(req, res, next) {
+    requireAuth(req, res, () => {
+        if (req.user?.role === 'admin') return next();
+        res.status(403).json({ error: 'Admin access required' });
+    });
+}
+
+// ── Public endpoints ────────────────────────────────────────
+
+router.get('/state', optionalAuth, (req, res) => {
+    try {
+        res.json(canvasService.getBoardState(req.user || null, requestIp(req)));
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load canvas state' });
+    }
 });
 
-// ── Canvas Stats ────────────────────────────────────────────
-router.get('/stats', (req, res) => {
-    const db = getDb(req);
-    const total = db.prepare('SELECT COUNT(*) as count FROM canvas_pixels').get().count;
-    const unique = db.prepare('SELECT COUNT(DISTINCT placed_by) as count FROM canvas_pixels WHERE placed_by IS NOT NULL').get().count;
-    res.json({ total_pixels: total, unique_artists: unique, canvas_size: 512 });
+router.get('/history', optionalAuth, (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit || '60', 10), 200);
+        res.json({ actions: canvasService.getRecentActions(limit) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load canvas history' });
+    }
+});
+
+router.post('/place', requireAuth, (req, res) => {
+    try {
+        res.json(canvasService.placeTile(req.user, requestIp(req), req.body));
+    } catch (err) {
+        res.status(err.status || 500).json({ error: err.message, ...(err.data || {}) });
+    }
+});
+
+// ── Staff endpoints ─────────────────────────────────────────
+
+router.get('/staff/bans', requireStaff, (req, res) => {
+    res.json({ bans: canvasService.getBans() });
+});
+
+router.post('/staff/bans', requireStaff, (req, res) => {
+    try {
+        res.status(201).json({ ban: canvasService.createBan(req.body || {}, req.user) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create canvas ban' });
+    }
+});
+
+router.delete('/staff/bans/:id', requireStaff, (req, res) => {
+    try {
+        canvasService.removeBan(Number(req.params.id), req.user);
+        res.json({ message: 'Canvas ban removed' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to remove canvas ban' });
+    }
+});
+
+router.get('/staff/regions', requireStaff, (req, res) => {
+    res.json({ regions: canvasService.getActiveRegions() });
+});
+
+router.post('/staff/regions', requireStaff, (req, res) => {
+    try {
+        res.status(201).json({ region: canvasService.createRegion(req.body || {}, req.user) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create canvas region' });
+    }
+});
+
+router.delete('/staff/regions/:id', requireStaff, (req, res) => {
+    try {
+        canvasService.removeRegion(Number(req.params.id), req.user);
+        res.json({ message: 'Canvas region removed' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to remove canvas region' });
+    }
+});
+
+router.post('/staff/rollback', requireStaff, (req, res) => {
+    try {
+        res.json(canvasService.rollback(req.body || {}, req.user));
+    } catch (err) {
+        res.status(400).json({ error: err.message || 'Failed to rollback' });
+    }
+});
+
+router.get('/staff/heatmap', requireStaff, (req, res) => {
+    try {
+        res.json(canvasService.getHeatmap(Number(req.query.hours || 12)));
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load canvas heatmap' });
+    }
+});
+
+router.get('/staff/actions', requireStaff, (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit || '100', 10), 300);
+        res.json({ actions: canvasService.getRecentActions(limit) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load canvas action log' });
+    }
+});
+
+router.get('/staff/snapshots', requireStaff, (req, res) => {
+    res.json({ snapshots: canvasService.getSnapshots() });
+});
+
+// ── Admin endpoints ─────────────────────────────────────────
+
+router.get('/admin/overrides', requireAdmin, (req, res) => {
+    res.json({ overrides: canvasService.getOverrides() });
+});
+
+router.get('/admin/settings', requireAdmin, (req, res) => {
+    res.json({ settings: canvasService.getSettings() });
+});
+
+router.post('/admin/overrides', requireAdmin, (req, res) => {
+    try {
+        res.json({ override: canvasService.upsertOverride(req.body || {}, req.user) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to save canvas override' });
+    }
+});
+
+router.delete('/admin/overrides/:userId', requireAdmin, (req, res) => {
+    try {
+        canvasService.removeOverride(Number(req.params.userId), req.user);
+        res.json({ message: 'Canvas override removed' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to remove canvas override' });
+    }
+});
+
+router.post('/admin/settings', requireAdmin, (req, res) => {
+    try {
+        res.json({ settings: canvasService.updateSettings(req.body || {}, req.user) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update canvas settings' });
+    }
+});
+
+router.post('/admin/snapshots', requireAdmin, (req, res) => {
+    try {
+        res.status(201).json({ snapshot: canvasService.createSnapshot(req.body?.name, req.user) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create canvas snapshot' });
+    }
+});
+
+router.post('/admin/snapshots/:id/restore', requireAdmin, (req, res) => {
+    try {
+        res.json(canvasService.restoreSnapshot(Number(req.params.id), req.user));
+    } catch (err) {
+        res.status(400).json({ error: err.message || 'Failed to restore snapshot' });
+    }
+});
+
+router.post('/admin/wipe', requireAdmin, (req, res) => {
+    try {
+        res.json(canvasService.wipeBoard(req.user));
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to wipe canvas' });
+    }
 });
 
 module.exports = router;

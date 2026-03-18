@@ -48,20 +48,20 @@ router.get('/callback', async (req, res) => {
             issuer: config.jwt.issuer,
         });
 
-        // Upsert character in our game database
+        // Upsert game character in game_players table
         const db = req.app.locals.db;
         const userId = decoded.sub || decoded.id;
-        const username = decoded.username;
+        const username = decoded.username || decoded.display_name || 'hobo';
 
-        const existing = db.prepare('SELECT user_id FROM characters WHERE user_id = ?').get(userId);
+        const existing = db.prepare('SELECT user_id FROM game_players WHERE user_id = ?').get(userId);
         if (!existing) {
             db.prepare(`
-                INSERT INTO characters (user_id, username, x, y)
-                VALUES (?, ?, 256, 256)
+                INSERT INTO game_players (user_id, display_name)
+                VALUES (?, ?)
             `).run(userId, username);
             console.log(`[hobo-quest] New character created for ${username}`);
         } else {
-            db.prepare('UPDATE characters SET username = ?, last_active = CURRENT_TIMESTAMP WHERE user_id = ?').run(username, userId);
+            db.prepare('UPDATE game_players SET display_name = ?, last_action = CURRENT_TIMESTAMP WHERE user_id = ?').run(username, userId);
         }
 
         // Set cookies and redirect to game
@@ -83,7 +83,7 @@ router.get('/callback', async (req, res) => {
             });
         }
 
-        res.redirect('/');
+        res.redirect('/game');
     } catch (err) {
         console.error('[hobo-quest] OAuth callback error:', err.message);
         res.status(500).send(`<h2>Authentication failed</h2><p>${err.message}</p><a href="/">Try again</a>`);

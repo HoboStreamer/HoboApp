@@ -25,7 +25,7 @@
                 color: var(--text-primary, #e0e0e0);
             }
             .hobo-navbar-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; margin-right: 8px; }
-            .hobo-navbar-brand .flame { font-size: 22px; }
+            .hobo-navbar-brand .flame { font-size: 18px; color: var(--accent, #c0965c); }
             .hobo-navbar-brand .name { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
             .hobo-navbar-brand .service-name { font-size: 11px; color: var(--accent-light, #dbb077); font-weight: 500; letter-spacing: .5px; text-transform: uppercase; }
 
@@ -155,6 +155,48 @@
         try { return JSON.parse(localStorage.getItem('hobo_accounts') || '[]'); } catch { return []; }
     }
 
+    function escapeAttr(value) {
+        return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
+    function getAvatarInitial(user) {
+        const source = user?.display_name || user?.username || 'H';
+        return String(source).trim().charAt(0).toUpperCase() || 'H';
+    }
+
+    function makeAvatarPlaceholder(user, size = 64) {
+        const initial = getAvatarInitial(user);
+        const bg = user?.profile_color || '#c0965c';
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <rect width="100%" height="100%" rx="${Math.round(size / 2)}" fill="${bg}"/>
+                <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="${Math.round(size * 0.42)}" font-weight="700" fill="#ffffff">${initial}</text>
+            </svg>`;
+        return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg.replace(/\s+/g, ' ').trim())}`;
+    }
+
+    function avatarSrc(user, size = 64) {
+        return user?.avatar_url || makeAvatarPlaceholder(user, size);
+    }
+
+    function avatarImg(user, size = 64, className = 'hobo-navbar-avatar', id = '') {
+        const fallback = makeAvatarPlaceholder(user, size);
+        const idAttr = id ? ` id="${escapeAttr(id)}"` : '';
+        const alt = escapeAttr(user?.display_name || user?.username || 'Avatar');
+        return `<img class="${escapeAttr(className)}" src="${escapeAttr(avatarSrc(user, size))}" data-fallback-src="${escapeAttr(fallback)}" alt="${alt}"${idAttr}>`;
+    }
+
+    function attachAvatarFallbacks(rootEl) {
+        rootEl?.querySelectorAll('img[data-fallback-src]').forEach((img) => {
+            img.addEventListener('error', () => {
+                const fallback = img.dataset.fallbackSrc;
+                if (fallback && img.src !== fallback) {
+                    img.src = fallback;
+                }
+            }, { once: true });
+        });
+    }
+
     function render() {
         if (_navEl) _navEl.remove();
 
@@ -170,7 +212,7 @@
 
         nav.innerHTML = `
             <a class="hobo-navbar-brand" href="/">
-                <span class="flame">🔥</span>
+                <span class="flame"><i class="fa-solid fa-campground"></i></span>
                 <div>
                     <div class="name">${svcName}</div>
                 </div>
@@ -180,9 +222,9 @@
             </div>
             <div class="hobo-navbar-spacer"></div>
             <div class="hobo-navbar-right">
-                <span class="hobo-network-badge" title="Connected to Hobo Network">🔥 Hobo Network</span>
+                <span class="hobo-network-badge" title="Connected to Hobo Network"><i class="fa-solid fa-campground"></i> Hobo Network</span>
                 <div id="hobo-bell-mount"></div>
-                ${u ? `<img class="hobo-navbar-avatar" src="${u.avatar_url || '/data/avatars/default.png'}" alt="${u.username}" id="hobo-avatar-btn">` :
+                ${u ? avatarImg(u, 64, 'hobo-navbar-avatar', 'hobo-avatar-btn') :
                     `<button class="hobo-navbar-login" id="hobo-login-btn">Sign In</button>`}
             </div>
         `;
@@ -193,11 +235,11 @@
             dropdown.className = 'hobo-navbar-dropdown';
             dropdown.id = 'hobo-user-dropdown';
 
-            const otherAccounts = accounts.filter(a => a.id !== u.id);
+            const otherAccounts = accounts.filter(a => isAnon ? !a.is_anon : String(a.id) !== String(u.id));
 
             dropdown.innerHTML = `
                 <div class="hobo-navbar-dropdown-header">
-                    <img src="${u.avatar_url || '/data/avatars/default.png'}" alt="">
+                    ${avatarImg(u, 72, '', '')}
                     <div class="info">
                         <div class="name">${u.display_name || u.username}</div>
                         <div class="email">${u.email || `@${u.username}`}</div>
@@ -207,27 +249,27 @@
                 <div class="hobo-navbar-dropdown-accounts">
                     ${otherAccounts.map(a => `
                         <div class="account-item" data-account-id="${a.id}">
-                            <img src="${a.avatar_url || '/data/avatars/default.png'}" alt="">
+                            ${avatarImg(a, 48, '', '')}
                             <span>${a.display_name || a.username}${a.is_anon ? ' (anon)' : ''}</span>
                         </div>
                     `).join('')}
                     <div class="account-item" data-account-id="anon" style="${isAnon ? 'display:none' : ''}">
-                        <span style="width:24px;text-align:center">👤</span>
+                        <span style="width:24px;text-align:center"><i class="fa-solid fa-user-secret"></i></span>
                         <span>Switch to Anonymous</span>
                     </div>
                     <div class="add-account" id="hobo-add-account">
-                        <span style="width:24px;text-align:center">➕</span>
+                        <span style="width:24px;text-align:center"><i class="fa-solid fa-plus"></i></span>
                         <span>Add another account</span>
                     </div>
                 </div>
                 <div class="hobo-navbar-dropdown-menu">
-                    <a href="https://hobo.tools/my"><span class="icon">👤</span> My Account</a>
-                    <a href="https://hobo.tools/my#notifications"><span class="icon">🔔</span> Notification Settings</a>
-                    <a href="https://hobo.tools/themes"><span class="icon">🎨</span> Themes</a>
-                    <a href="https://hobo.tools/my#linked"><span class="icon">🔗</span> Linked Services</a>
-                    ${u.role === 'admin' ? `<a href="https://hobo.tools/admin"><span class="icon">🛠️</span> Admin Panel</a>` : ''}
+                    <a href="https://my.hobo.tools"><span class="icon"><i class="fa-solid fa-user"></i></span> My Account</a>
+                    <a href="https://my.hobo.tools#notifications"><span class="icon"><i class="fa-solid fa-bell"></i></span> Notification Settings</a>
+                    <a href="https://my.hobo.tools/themes"><span class="icon"><i class="fa-solid fa-palette"></i></span> Themes</a>
+                    <a href="https://my.hobo.tools#linked"><span class="icon"><i class="fa-solid fa-link"></i></span> Linked Services</a>
+                    ${u.role === 'admin' ? `<a href="https://hobo.tools/admin"><span class="icon"><i class="fa-solid fa-screwdriver-wrench"></i></span> Admin Panel</a>` : ''}
                     <div style="height:1px;background:var(--border,#333340);margin:4px -8px"></div>
-                    <button id="hobo-logout-btn" class="danger"><span class="icon">🚪</span> Sign Out</button>
+                    <button id="hobo-logout-btn" class="danger"><span class="icon"><i class="fa-solid fa-right-from-bracket"></i></span> Sign Out</button>
                 </div>
             `;
             nav.appendChild(dropdown);
@@ -260,7 +302,10 @@
                 if (_config.onLogout) _config.onLogout();
                 else {
                     document.cookie = 'hobo_token=;path=/;max-age=0';
+                    document.cookie = 'hobo_token=;path=/;max-age=0;domain=.hobo.tools';
                     localStorage.removeItem('hobo_token');
+                    localStorage.removeItem('hobo_anon_token');
+                    localStorage.removeItem('hobo_active_account');
                     window.location.reload();
                 }
             });
@@ -274,6 +319,7 @@
         // Insert into page
         document.body.prepend(nav);
         _navEl = nav;
+        attachAvatarFallbacks(nav);
         return nav;
     }
 

@@ -77,13 +77,13 @@ class NotificationService {
         `);
         this._deletePrefs = db.prepare('DELETE FROM notification_preferences WHERE user_id = ? AND category = ?');
 
-        this._getUnemailed = db.prepare(`
+        this._getPendingEmails = db.prepare(`
             SELECT n.*, u.email, u.username, u.display_name FROM notifications n
             JOIN users u ON u.id = n.user_id
-            WHERE n.is_emailed = 0 AND n.priority = 'critical'
+            WHERE n.is_emailed = 0 AND n.is_dismissed = 0
             AND u.email IS NOT NULL AND u.email != ''
             ORDER BY n.created_at ASC
-            LIMIT 50
+            LIMIT 100
         `);
 
         this._newestForUser = db.prepare(`
@@ -206,8 +206,31 @@ class NotificationService {
         return this._getPrefs.all(userId);
     }
 
-    setPreference(userId, category, { enabled = 1, sound = 1, toasts = 1, email = 0 } = {}) {
-        this._upsertPref.run(userId, category, enabled, sound, toasts, email, enabled, sound, toasts, email);
+    setPreference(userId, category, updates = {}) {
+        const current = this._getPrefByCategory.get(userId, category) || {
+            enabled: 1,
+            sound: 1,
+            toasts: 1,
+            email: 0,
+        };
+        const next = {
+            enabled: updates.enabled !== undefined ? (updates.enabled ? 1 : 0) : current.enabled,
+            sound: updates.sound !== undefined ? (updates.sound ? 1 : 0) : current.sound,
+            toasts: updates.toasts !== undefined ? (updates.toasts ? 1 : 0) : current.toasts,
+            email: updates.email !== undefined ? (updates.email ? 1 : 0) : current.email,
+        };
+        this._upsertPref.run(
+            userId,
+            category,
+            next.enabled,
+            next.sound,
+            next.toasts,
+            next.email,
+            next.enabled,
+            next.sound,
+            next.toasts,
+            next.email,
+        );
     }
 
     resetPreference(userId, category) {
@@ -219,20 +242,19 @@ class NotificationService {
     /**
      * Get notifications that should be emailed (critical, not yet emailed).
      */
-    getUnemaledCritical() {
-        return this._getUnemailed.all();
+    getPendingEmails() {
+        return this._getPendingEmails.all();
     }
 
     /**
      * Check if a notification should trigger an email.
      */
     shouldEmail(notification) {
-        if (notification.priority !== PRIORITY.CRITICAL) return false;
-        if (!EMAIL_ELIGIBLE_CATEGORIES.includes(notification.category)) return false;
-        // Check per-user preference
         const pref = this._getPrefByCategory.get(notification.user_id, notification.category);
-        if (pref && !pref.email) return false;
-        return true;
+        if (pref && !pref.enabled) return false;
+        if (notification.priority === PRIORITY.LOW) return false;
+        if (pref && pref.email) return true;
+        return notification.priority === PRIORITY.CRITICAL && EMAIL_ELIGIBLE_CATEGORIES.has(notification.category);
     }
 
     // ─── Cleanup ──────────────────────────────────────────────

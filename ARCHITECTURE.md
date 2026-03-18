@@ -186,7 +186,7 @@ First-party hobo.tools subdomains use cookie-based auth (no OAuth2 redirect need
 ### Phase 2: SSO Switch
 
 1. hobostreamer.com login button redirects to login.hobo.tools
-2. hobostreamer.com stops issuing its own tokens
+2. hobostreamer.com stops issuing its own tokensw
 3. All auth flows go through hobo.tools
 4. hobostreamer.com keeps a local `linked_accounts` table mapping `hobo_user_id → local_user_id`
 

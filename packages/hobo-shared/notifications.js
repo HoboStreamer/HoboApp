@@ -86,7 +86,8 @@ const SOUNDS = Object.freeze({
 });
 
 // ── Email Eligibility ────────────────────────────────────────
-// Only CRITICAL priority + user has verified email + category not muted.
+// Categories that are email-worthy by default when the user has not
+// explicitly enabled email for a category-specific preference.
 const EMAIL_ELIGIBLE_CATEGORIES = new Set([
     'system', 'moderation', 'admin',
 ]);

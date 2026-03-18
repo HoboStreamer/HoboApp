@@ -66,16 +66,6 @@ router.get('/', (req, res) => {
     res.json({ themes });
 });
 
-// ── Get Theme by ID or Slug ──────────────────────────────────
-router.get('/:idOrSlug', (req, res) => {
-    const db = getDb(req);
-    const theme = db.prepare('SELECT * FROM themes WHERE id = ? OR slug = ?').get(req.params.idOrSlug, req.params.idOrSlug);
-    if (!theme) return res.status(404).json({ error: 'Theme not found' });
-    try { theme.variables = JSON.parse(theme.variables); } catch { theme.variables = {}; }
-    try { theme.tags = JSON.parse(theme.tags); } catch { theme.tags = []; }
-    res.json({ theme });
-});
-
 // ── Get User's Active Theme ──────────────────────────────────
 router.get('/me/active', requireAuth, (req, res) => {
     const db = getDb(req);
@@ -86,6 +76,16 @@ router.get('/me/active', requireAuth, (req, res) => {
     let custom = null;
     try { custom = prefs.custom_theme_variables ? JSON.parse(prefs.custom_theme_variables) : null; } catch {}
     res.json({ theme_id: prefs.theme_id, custom_variables: custom });
+});
+
+// ── Get Theme by ID or Slug ──────────────────────────────────
+router.get('/:idOrSlug', (req, res) => {
+    const db = getDb(req);
+    const theme = db.prepare('SELECT * FROM themes WHERE id = ? OR slug = ?').get(req.params.idOrSlug, req.params.idOrSlug);
+    if (!theme) return res.status(404).json({ error: 'Theme not found' });
+    try { theme.variables = JSON.parse(theme.variables); } catch { theme.variables = {}; }
+    try { theme.tags = JSON.parse(theme.tags); } catch { theme.tags = []; }
+    res.json({ theme });
 });
 
 // ── Set User's Active Theme ──────────────────────────────────

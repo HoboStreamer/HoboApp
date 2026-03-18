@@ -1,5 +1,7 @@
 'use strict';
 
+const { BUILTIN_THEMES, DEFAULT_VARS } = require('./builtin-themes');
+
 // ═══════════════════════════════════════════════════════════════
 // Hobo Network — Theme Sync Engine
 // Isomorphic theme system shared across all Hobo services.
@@ -15,82 +17,7 @@ const CSS_VARIABLES = [
     '--border', '--border-light', '--shadow', '--shadow-lg',
 ];
 
-const DEFAULT_VARS = Object.freeze({
-    '--bg-primary':   '#1e1e24',
-    '--bg-secondary': '#252530',
-    '--bg-tertiary':  '#2a2a38',
-    '--bg-card':      '#22222c',
-    '--bg-hover':     '#2f2f3d',
-    '--bg-input':     '#1a1a22',
-    '--text-primary': '#e0e0e0',
-    '--text-secondary': '#b0b0b8',
-    '--text-muted':   '#707080',
-    '--accent':       '#c0965c',
-    '--accent-light': '#dbb077',
-    '--accent-dark':  '#a07840',
-    '--live-red':     '#e74c3c',
-    '--success':      '#2ecc71',
-    '--warning':      '#f39c12',
-    '--danger':       '#e74c3c',
-    '--info':         '#3498db',
-    '--border':       '#333340',
-    '--border-light': '#404050',
-    '--shadow':       '0 2px 8px rgba(0,0,0,0.3)',
-    '--shadow-lg':    '0 8px 32px rgba(0,0,0,0.5)',
-});
-
-// ── Built-in Themes ──────────────────────────────────────────
-// Minimal subset — full catalog lives in hobo.tools DB.
-// These ship with every Hobo service for offline/fast paint.
-const BUILTIN_THEMES = [
-    {
-        id: 'campfire',
-        name: 'Campfire',
-        slug: 'campfire',
-        mode: 'dark',
-        description: 'Default Hobo warmth',
-        variables: { ...DEFAULT_VARS },
-    },
-    {
-        id: 'midnight',
-        name: 'Midnight',
-        slug: 'midnight',
-        mode: 'dark',
-        description: 'Deep blue darkness',
-        variables: {
-            ...DEFAULT_VARS,
-            '--bg-primary': '#0d1117', '--bg-secondary': '#161b22',
-            '--bg-tertiary': '#1c2333', '--bg-card': '#0f1419',
-            '--accent': '#58a6ff', '--accent-light': '#79c0ff', '--accent-dark': '#388bfd',
-        },
-    },
-    {
-        id: 'forest',
-        name: 'Forest',
-        slug: 'forest',
-        mode: 'dark',
-        description: 'Deep green canopy',
-        variables: {
-            ...DEFAULT_VARS,
-            '--bg-primary': '#1a2318', '--bg-secondary': '#212d1e',
-            '--bg-tertiary': '#283626', '--bg-card': '#1c261a',
-            '--accent': '#6abf69', '--accent-light': '#8fd88e', '--accent-dark': '#4a9f49',
-        },
-    },
-    {
-        id: 'neon-tokyo',
-        name: 'Neon Tokyo',
-        slug: 'neon-tokyo',
-        mode: 'dark',
-        description: 'Cyberpunk neon glow',
-        variables: {
-            ...DEFAULT_VARS,
-            '--bg-primary': '#0a0a1a', '--bg-secondary': '#12122a',
-            '--bg-tertiary': '#1a1a3a', '--bg-card': '#0e0e22',
-            '--accent': '#ff2d95', '--accent-light': '#ff6eb4', '--accent-dark': '#cc1a72',
-        },
-    },
-];
+const NORMALIZED_DEFAULT_VARS = Object.freeze({ ...DEFAULT_VARS });
 
 // ── Dangerous CSS patterns (XSS prevention) ─────────────────
 const DANGEROUS_PATTERNS = [
@@ -117,7 +44,7 @@ function sanitizeCssValue(value) {
  */
 function applyTheme(theme, target) {
     if (!theme || !theme.variables) return;
-    const vars = { ...DEFAULT_VARS, ...theme.variables };
+    const vars = { ...NORMALIZED_DEFAULT_VARS, ...theme.variables };
     for (const [key, value] of Object.entries(vars)) {
         if (!CSS_VARIABLES.includes(key)) continue;
         const safe = sanitizeCssValue(value);
@@ -188,7 +115,7 @@ async function syncThemeToServer(themeId, customVars, token) {
 
 module.exports = {
     CSS_VARIABLES,
-    DEFAULT_VARS,
+    DEFAULT_VARS: NORMALIZED_DEFAULT_VARS,
     BUILTIN_THEMES,
     sanitizeCssValue,
     applyTheme,

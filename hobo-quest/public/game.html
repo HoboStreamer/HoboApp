@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoboGame — Open-World Survival MMORPG</title>
+    <meta name="description" content="Play HoboGame: an open-world survival MMORPG with gathering, crafting, PvP combat, building, and dungeons.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/game.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #111;
+            color: #e0e0e0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        /* Game fills the entire viewport */
+        .game-wrapper {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        .game-canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+        /* Back link */
+        .back-link {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 100;
+            color: #ccc;
+            text-decoration: none;
+            font-size: 13px;
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
+            border-radius: 6px;
+            backdrop-filter: blur(4px);
+        }
+        .back-link:hover { color: #fff; background: rgba(0,0,0,0.8); }
+    </style>
+</head>
+<body>
+
+<a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i> HoboQuest</a>
+
+<section id="page-game" class="page" style="display:block">
+    <div class="game-wrapper">
+        <div class="game-canvas-container">
+            <!-- HUD overlay: status badges + action buttons -->
+            <div class="game-hud-top">
+                <div class="game-hud-left">
+                    <span class="game-zone-badge" id="game-zone">Outpost</span>
+                    <span class="game-players-badge"><i class="fa-solid fa-users"></i> <span id="game-players">1</span></span>
+                    <span class="game-connection-badge disconnected" id="game-conn-badge">
+                        <span class="game-connection-dot"></span>
+                        <span id="game-conn-text">Offline</span>
+                    </span>
+                </div>
+                <div class="game-hud-right">
+                    <button class="game-hud-btn" onclick="togglePanel('inventory')" title="Inventory (I)"><i class="fa-solid fa-box-open"></i></button>
+                    <button class="game-hud-btn" onclick="togglePanel('skills')" title="Skills (K)"><i class="fa-solid fa-chart-bar"></i></button>
+                    <button class="game-hud-btn" onclick="togglePanel('map')" title="Map (M)"><i class="fa-solid fa-map"></i></button>
+                </div>
+            </div>
+            <canvas id="game-canvas" width="960" height="640"></canvas>
+            <!-- Login overlay (shown when not authenticated) -->
+            <div class="game-login-overlay" id="game-login-overlay">
+                <div class="game-login-content game-promo">
+                    <div class="game-promo-icon">🏕️⚔️🌍</div>
+                    <h3>HoboGame</h3>
+                    <p class="game-promo-tagline">Open-world survival right here on HoboQuest</p>
+                    <div class="game-promo-features">
+                        <div class="game-promo-feat"><span class="gpf-icon">⛏️</span><span>Chop trees, mine ores & fish across a massive procedural world</span></div>
+                        <div class="game-promo-feat"><span class="gpf-icon">⚔️</span><span>Craft swords, armor, potions & legendary equipment</span></div>
+                        <div class="game-promo-feat"><span class="gpf-icon">💀</span><span>Open-world PvP — raid other players or get raided</span></div>
+                        <div class="game-promo-feat"><span class="gpf-icon">🏠</span><span>Build bases with walls, furnaces, storage & sleeping bags</span></div>
+                        <div class="game-promo-feat"><span class="gpf-icon">🐉</span><span>Fight dragons & monsters in procedural dungeons</span></div>
+                        <div class="game-promo-feat"><span class="gpf-icon">🏆</span><span>Level 6 skills, compete on global leaderboards</span></div>
+                    </div>
+                    <a href="/auth/login" class="btn btn-primary btn-lg" style="margin-top:16px;display:inline-block;padding:12px 28px;background:#c0965c;color:#fff;border-radius:8px;font-weight:600;text-decoration:none">
+                        <i class="fa-solid fa-user-plus"></i> Sign in to Play
+                    </a>
+                    <p class="muted" style="margin-top:8px;color:#888;font-size:13px">
+                        You can also jump in instantly as an anonymous player.
+                    </p>
+                </div>
+            </div>
+            <!-- Loading overlay (shown while connecting/loading) -->
+            <div class="game-loading-overlay" id="game-loading-overlay" style="display:none">
+                <div class="game-loading-content">
+                    <div class="game-loading-spinner"></div>
+                    <h3 id="game-loading-title">Connecting to HoboGame...</h3>
+                    <p id="game-loading-status">Establishing connection</p>
+                    <div class="game-loading-bar-track">
+                        <div class="game-loading-bar-fill" id="game-loading-bar"></div>
+                    </div>
+                    <div class="game-loading-tips" id="game-loading-tips">
+                        <p>💡 Tip: Bank your loot at the Outpost to keep it safe from PvP death!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="/js/app-bridge.js"></script>
+<script>currentPage = 'game';</script>
+<script src="/js/game.js"></script>
+<script>
+    // Auto-bootstrap game on page load
+    if (typeof loadGamePage === 'function') loadGamePage();
+</script>
+
+</body>
+</html>

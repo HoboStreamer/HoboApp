@@ -7,14 +7,37 @@
 
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 // ── Helpers ──────────────────────────────────────────────────
 
 function getDb(req) { return req.app.locals.db; }
 function getConfig(req) { return req.app.locals.config; }
+
+function hashResetToken(token) {
+    return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+function buildToolsBaseUrl(req) {
+    return (process.env.HOBO_TOOLS_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+}
+
+function findValidResetToken(db, token) {
+    return db.prepare(`
+        SELECT prt.id, prt.user_id, prt.expires_at, u.username, u.display_name, u.email
+        FROM password_reset_tokens prt
+        JOIN users u ON u.id = prt.user_id
+        WHERE prt.token_hash = ?
+          AND prt.used_at IS NULL
+          AND prt.expires_at > CURRENT_TIMESTAMP
+        LIMIT 1
+    `).get(hashResetToken(token));
+}
 
 function signToken(user, privateKey, config) {
     const algorithm = privateKey.includes('BEGIN') ? 'RS256' : 'HS256';
@@ -89,7 +112,7 @@ router.post('/register', (req, res) => {
         return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' });
     }
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    if (/^anon/i.test(username)) return res.status(400).json({ error: 'Username cannot start with "anon"' });
+    if (/^anon/i.test(username)) return res.status(400).json({ error: 'Username cannot start with "anon" — this prefix is reserved for anonymous identities' });
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
     if (existing) return res.status(409).json({ error: 'Username already taken' });
@@ -160,6 +183,102 @@ router.post('/login', (req, res) => {
     res.json({ token, user: sanitizeUser(user) });
 });
 
+// ── Forgot Password ─────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+    const db = getDb(req);
+    const sesService = req.app.locals.sesService;
+    const genericResponse = {
+        ok: true,
+        message: 'If that email exists, a reset link has been sent.',
+    };
+
+    const email = String(req.body?.email || '').trim();
+    if (!email) {
+        return res.status(400).json({ error: 'Email required' });
+    }
+
+    const user = db.prepare('SELECT id, username, display_name, email FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+
+    if (!user || !user.email || !sesService?.isEnabled) {
+        return res.json(genericResponse);
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+    db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(user.id);
+    db.prepare(`
+        INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, requested_ip, requested_user_agent)
+        VALUES (?, ?, ?, ?, ?)
+    `).run(user.id, hashResetToken(rawToken), expiresAt, req.ip || null, req.headers['user-agent'] || null);
+
+    const resetUrl = `${buildToolsBaseUrl(req)}/reset-password?token=${encodeURIComponent(rawToken)}`;
+    await sesService.sendPasswordResetEmail({
+        to: user.email,
+        username: user.display_name || user.username,
+        resetUrl,
+        expiresMinutes: Math.round(RESET_TOKEN_TTL_MS / 60000),
+    });
+
+    res.json(genericResponse);
+});
+
+// ── Validate Reset Token ────────────────────────────────────
+router.get('/reset-password/validate', (req, res) => {
+    const db = getDb(req);
+    const token = String(req.query.token || '').trim();
+    if (!token) return res.status(400).json({ error: 'Reset token required' });
+
+    const reset = findValidResetToken(db, token);
+    if (!reset) return res.status(400).json({ valid: false, error: 'Invalid or expired reset link' });
+
+    res.json({
+        valid: true,
+        username: reset.username,
+        expires_at: reset.expires_at,
+    });
+});
+
+// ── Complete Password Reset ────────────────────────────────
+router.post('/reset-password', (req, res) => {
+    const db = getDb(req);
+    const notifService = req.app.locals.notificationService;
+    const token = String(req.body?.token || '').trim();
+    const newPassword = String(req.body?.new_password || '');
+
+    if (!token || !newPassword) return res.status(400).json({ error: 'Reset token and new password required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+    const reset = findValidResetToken(db, token);
+    if (!reset) return res.status(400).json({ error: 'Invalid or expired reset link' });
+
+    const hash = bcrypt.hashSync(newPassword, 10);
+    const tx = db.transaction(() => {
+        db.prepare(`
+            UPDATE users
+            SET password_hash = ?, token_valid_after = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(hash, reset.user_id);
+        db.prepare('UPDATE user_sessions SET is_active = 0 WHERE user_id = ?').run(reset.user_id);
+        db.prepare('UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL').run(reset.user_id);
+    });
+    tx();
+
+    if (notifService) {
+        notifService.create({
+            user_id: reset.user_id,
+            type: 'PASSWORD_CHANGED',
+            title: 'Password Reset Complete',
+            message: 'Your password was reset successfully. If this was not you, contact support immediately.',
+            priority: 'critical',
+            category: 'system',
+            service: 'hobo-tools',
+            url: 'https://my.hobo.tools/security',
+        });
+    }
+
+    res.json({ ok: true, message: 'Password reset complete. You can sign in with your new password now.' });
+});
+
 // ── Get Current User ─────────────────────────────────────────
 router.get('/me', requireAuth, (req, res) => {
     const db = getDb(req);
@@ -208,6 +327,8 @@ router.post('/change-password', requireAuth, (req, res) => {
     const hash = bcrypt.hashSync(new_password, 10);
     db.prepare('UPDATE users SET password_hash = ?, token_valid_after = CURRENT_TIMESTAMP WHERE id = ?')
         .run(hash, req.user.id);
+    db.prepare('UPDATE user_sessions SET is_active = 0 WHERE user_id = ?').run(req.user.id);
+    db.prepare('UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL').run(req.user.id);
 
     // Issue fresh token
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
@@ -234,37 +355,81 @@ router.post('/change-password', requireAuth, (req, res) => {
 // Anonymous User Management
 // ═══════════════════════════════════════════════════════════════
 
+function getRequestIp(req) {
+    const raw = req?.headers?.['cf-connecting-ip']
+        || req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
+        || req?.socket?.remoteAddress || req?.connection?.remoteAddress || 'unknown';
+    return raw.replace(/^::ffff:/, '');
+}
+
+/** Format an anon_users row into the API response shape */
+function formatAnonUser(anon) {
+    return {
+        id: `anon_${anon.id}`,
+        is_anon: true,
+        anon_number: anon.anon_number,
+        display_name: anon.display_name || `Anonymous #${anon.anon_number}`,
+        username: `anon${anon.anon_number}`,
+        preferences: JSON.parse(anon.preferences || '{}'),
+        total_messages: anon.total_messages || 0,
+        total_commands: anon.total_commands || 0,
+        first_seen: anon.first_seen,
+        last_seen: anon.last_seen,
+    };
+}
+
+/** Log an IP association for an anon user (upsert) */
+function logAnonIp(db, anonId, ip) {
+    if (!ip || ip === 'unknown') return;
+    try {
+        const existing = db.prepare('SELECT id FROM anon_ip_log WHERE anon_id = ? AND ip = ?').get(anonId, ip);
+        if (existing) {
+            db.prepare('UPDATE anon_ip_log SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
+        } else {
+            db.prepare('INSERT INTO anon_ip_log (anon_id, ip) VALUES (?, ?)').run(anonId, ip);
+        }
+    } catch { /* non-critical */ }
+}
+
 // ── Create Anonymous Session ─────────────────────────────────
 // POST /api/auth/anon-session
 // Creates a temporary anonymous identity with a unique number.
+// If force_new=true, always creates a new anon identity.
 router.post('/anon-session', (req, res) => {
     const db = getDb(req);
     const config = getConfig(req);
+    const ip = getRequestIp(req);
 
     try {
         const sessionToken = uuidv4();
         const fingerprint = req.body.fingerprint || null;
+        const forceNew = !!req.body.force_new;
 
-        // Check if this fingerprint already has an anon user
-        if (fingerprint) {
+        // Check if this fingerprint already has an anon user (unless forcing new)
+        if (fingerprint && !forceNew) {
             const existing = db.prepare('SELECT * FROM anon_users WHERE fingerprint = ?').get(fingerprint);
             if (existing) {
                 // Return existing anon user with a fresh session token
                 db.prepare('UPDATE anon_users SET session_token = ?, last_seen = CURRENT_TIMESTAMP WHERE id = ?')
                     .run(sessionToken, existing.id);
+                logAnonIp(db, existing.id, ip);
                 return res.json({
                     token: sessionToken,
-                    user: {
-                        id: `anon_${existing.id}`,
-                        is_anon: true,
-                        anon_number: existing.anon_number,
-                        display_name: `Anonymous #${existing.anon_number}`,
-                        username: `anon_${existing.anon_number}`,
-                        preferences: JSON.parse(existing.preferences || '{}'),
-                        total_messages: existing.total_messages,
-                        total_commands: existing.total_commands,
-                        first_seen: existing.first_seen,
-                    },
+                    user: formatAnonUser({ ...existing, last_seen: new Date().toISOString() }),
+                });
+            }
+        }
+
+        // Check if this IP already has a default anon (unless forcing new)
+        if (!forceNew) {
+            const byIp = db.prepare('SELECT * FROM anon_users WHERE ip = ? ORDER BY id ASC LIMIT 1').get(ip);
+            if (byIp) {
+                db.prepare('UPDATE anon_users SET session_token = ?, last_seen = CURRENT_TIMESTAMP WHERE id = ?')
+                    .run(sessionToken, byIp.id);
+                logAnonIp(db, byIp.id, ip);
+                return res.json({
+                    token: sessionToken,
+                    user: formatAnonUser({ ...byIp, last_seen: new Date().toISOString() }),
                 });
             }
         }
@@ -274,22 +439,23 @@ router.post('/anon-session', (req, res) => {
         const anonNumber = maxNum + 1;
 
         const result = db.prepare(
-            'INSERT INTO anon_users (anon_number, fingerprint, session_token) VALUES (?, ?, ?)'
-        ).run(anonNumber, fingerprint, sessionToken);
+            'INSERT INTO anon_users (anon_number, fingerprint, session_token, ip) VALUES (?, ?, ?, ?)'
+        ).run(anonNumber, fingerprint, sessionToken, ip);
 
-        console.log(`[Auth] New anonymous user: #${anonNumber}`);
+        logAnonIp(db, result.lastInsertRowid, ip);
+
+        console.log(`[Auth] New anonymous user: #${anonNumber} (IP: ${ip})`);
         res.json({
             token: sessionToken,
-            user: {
-                id: `anon_${result.lastInsertRowid}`,
-                is_anon: true,
+            user: formatAnonUser({
+                id: result.lastInsertRowid,
                 anon_number: anonNumber,
-                display_name: `Anonymous #${anonNumber}`,
-                username: `anon_${anonNumber}`,
-                preferences: {},
+                preferences: '{}',
                 total_messages: 0,
                 total_commands: 0,
-            },
+                first_seen: new Date().toISOString(),
+                last_seen: new Date().toISOString(),
+            }),
         });
     } catch (err) {
         console.error('[Auth] Anon session error:', err);
@@ -305,21 +471,10 @@ router.get('/anon/:token', (req, res) => {
     if (!anon) return res.status(404).json({ error: 'Anonymous session not found' });
 
     db.prepare('UPDATE anon_users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(anon.id);
+    const ip = getRequestIp(req);
+    logAnonIp(db, anon.id, ip);
 
-    res.json({
-        user: {
-            id: `anon_${anon.id}`,
-            is_anon: true,
-            anon_number: anon.anon_number,
-            display_name: anon.display_name || `Anonymous #${anon.anon_number}`,
-            username: `anon_${anon.anon_number}`,
-            preferences: JSON.parse(anon.preferences || '{}'),
-            total_messages: anon.total_messages,
-            total_commands: anon.total_commands,
-            first_seen: anon.first_seen,
-            last_seen: anon.last_seen,
-        },
-    });
+    res.json({ user: formatAnonUser(anon) });
 });
 
 // ── Update Anonymous User Preferences ────────────────────────
@@ -358,6 +513,41 @@ router.post('/anon/:token/link', requireAuth, (req, res) => {
 
     console.log(`[Auth] Linked anon #${anon.anon_number} → user ${req.user.username}`);
     res.json({ ok: true, anon_number: anon.anon_number });
+});
+
+// ── List All Anon Identities for Current IP ──────────────────
+// GET /api/auth/anon-identities
+// Returns all anon identities associated with the caller's IP.
+router.get('/anon-identities', (req, res) => {
+    const db = getDb(req);
+    const ip = getRequestIp(req);
+
+    try {
+        // Find all anon IDs that have been seen from this IP
+        const anons = db.prepare(`
+            SELECT DISTINCT a.* FROM anon_users a
+            INNER JOIN anon_ip_log l ON l.anon_id = a.id
+            WHERE l.ip = ?
+            ORDER BY a.anon_number ASC
+        `).all(ip);
+
+        // Also include any anon whose creating IP matches
+        const byCreatingIp = db.prepare('SELECT * FROM anon_users WHERE ip = ?').all(ip);
+        const seen = new Set(anons.map(a => a.id));
+        for (const a of byCreatingIp) {
+            if (!seen.has(a.id)) anons.push(a);
+        }
+
+        res.json({
+            identities: anons.map(a => ({
+                ...formatAnonUser(a),
+                session_token: a.session_token,
+            })),
+        });
+    } catch (err) {
+        console.error('[Auth] Anon identities error:', err);
+        res.status(500).json({ error: 'Failed to list anon identities' });
+    }
 });
 
 // ═══════════════════════════════════════════════════════════════

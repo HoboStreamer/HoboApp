@@ -1,0 +1,19 @@
+[Unit]
+Description=HoboFood — Budget Grocery & Meal Planning
+After=network.target hobo-maps.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/hobo-food
+Environment=NODE_ENV=production
+ExecStart=/home/ubuntu/.nvm/versions/node/v20.20.1/bin/node /opt/hobo-food/server/index.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

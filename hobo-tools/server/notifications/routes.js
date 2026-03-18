@@ -118,10 +118,10 @@ module.exports = function createNotificationRoutes(db, notificationService, requ
             const { category, enabled, sound, toasts, email } = req.body;
             if (!category) return res.status(400).json({ ok: false, error: 'Category required' });
             notificationService.setPreference(req.user.id, category, {
-                enabled: enabled !== undefined ? (enabled ? 1 : 0) : 1,
-                sound: sound !== undefined ? (sound ? 1 : 0) : 1,
-                toasts: toasts !== undefined ? (toasts ? 1 : 0) : 1,
-                email: email !== undefined ? (email ? 1 : 0) : 0,
+                enabled,
+                sound,
+                toasts,
+                email,
             });
             res.json({ ok: true });
         } catch (err) {
