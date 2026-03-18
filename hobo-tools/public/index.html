@@ -4,539 +4,657 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hobo Network — One Account. Every Hobo Service.</title>
-    <meta name="description" content="The Hobo Network hub for accounts, settings, maps, tools, and connected services.">
+    <meta name="description" content="The Hobo Network — streaming, survival maps, food resources, image tools, video downloads, RPG questing, and more. One account, everywhere.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
-            --bg-primary: #12131a;
-            --bg-secondary: #181a24;
-            --bg-tertiary: #202331;
-            --bg-card: rgba(31, 34, 48, 0.88);
-            --bg-hover: #2a2e40;
+            --bg-primary: #0b0c12;
+            --bg-secondary: #12131c;
+            --bg-tertiary: #1a1b28;
+            --bg-card: rgba(22, 24, 36, 0.85);
+            --bg-hover: #252738;
             --text-primary: #f1f4fb;
-            --text-secondary: #bcc4d8;
-            --text-muted: #7f879d;
+            --text-secondary: #a0a8c4;
+            --text-muted: #5e6580;
             --accent: #c0965c;
             --accent-light: #e1b77d;
             --accent-dark: #9f7337;
-            --border: rgba(255,255,255,0.08);
-            --shadow: 0 24px 64px rgba(0,0,0,0.35);
-            --shadow-soft: 0 12px 28px rgba(0,0,0,0.22);
-            --radius: 18px;
+            --border: rgba(255,255,255,0.07);
+            --border-light: rgba(255,255,255,0.12);
+            --shadow: 0 24px 64px rgba(0,0,0,0.4);
+            --shadow-soft: 0 8px 32px rgba(0,0,0,0.25);
+            --radius: 20px;
+            --radius-sm: 14px;
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { background: var(--bg-primary); }
+        html { background: var(--bg-primary); scroll-behavior: smooth; }
+
         body {
             min-height: 100vh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background:
-                radial-gradient(circle at top center, rgba(192,150,92,0.18), transparent 30%),
-                radial-gradient(circle at 85% 18%, rgba(77, 122, 255, 0.12), transparent 28%),
-                linear-gradient(180deg, #11131a 0%, #161924 100%);
+            background: var(--bg-primary);
             color: var(--text-primary);
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
         a { color: inherit; text-decoration: none; }
-        button { font: inherit; }
-        .shell { width: min(1200px, calc(100% - 32px)); margin: 0 auto; }
-        .hero { padding: 72px 0 34px; }
-        .hero-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
-            gap: 26px;
-            align-items: stretch;
-        }
-        .hero-card,
-        .panel,
-        .service-card,
-        .quick-card,
-        .metric,
-        .trust-item {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-soft);
-            backdrop-filter: blur(12px);
-        }
-        .hero-card {
-            padding: 34px;
-            position: relative;
+        button { font: inherit; cursor: pointer; border: none; background: none; }
+
+        .shell { width: min(1200px, calc(100% - 40px)); margin: 0 auto; }
+
+        /* ─── Animated background ─── */
+        .bg-glow {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
             overflow: hidden;
         }
-        .hero-card::after {
-            content: '';
-            position: absolute;
-            inset: auto -15% -30% auto;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(192,150,92,0.22), transparent 68%);
-            pointer-events: none;
+        .bg-glow::before, .bg-glow::after {
+            content: ''; position: absolute; border-radius: 50%;
+            filter: blur(120px); opacity: 0.4;
+            animation: glow-drift 20s ease-in-out infinite alternate;
         }
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(192,150,92,0.12);
-            color: var(--accent-light);
-            font-size: 0.76rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 18px;
+        .bg-glow::before {
+            width: 600px; height: 600px; top: -10%; left: 20%;
+            background: radial-gradient(circle, rgba(192,150,92,0.3), transparent 70%);
         }
-        h1 {
-            font-size: clamp(2.4rem, 5vw, 4.3rem);
-            line-height: 0.98;
-            letter-spacing: -0.05em;
-            margin-bottom: 16px;
+        .bg-glow::after {
+            width: 500px; height: 500px; bottom: 10%; right: 10%;
+            background: radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%);
+            animation-delay: -10s;
         }
-        .hero-copy {
-            max-width: 680px;
-            font-size: 1.06rem;
-            line-height: 1.78;
-            color: var(--text-secondary);
+        @keyframes glow-drift {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, -30px) scale(1.15); }
+        }
+
+        .page-content { position: relative; z-index: 1; }
+
+        /* ─── Hero ─── */
+        .hero {
+            padding: 100px 0 60px;
+            text-align: center;
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; border-radius: 999px;
+            background: rgba(192,150,92,0.1); border: 1px solid rgba(192,150,92,0.2);
+            color: var(--accent-light); font-size: 0.78rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.1em;
             margin-bottom: 24px;
+            animation: fade-up 0.6s ease both;
         }
-        .cta-row,
-        .hero-pills,
-        .trust-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
+        .hero h1 {
+            font-size: clamp(2.8rem, 6vw, 5rem);
+            font-weight: 900; line-height: 1.0;
+            letter-spacing: -0.04em;
+            margin-bottom: 20px;
+            animation: fade-up 0.6s ease 0.1s both;
         }
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--accent-light), #f0c987, var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-sub {
+            max-width: 640px; margin: 0 auto 36px;
+            font-size: 1.15rem; line-height: 1.7;
+            color: var(--text-secondary);
+            animation: fade-up 0.6s ease 0.2s both;
+        }
+        .hero-cta {
+            display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+            animation: fade-up 0.6s ease 0.3s both;
+        }
+
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── Buttons ─── */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 13px 20px;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            transition: transform .18s ease, border-color .18s ease, background .18s ease;
-            border: 1px solid transparent;
-            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            padding: 14px 24px; border-radius: 12px;
+            font-size: 0.95rem; font-weight: 700;
+            transition: all .2s ease; border: 1px solid transparent;
         }
-        .btn:hover { transform: translateY(-1px); }
+        .btn:hover { transform: translateY(-2px); }
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-light), var(--accent-dark));
-            color: #fff;
-            box-shadow: 0 14px 30px rgba(192,150,92,0.24);
+            color: #fff; box-shadow: 0 12px 28px rgba(192,150,92,0.25);
         }
-        .btn-secondary {
-            background: rgba(255,255,255,0.03);
-            border-color: var(--border);
+        .btn-primary:hover { box-shadow: 0 16px 36px rgba(192,150,92,0.35); }
+        .btn-ghost {
+            background: rgba(255,255,255,0.04); border-color: var(--border-light);
             color: var(--text-primary);
         }
-        .btn-secondary:hover { border-color: rgba(192,150,92,0.45); background: rgba(255,255,255,0.06); }
-        .hero-pills { margin-top: 20px; }
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            border-radius: 999px;
-            font-size: 0.84rem;
-            color: var(--text-secondary);
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
+        .btn-ghost:hover { border-color: rgba(192,150,92,0.4); background: rgba(255,255,255,0.07); }
+
+        /* ─── Stats ribbon ─── */
+        .stats-ribbon {
+            display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+            padding: 32px 0;
+            animation: fade-up 0.6s ease 0.4s both;
         }
-        .panel {
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
+        .stat { text-align: center; }
+        .stat-number {
+            display: block; font-size: 1.6rem; font-weight: 800;
+            color: var(--accent-light); letter-spacing: -0.02em;
+        }
+        .stat-label {
+            font-size: 0.78rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+        }
+
+        /* ─── Section titles ─── */
+        .section-title {
+            text-align: center; margin-bottom: 48px;
+        }
+        .section-title h2 {
+            font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+            font-weight: 800; letter-spacing: -0.03em;
+            margin-bottom: 12px;
+        }
+        .section-title p {
+            max-width: 540px; margin: 0 auto;
+            color: var(--text-secondary); font-size: 1.02rem; line-height: 1.65;
+        }
+
+        /* ─── Service cards — bento grid ─── */
+        .services { padding: 40px 0 60px; }
+        .bento {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
             gap: 16px;
         }
-        .panel h2,
-        .section-header h2,
-        .signed-title h2 {
-            font-size: 1.05rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-        }
-        .panel p,
-        .section-header p,
-        .signed-title p,
-        .quick-card p,
-        .service-card p,
-        .trust-item p,
-        .metric p {
-            color: var(--text-secondary);
-            line-height: 1.65;
-        }
-        .trust-grid { margin-top: 8px; }
-        .trust-item { padding: 16px; flex: 1 1 180px; }
-        .trust-item strong { display: block; margin-bottom: 7px; color: var(--text-primary); }
-        .section { padding: 20px 0 34px; }
-        .section-header {
-            margin-bottom: 18px;
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
-            align-items: end;
-            flex-wrap: wrap;
-        }
-        .service-grid,
-        .quick-grid,
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-        }
-        .connected-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.95fr);
-            gap: 16px;
-            align-items: stretch;
-        }
-        .connected-hero,
-        .connected-card {
+        .bento-card {
+            position: relative; overflow: hidden;
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            box-shadow: var(--shadow-soft);
+            padding: 28px;
             backdrop-filter: blur(12px);
+            transition: all .3s ease;
+            display: flex; flex-direction: column;
+            text-decoration: none; color: inherit;
         }
-        .connected-hero {
-            padding: 24px;
-            display: grid;
-            gap: 18px;
-        }
-        .connected-copy h3 {
-            font-size: 1.38rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin-bottom: 10px;
-        }
-        .connected-copy p { color: var(--text-secondary); line-height: 1.72; }
-        .connected-points { display: grid; gap: 12px; }
-        .connected-point {
-            display: grid;
-            grid-template-columns: 40px minmax(0, 1fr);
-            gap: 12px;
-            align-items: start;
-            padding: 14px;
-            border-radius: 14px;
-            background: rgba(255,255,255,0.035);
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .connected-point .icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            background: linear-gradient(135deg, rgba(192,150,92,0.18), rgba(77,122,255,0.12));
-        }
-        .connected-point strong { display: block; margin-bottom: 4px; }
-        .connected-cards {
-            display: grid;
-            gap: 14px;
-        }
-        .connected-card { padding: 20px; }
-        .connected-card .eyebrow-mini {
-            display: inline-flex;
-            margin-bottom: 10px;
-            padding: 5px 8px;
-            border-radius: 999px;
-            background: rgba(192,150,92,0.12);
-            color: var(--accent-light);
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-        .connected-card h3 { font-size: 1.02rem; margin-bottom: 8px; }
-        .connected-card p { color: var(--text-secondary); line-height: 1.65; }
-        .service-card,
-        .quick-card,
-        .metric {
-            padding: 22px;
-            transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
-        }
-        .service-card:hover,
-        .quick-card:hover,
-        .metric:hover {
-            transform: translateY(-3px);
-            border-color: rgba(192,150,92,0.32);
+        .bento-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(192,150,92,0.3);
             box-shadow: var(--shadow);
         }
-        .service-icon,
-        .quick-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 14px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 14px;
-            font-size: 1.35rem;
-            background: linear-gradient(135deg, rgba(192,150,92,0.18), rgba(77,122,255,0.14));
+        .bento-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; border-radius: var(--radius) var(--radius) 0 0;
+            background: var(--card-accent, var(--accent));
+            opacity: 0; transition: opacity .3s ease;
         }
-        .service-card h3,
-        .quick-card h3 { font-size: 1.04rem; margin-bottom: 8px; }
-        .tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 16px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--accent-light);
-            background: rgba(192,150,92,0.12);
+        .bento-card:hover::before { opacity: 1; }
+
+        /* Bento layout — featured items larger */
+        .bento-featured { grid-column: span 8; min-height: 260px; }
+        .bento-side { grid-column: span 4; min-height: 220px; }
+        .bento-third { grid-column: span 4; min-height: 200px; }
+        .bento-half { grid-column: span 6; min-height: 200px; }
+
+        .card-icon {
+            width: 56px; height: 56px; border-radius: 16px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; margin-bottom: 18px;
+            background: color-mix(in srgb, var(--card-accent, var(--accent)) 12%, transparent);
+            color: var(--card-accent, var(--accent));
+            transition: transform .3s ease;
         }
-        .signed-home { display: none; }
-        .signed-shell { padding: 70px 0 34px; }
-        .signed-hero {
-            padding: 30px;
+        .bento-card:hover .card-icon { transform: scale(1.08); }
+
+        .card-title {
+            font-size: 1.2rem; font-weight: 800;
+            letter-spacing: -0.02em; margin-bottom: 8px;
+        }
+        .card-desc {
+            color: var(--text-secondary); font-size: 0.9rem;
+            line-height: 1.65; flex: 1;
+        }
+        .card-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 16px; padding: 6px 12px; border-radius: 999px;
+            font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--card-accent, var(--accent-light));
+            background: color-mix(in srgb, var(--card-accent, var(--accent)) 10%, transparent);
+        }
+
+        /* Card-specific accent glow */
+        .bento-card .card-glow {
+            position: absolute; border-radius: 50%;
+            width: 200px; height: 200px; right: -40px; bottom: -60px;
+            background: radial-gradient(circle, color-mix(in srgb, var(--card-accent, var(--accent)) 15%, transparent), transparent 70%);
+            pointer-events: none; opacity: 0; transition: opacity .4s ease;
+        }
+        .bento-card:hover .card-glow { opacity: 1; }
+
+        /* ─── How it works ─── */
+        .how-it-works { padding: 60px 0; }
+        .steps {
             display: grid;
-            grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.8fr);
-            gap: 22px;
-            align-items: center;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px; margin-top: 8px;
         }
-        .signed-title h2 {
-            font-size: clamp(2rem, 4vw, 3rem);
-            margin-bottom: 10px;
+        .step {
+            text-align: center; padding: 32px 24px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); backdrop-filter: blur(12px);
+            transition: all .3s ease;
         }
-        .signed-actions { display: flex; flex-direction: column; gap: 12px; }
-        .signed-actions .btn { width: 100%; }
-        .metric strong { display: block; font-size: 1.65rem; margin-bottom: 6px; }
-        footer { padding: 34px 0 46px; color: var(--text-muted); }
+        .step:hover { transform: translateY(-3px); border-color: rgba(192,150,92,0.25); }
+        .step-num {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1rem; font-weight: 800; margin-bottom: 16px;
+            background: linear-gradient(135deg, rgba(192,150,92,0.2), rgba(192,150,92,0.05));
+            color: var(--accent-light); border: 1px solid rgba(192,150,92,0.2);
+        }
+        .step h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+        .step p { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+
+        /* ─── Features grid ─── */
+        .features { padding: 60px 0; }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .feature {
+            display: flex; gap: 16px; align-items: start;
+            padding: 22px; border-radius: var(--radius-sm);
+            background: var(--bg-card); border: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            transition: all .25s ease;
+        }
+        .feature:hover { border-color: rgba(192,150,92,0.25); transform: translateY(-2px); }
+        .feature-icon {
+            width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, rgba(192,150,92,0.15), rgba(99,102,241,0.1));
+            color: var(--accent-light);
+        }
+        .feature h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 4px; }
+        .feature p { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.55; }
+
+        /* ─── CTA banner ─── */
+        .cta-banner {
+            margin: 40px 0 60px;
+            padding: 48px 32px; text-align: center;
+            background: linear-gradient(135deg, rgba(192,150,92,0.08), rgba(99,102,241,0.06));
+            border: 1px solid rgba(192,150,92,0.15);
+            border-radius: var(--radius);
+            position: relative; overflow: hidden;
+        }
+        .cta-banner::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(ellipse at center, rgba(192,150,92,0.12), transparent 70%);
+            pointer-events: none;
+        }
+        .cta-banner h2 {
+            font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800;
+            margin-bottom: 12px; position: relative;
+        }
+        .cta-banner p {
+            color: var(--text-secondary); margin-bottom: 24px;
+            max-width: 480px; margin-left: auto; margin-right: auto;
+            position: relative; font-size: 1rem; line-height: 1.65;
+        }
+        .cta-banner .btn { position: relative; }
+
+        /* ─── Signed-in variant ─── */
+        .signed-home { display: none; }
+        .signed-hero {
+            padding: 90px 0 40px; text-align: center;
+        }
+        .signed-hero h1 {
+            font-size: clamp(2rem, 4.5vw, 3.4rem);
+            font-weight: 900; letter-spacing: -0.04em; margin-bottom: 14px;
+        }
+        .signed-hero p {
+            color: var(--text-secondary); font-size: 1.1rem; max-width: 520px; margin: 0 auto 28px;
+        }
+        .signed-actions {
+            display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+        }
+        .quick-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px; padding: 40px 0;
+        }
+        .quick-card {
+            display: flex; align-items: center; gap: 16px;
+            padding: 20px; border-radius: var(--radius-sm);
+            background: var(--bg-card); border: 1px solid var(--border);
+            backdrop-filter: blur(12px); transition: all .25s ease;
+        }
+        .quick-card:hover { border-color: rgba(192,150,92,0.3); transform: translateY(-2px); }
+        .quick-icon {
+            width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem;
+            background: linear-gradient(135deg, rgba(192,150,92,0.15), rgba(99,102,241,0.1));
+            color: var(--accent-light);
+        }
+        .quick-card h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 2px; }
+        .quick-card p { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.45; }
+
+        /* ─── Footer ─── */
+        footer {
+            padding: 40px 0 52px; color: var(--text-muted); font-size: 0.88rem;
+        }
         .footer-inner {
-            border-top: 1px solid var(--border);
-            padding-top: 22px;
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
-            flex-wrap: wrap;
-            font-size: 0.92rem;
+            border-top: 1px solid var(--border); padding-top: 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 18px; flex-wrap: wrap;
         }
-        .footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+        .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+        .footer-links a { transition: color .2s; }
         .footer-links a:hover { color: var(--accent-light); }
+
+        /* ─── Scroll animations ─── */
+        .reveal {
+            opacity: 0; transform: translateY(24px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+
+        /* ─── Responsive ─── */
         @media (max-width: 920px) {
-            .hero-grid,
-            .signed-hero,
-            .connected-grid { grid-template-columns: 1fr; }
+            .bento-featured, .bento-side, .bento-third, .bento-half {
+                grid-column: span 6;
+            }
+            .stats-ribbon { gap: 32px; }
         }
         @media (max-width: 640px) {
-            .shell { width: min(100% - 22px, 1200px); }
-            .hero { padding-top: 56px; }
-            .hero-card,
-            .panel,
-            .service-card,
-            .quick-card,
-            .metric,
-            .signed-hero,
-            .trust-item { padding: 18px; }
-            .cta-row .btn { width: 100%; }
-            .footer-inner { flex-direction: column; }
+            .shell { width: min(100% - 24px, 1200px); }
+            .hero { padding: 72px 0 40px; }
+            .bento-featured, .bento-side, .bento-third, .bento-half {
+                grid-column: span 12;
+            }
+            .hero-cta { flex-direction: column; align-items: center; }
+            .hero-cta .btn { width: 100%; max-width: 320px; }
+            .stats-ribbon { gap: 24px; }
+            .footer-inner { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
 <body>
-    <main>
+    <div class="bg-glow"></div>
+
+    <div class="page-content">
+        <!-- ════════ GUEST HOME ════════ -->
         <section class="guest-home" id="guest-home">
+
+            <!-- Hero -->
             <div class="shell hero">
-                <div class="hero-grid">
-                    <div class="hero-card">
-                        <div class="eyebrow"><i class="fa-solid fa-campground"></i> Hobo Network Hub</div>
-                        <h1>One account for every Hobo service.</h1>
-                        <p class="hero-copy">Use one identity across streaming, maps, utilities, and community tools. Manage your profile, themes, notifications, and linked services from one place instead of bouncing between separate logins.</p>
-                        <div class="cta-row">
-                            <a href="/login" class="btn btn-primary">Create Account</a>
-                            <a href="/login" class="btn btn-secondary">Sign In</a>
-                            <a href="https://my.hobo.tools" class="btn btn-secondary">My Account</a>
-                        </div>
-                        <div class="hero-pills">
-                            <span class="pill"><i class="fa-solid fa-tower-broadcast"></i> HoboStreamer profile + channel access</span>
-                            <span class="pill"><i class="fa-solid fa-map"></i> Shared maps and camp tools</span>
-                            <span class="pill"><i class="fa-solid fa-bell"></i> Unified notifications and settings</span>
-                        </div>
-                    </div>
-                    <aside class="panel">
-                        <h2>What you get right away</h2>
-                        <div class="trust-grid">
-                            <div class="trust-item">
-                                <strong>Connected identity</strong>
-                                <p>Your display, avatar, and account data stay in sync across the network.</p>
-                            </div>
-                            <div class="trust-item">
-                                <strong>Account control</strong>
-                                <p>Manage linked services, notification settings, and session details from one dashboard.</p>
-                            </div>
-                            <div class="trust-item">
-                                <strong>Staff workflow</strong>
-                                <p>Centralized admin and moderation tools now live here instead of being split across sites.</p>
-                            </div>
-                        </div>
-                    </aside>
+                <div class="hero-badge"><i class="fa-solid fa-campground"></i> The Hobo Network</div>
+                <h1>One account.<br><span class="gradient-text">Every Hobo service.</span></h1>
+                <p class="hero-sub">Streaming, survival maps, food&nbsp;resources, image&nbsp;tools, video&nbsp;downloads, RPG&nbsp;questing, and more — all connected under one identity.</p>
+                <div class="hero-cta">
+                    <a href="/login" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Create Free Account</a>
+                    <a href="/login" class="btn btn-ghost"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
+                </div>
+                <div class="stats-ribbon">
+                    <div class="stat"><span class="stat-number">7</span><span class="stat-label">Services</span></div>
+                    <div class="stat"><span class="stat-number">20+</span><span class="stat-label">Tools</span></div>
+                    <div class="stat"><span class="stat-number">34</span><span class="stat-label">Themes</span></div>
+                    <div class="stat"><span class="stat-number">100%</span><span class="stat-label">Free</span></div>
                 </div>
             </div>
-            <section class="section">
+
+            <!-- Services — Bento Grid -->
+            <section class="services">
                 <div class="shell">
-                    <div class="section-header">
-                        <div>
-                            <h2>The network</h2>
-                            <p>Everything is connected, but each service keeps its own personality.</p>
-                        </div>
+                    <div class="section-title reveal">
+                        <h2>Everything in the network</h2>
+                        <p>Each service has its own personality, but they all share your account, themes, and settings.</p>
                     </div>
-                    <div class="service-grid">
-                        <a class="service-card" href="https://hobostreamer.com" target="_blank" rel="noopener">
-                            <div class="service-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
-                            <h3>HoboStreamer</h3>
-                            <p>Go live, clip moments, browse VODs, and hang out with the community in real time.</p>
-                            <span class="tag">Streaming</span>
+
+                    <div class="bento">
+                        <!-- HoboStreamer — featured -->
+                        <a class="bento-card bento-featured reveal" href="https://hobostreamer.com" target="_blank" rel="noopener" style="--card-accent: #e74c3c;">
+                            <div class="card-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
+                            <div class="card-title">HoboStreamer</div>
+                            <div class="card-desc">Go live from your browser or OBS. Stream to your channel, clip moments, save VODs, and hang out in real-time chat with the community. Zero cost, no partner program gatekeeping.</div>
+                            <span class="card-tag"><i class="fa-solid fa-circle" style="font-size:6px"></i> Live Streaming</span>
+                            <div class="card-glow"></div>
                         </a>
-                        <a class="service-card" href="https://hobo.quest" target="_blank" rel="noopener">
-                            <div class="service-icon"><i class="fa-solid fa-shield-halved"></i></div>
-                            <h3>HoboQuest</h3>
-                            <p>Level up, battle, craft, and contribute to the collaborative canvas with the same account.</p>
-                            <span class="tag">Game + Canvas</span>
+
+                        <!-- HoboQuest -->
+                        <a class="bento-card bento-side reveal reveal-delay-1" href="https://hobo.quest" target="_blank" rel="noopener" style="--card-accent: #8b5cf6;">
+                            <div class="card-icon"><i class="fa-solid fa-hat-wizard"></i></div>
+                            <div class="card-title">HoboQuest</div>
+                            <div class="card-desc">Browser RPG with leveling, battles, crafting, a collaborative pixel canvas, and community games. All progress tied to your Hobo account.</div>
+                            <span class="card-tag"><i class="fa-solid fa-dragon"></i> Game + Canvas</span>
+                            <div class="card-glow"></div>
                         </a>
-                        <a class="service-card" href="https://maps.hobo.tools" target="_blank" rel="noopener">
-                            <div class="service-icon"><i class="fa-solid fa-map"></i></div>
-                            <h3>HoboMaps</h3>
-                            <p>Find camps, resources, shelters, and field intel with a map experience built for nomads.</p>
-                            <span class="tag">Maps</span>
+
+                        <!-- HoboMaps -->
+                        <a class="bento-card bento-third reveal" href="https://maps.hobo.tools" target="_blank" rel="noopener" style="--card-accent: #2ecc71;">
+                            <div class="card-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                            <div class="card-title">HoboMaps</div>
+                            <div class="card-desc">Survival map for North America — camps, free resources, rest areas, water, shelters, public restrooms, and wilderness data.</div>
+                            <span class="card-tag"><i class="fa-solid fa-compass"></i> Maps</span>
+                            <div class="card-glow"></div>
                         </a>
-                        <a class="service-card" href="https://dl.hobo.tools" target="_blank" rel="noopener">
-                            <div class="service-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-                            <h3>HoboTools</h3>
-                            <p>Grab utility workflows, download helpers, converters, and account-linked tools.</p>
-                            <span class="tag">Utilities</span>
+
+                        <!-- HoboFood -->
+                        <a class="bento-card bento-third reveal reveal-delay-1" href="https://food.hobo.tools" target="_blank" rel="noopener" style="--card-accent: #f59e0b;">
+                            <div class="card-icon"><i class="fa-solid fa-utensils"></i></div>
+                            <div class="card-title">HoboFood</div>
+                            <div class="card-desc">Find food banks and pantries nearby. Budget grocery planner and meal ideas for eating well on very little.</div>
+                            <span class="card-tag"><i class="fa-solid fa-seedling"></i> Food Resources</span>
+                            <div class="card-glow"></div>
+                        </a>
+
+                        <!-- HoboImg -->
+                        <a class="bento-card bento-third reveal reveal-delay-2" href="https://img.hobo.tools" target="_blank" rel="noopener" style="--card-accent: #3b82f6;">
+                            <div class="card-icon"><i class="fa-solid fa-images"></i></div>
+                            <div class="card-title">HoboImg</div>
+                            <div class="card-desc">Convert, compress, resize, and crop images in any format. 18 dedicated subdomains — one for each format and operation.</div>
+                            <span class="card-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Image Tools</span>
+                            <div class="card-glow"></div>
+                        </a>
+
+                        <!-- HoboYT — half -->
+                        <a class="bento-card bento-half reveal" href="https://yt.hobo.tools" target="_blank" rel="noopener" style="--card-accent: #ef4444;">
+                            <div class="card-icon"><i class="fa-solid fa-circle-play"></i></div>
+                            <div class="card-title">HoboYT</div>
+                            <div class="card-desc">Download YouTube videos and audio in multiple formats and qualities. Fast, no ads, no tracking. Paste a URL and go.</div>
+                            <span class="card-tag"><i class="fa-solid fa-download"></i> Video Downloads</span>
+                            <div class="card-glow"></div>
+                        </a>
+
+                        <!-- HoboTools -->
+                        <a class="bento-card bento-half reveal reveal-delay-1" href="https://my.hobo.tools" target="_blank" rel="noopener" style="--card-accent: #c0965c;">
+                            <div class="card-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                            <div class="card-title">HoboTools</div>
+                            <div class="card-desc">Your Hobo Network command center — manage your profile, pick from 34 themes, control notifications, link services, and administer accounts.</div>
+                            <span class="card-tag"><i class="fa-solid fa-sliders"></i> Account Hub</span>
+                            <div class="card-glow"></div>
                         </a>
                     </div>
                 </div>
             </section>
+
+            <!-- How it works -->
+            <section class="how-it-works">
+                <div class="shell">
+                    <div class="section-title reveal">
+                        <h2>How it works</h2>
+                        <p>One sign-in takes you everywhere.</p>
+                    </div>
+                    <div class="steps">
+                        <div class="step reveal">
+                            <div class="step-num">1</div>
+                            <h3>Create your account</h3>
+                            <p>Sign up once on hobo.tools. Pick a username, avatar, and theme.</p>
+                        </div>
+                        <div class="step reveal reveal-delay-1">
+                            <div class="step-num">2</div>
+                            <h3>Jump into any service</h3>
+                            <p>Open HoboStreamer, Maps, Quest, or any tool — you're already signed in.</p>
+                        </div>
+                        <div class="step reveal reveal-delay-2">
+                            <div class="step-num">3</div>
+                            <h3>Everything stays in sync</h3>
+                            <p>Your theme, profile, and settings follow you across the entire network.</p>
+                        </div>
+                        <div class="step reveal reveal-delay-3">
+                            <div class="step-num">4</div>
+                            <h3>Go anonymous anytime</h3>
+                            <p>Switch to an anonymous identity with one click. No data shared, instant swap.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features -->
+            <section class="features">
+                <div class="shell">
+                    <div class="section-title reveal">
+                        <h2>Built different</h2>
+                        <p>No subscriptions, no data harvesting, no corporate nonsense.</p>
+                    </div>
+                    <div class="feature-grid">
+                        <div class="feature reveal">
+                            <div class="feature-icon"><i class="fa-solid fa-palette"></i></div>
+                            <div>
+                                <h3>34 themes, everywhere</h3>
+                                <p>Pick Dracula, Nord, Catppuccin, or any of 34 themes. It follows you to every service.</p>
+                            </div>
+                        </div>
+                        <div class="feature reveal reveal-delay-1">
+                            <div class="feature-icon"><i class="fa-solid fa-user-secret"></i></div>
+                            <div>
+                                <h3>Anonymous mode</h3>
+                                <p>Browse and interact without revealing your identity. Switch between accounts instantly.</p>
+                            </div>
+                        </div>
+                        <div class="feature reveal reveal-delay-2">
+                            <div class="feature-icon"><i class="fa-solid fa-code-branch"></i></div>
+                            <div>
+                                <h3>Open source</h3>
+                                <p>Every service is open source on GitHub. Inspect it, fork it, contribute to it.</p>
+                            </div>
+                        </div>
+                        <div class="feature reveal">
+                            <div class="feature-icon"><i class="fa-solid fa-bell"></i></div>
+                            <div>
+                                <h3>Unified notifications</h3>
+                                <p>One notification center for streams going live, follows, and network activity.</p>
+                            </div>
+                        </div>
+                        <div class="feature reveal reveal-delay-1">
+                            <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                            <div>
+                                <h3>No tracking</h3>
+                                <p>No analytics scripts, no ad networks, no fingerprinting. Your data stays yours.</p>
+                            </div>
+                        </div>
+                        <div class="feature reveal reveal-delay-2">
+                            <div class="feature-icon"><i class="fa-solid fa-bolt"></i></div>
+                            <div>
+                                <h3>Fast and lightweight</h3>
+                                <p>No bloated JS frameworks. Plain HTML, minimal JS, instant page loads.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CTA -->
+            <div class="shell">
+                <div class="cta-banner reveal">
+                    <h2>Ready to join the network?</h2>
+                    <p>Create a free account and unlock every service instantly. No credit card, no spam, no strings attached.</p>
+                    <a href="/login" class="btn btn-primary"><i class="fa-solid fa-campground"></i> Get Started Free</a>
+                </div>
+            </div>
         </section>
+
+        <!-- ════════ SIGNED-IN HOME ════════ -->
         <section class="signed-home" id="signed-home">
-            <div class="shell signed-shell">
-                <div class="signed-hero panel">
-                    <div class="signed-title">
-                        <div class="eyebrow"><i class="fa-solid fa-campground"></i> Signed in</div>
-                        <h2 id="welcome-heading">Welcome back.</h2>
-                        <p id="welcome-copy">Your account is active across the Hobo Network. Jump straight into your dashboard, connected services, and account controls.</p>
-                    </div>
+            <div class="shell">
+                <div class="signed-hero">
+                    <div class="hero-badge"><i class="fa-solid fa-campground"></i> Signed In</div>
+                    <h1 id="welcome-heading">Welcome back.</h1>
+                    <p id="welcome-copy">Your account is active across the Hobo Network. Jump into any service below.</p>
                     <div class="signed-actions">
-                        <a href="https://my.hobo.tools" class="btn btn-primary">Open My Account</a>
-                        <a href="https://hobostreamer.com/dashboard" class="btn btn-secondary">Open Stream Dashboard</a>
-                        <button type="button" class="btn btn-secondary" onclick="signOut()">Sign Out</button>
+                        <a href="https://my.hobo.tools" class="btn btn-primary"><i class="fa-solid fa-user-circle"></i> My Account</a>
+                        <a href="https://hobostreamer.com" class="btn btn-ghost"><i class="fa-solid fa-tower-broadcast"></i> Go to Stream</a>
+                        <button type="button" class="btn btn-ghost" onclick="signOut()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
                     </div>
+                </div>
+
+                <div class="quick-grid">
+                    <a class="quick-card" href="https://my.hobo.tools">
+                        <div class="quick-icon"><i class="fa-solid fa-user-gear"></i></div>
+                        <div><h3>Account settings</h3><p>Profile, themes, linked services</p></div>
+                    </a>
+                    <a class="quick-card" href="https://hobostreamer.com/broadcast">
+                        <div class="quick-icon"><i class="fa-solid fa-video"></i></div>
+                        <div><h3>Start streaming</h3><p>Go live from your browser or OBS</p></div>
+                    </a>
+                    <a class="quick-card" href="https://maps.hobo.tools">
+                        <div class="quick-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                        <div><h3>Open maps</h3><p>Camps, resources, survival intel</p></div>
+                    </a>
+                    <a class="quick-card" href="https://food.hobo.tools">
+                        <div class="quick-icon"><i class="fa-solid fa-utensils"></i></div>
+                        <div><h3>Food resources</h3><p>Food banks, budget meals</p></div>
+                    </a>
+                    <a class="quick-card" href="https://img.hobo.tools">
+                        <div class="quick-icon"><i class="fa-solid fa-images"></i></div>
+                        <div><h3>Image tools</h3><p>Convert, compress, resize</p></div>
+                    </a>
+                    <a class="quick-card" href="https://yt.hobo.tools">
+                        <div class="quick-icon"><i class="fa-solid fa-circle-play"></i></div>
+                        <div><h3>Download video</h3><p>YouTube to MP4/MP3</p></div>
+                    </a>
+                    <a class="quick-card" href="https://hobo.quest">
+                        <div class="quick-icon"><i class="fa-solid fa-hat-wizard"></i></div>
+                        <div><h3>Play HoboQuest</h3><p>RPG, canvas, leaderboards</p></div>
+                    </a>
+                    <a class="quick-card" href="https://my.hobo.tools#notifications">
+                        <div class="quick-icon"><i class="fa-solid fa-bell"></i></div>
+                        <div><h3>Notifications</h3><p>Manage alerts across services</p></div>
+                    </a>
                 </div>
             </div>
-            <section class="section">
-                <div class="shell">
-                    <div class="section-header">
-                        <div>
-                            <h2>Quick actions</h2>
-                            <p>The most common places to continue after sign-in.</p>
-                        </div>
-                    </div>
-                    <div class="quick-grid">
-                        <a class="quick-card" href="https://my.hobo.tools">
-                            <div class="quick-icon"><i class="fa-solid fa-user"></i></div>
-                            <h3>Account center</h3>
-                            <p>Update profile info, switch accounts, and manage linked services.</p>
-                        </a>
-                        <a class="quick-card" href="https://my.hobo.tools#notifications">
-                            <div class="quick-icon"><i class="fa-solid fa-bell"></i></div>
-                            <h3>Notifications</h3>
-                            <p>Control alerts across streaming, network, and service activity.</p>
-                        </a>
-                        <a class="quick-card" href="https://hobostreamer.com/broadcast">
-                            <div class="quick-icon"><i class="fa-solid fa-video"></i></div>
-                            <h3>Start streaming</h3>
-                            <p>Go live in-browser or plug in your existing broadcast setup.</p>
-                        </a>
-                        <a class="quick-card" href="https://maps.hobo.tools">
-                            <div class="quick-icon"><i class="fa-solid fa-compass"></i></div>
-                            <h3>Open maps</h3>
-                            <p>Jump into route planning, camps, and field tools with the same session.</p>
-                        </a>
-                    </div>
-                </div>
-            </section>
-            <section class="section">
-                <div class="shell">
-                    <div class="section-header">
-                        <div>
-                            <h2>Connected experience</h2>
-                            <p>Your account follows you across the network so each service feels ready the second you arrive.</p>
-                        </div>
-                    </div>
-                    <div class="connected-grid">
-                        <div class="connected-hero">
-                            <div class="connected-copy">
-                                <h3>Sign in once. Everything feels already yours.</h3>
-                                <p>Open HoboStreamer, jump into HoboQuest, check maps, or tune your account center without redoing the same setup over and over. Your identity, look, and preferences stay with you.</p>
-                            </div>
-                            <div class="connected-points">
-                                <div class="connected-point">
-                                    <span class="icon"><i class="fa-solid fa-id-card"></i></span>
-                                    <div>
-                                        <strong>Shared identity</strong>
-                                        <p>Your name, avatar fallback, and account state stay consistent across the network.</p>
-                                    </div>
-                                </div>
-                                <div class="connected-point">
-                                    <span class="icon"><i class="fa-solid fa-palette"></i></span>
-                                    <div>
-                                        <strong>Theme + profile sync</strong>
-                                        <p>Pick your vibe once, then carry your style, settings, and profile details into compatible services.</p>
-                                    </div>
-                                </div>
-                                <div class="connected-point">
-                                    <span class="icon"><i class="fa-solid fa-bell"></i></span>
-                                    <div>
-                                        <strong>One control center</strong>
-                                        <p>Notifications, sessions, linked services, and staff tools all live in one cleaner home base.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="connected-cards">
-                            <div class="connected-card">
-                                <span class="eyebrow-mini">Fast jump-in</span>
-                                <h3>No reintroductions</h3>
-                                <p>Go from stream dashboard to game profile to maps with the same signed-in identity instead of bouncing through separate login walls.</p>
-                            </div>
-                            <div class="connected-card">
-                                <span class="eyebrow-mini">Built for the network</span>
-                                <h3>Less account friction</h3>
-                                <p>hobo.tools is the place where your network preferences live, so the rest of the ecosystem can feel lighter, faster, and more personal.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
         </section>
-    </main>
-    <footer>
-        <div class="shell footer-inner">
-            <p>&copy; 2026 Hobo Network. Open source on <a href="https://github.com/HoboStreamer" target="_blank" rel="noopener">GitHub</a>.</p>
-            <div class="footer-links">
-                <a href="https://hobostreamer.com">HoboStreamer</a>
-                <a href="https://hobo.quest">HoboQuest</a>
-                <a href="https://maps.hobo.tools">HoboMaps</a>
-                <a href="https://my.hobo.tools">My Account</a>
-                <a href="https://discord.gg/M6MuRUaeJj">Discord</a>
+
+        <!-- Footer (shared) -->
+        <footer>
+            <div class="shell footer-inner">
+                <p>&copy; 2026 Hobo Network. Open source on <a href="https://github.com/HoboStreamer" target="_blank" rel="noopener">GitHub</a>.</p>
+                <div class="footer-links">
+                    <a href="https://hobostreamer.com">HoboStreamer</a>
+                    <a href="https://hobo.quest">HoboQuest</a>
+                    <a href="https://maps.hobo.tools">HoboMaps</a>
+                    <a href="https://food.hobo.tools">HoboFood</a>
+                    <a href="https://img.hobo.tools">HoboImg</a>
+                    <a href="https://yt.hobo.tools">HoboYT</a>
+                    <a href="https://my.hobo.tools">My Account</a>
+                    <a href="https://discord.gg/M6MuRUaeJj">Discord</a>
+                </div>
             </div>
-        </div>
-    </footer>
+        </footer>
+    </div>
+
     <script src="/shared/theme-loader.js"></script>
     <script src="/shared/navbar.js"></script>
     <script src="/shared/notification-ui.js"></script>
@@ -600,16 +718,11 @@
                 const data = await response.json();
                 return {
                     ...(data.user || {}),
-                    id: 'anon',
-                    role: 'anon',
-                    email: null,
-                    avatar_url: null,
-                    is_anon: true,
+                    id: 'anon', role: 'anon', email: null, avatar_url: null, is_anon: true,
                 };
             }
             const response = await fetch('/api/auth/me', {
-                headers: { ...authHeaders() },
-                credentials: 'include',
+                headers: { ...authHeaders() }, credentials: 'include',
             });
             if (!response.ok) throw new Error('Not authenticated');
             const data = await response.json();
@@ -620,10 +733,10 @@
             setVisibility(true);
             if (user.is_anon) {
                 document.getElementById('welcome-heading').textContent = `Browsing as Anonymous #${user.anon_number || '?'}.`;
-                document.getElementById('welcome-copy').textContent = `You're using an anonymous Hobo identity. You can still switch accounts, keep your anon number, and later link it to a full account.`;
+                document.getElementById('welcome-copy').textContent = `You're using an anonymous Hobo identity. Switch accounts anytime or link to a full account later.`;
             } else {
                 document.getElementById('welcome-heading').textContent = `Welcome back, ${user.display_name || user.username}.`;
-                document.getElementById('welcome-copy').textContent = `You're signed in to the Hobo Network. Your account, linked services, and notification settings are all ready to go.`;
+                document.getElementById('welcome-copy').textContent = `You're signed in to the Hobo Network. Jump into any service — everything is in sync.`;
             }
             initNavbar(user);
         }
@@ -644,16 +757,21 @@
             window.location.href = '/';
         }
 
-        async function init() {
+        // Scroll reveal
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Init
+        (async () => {
             try {
                 const user = await fetchCurrentUser();
                 setSignedIn(user);
             } catch {
                 setSignedOut();
             }
-        }
-
-        init();
+        })();
     </script>
 </body>
 </html>
