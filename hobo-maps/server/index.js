@@ -23,10 +23,10 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "static.cloudflareinsights.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "image.tmdb.org", "*.wp.com"],
-      connectSrc: ["'self'", "nominatim.openstreetmap.org", "api.weather.gov", "api.open-meteo.com"],
+      connectSrc: ["'self'", "nominatim.openstreetmap.org", "api.weather.gov", "api.open-meteo.com", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com"],
       fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
       frameSrc: ["'none'"],
     },
@@ -123,7 +123,7 @@ app.get('/api/search', async (req, res) => {
     { name: 'iOverlander', fn: () => ioverlander.search(lat, lon, radius) },
     { name: 'Built-in DB', fn: () => Promise.resolve(staticData.search(lat, lon, radius)) },
     { name: 'Bridges', fn: () => bridges.findBridges(lat, lon, radius) },
-    { name: 'Bathrooms', fn: () => bathrooms.search(lat, lon, radius) },
+    { name: 'Bathrooms', fn: () => bathrooms.findAllBathrooms(lat, lon, radius * 1609.34) },
     { name: 'Resources', fn: () => resources.findResources(lat, lon, radius) },
     { name: 'USFS', fn: () => usfs.search(lat, lon, radius) },
     { name: 'Woods', fn: () => woods.findWoods(lat, lon, radius) },
@@ -190,6 +190,12 @@ app.get('/api/search', async (req, res) => {
           type: hr.typeLabel || 'Harm Reduction',
         })));
         results.sourceMeta['Harm Reduction'] = { count: data.services.length };
+      } else if (name === 'Bathrooms' && data?.bathrooms) {
+        results.locations.push(...data.bathrooms.map(b => ({
+          ...b, source: 'Bathrooms', sourceIcon: 'fa-restroom',
+          type: b.type || 'Bathroom',
+        })));
+        results.sourceMeta.Bathrooms = { count: data.bathrooms.length };
       } else if (Array.isArray(data)) {
         results.locations.push(...data);
         results.sourceMeta[name] = { count: data.length };
