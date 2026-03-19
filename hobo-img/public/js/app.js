@@ -57,6 +57,7 @@
 
         applyBranding();
         initNavbar();
+        initNotifications();
         initToolTabs();
         initUpload();
         initOptions();
@@ -126,6 +127,26 @@
                 user: ctx?.user || user,
                 apiBase: 'https://hobo.tools',
             });
+        }
+    }
+
+    // ── Notifications (Hobo Network bell + toasts) ───────────
+    function initNotifications() {
+        const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+        if (typeof HoboNotifications === 'undefined') return;
+
+        HoboNotifications.init({
+            token: token || null,
+            apiBase: 'https://hobo.tools',
+        });
+
+        // Mount bell into navbar if available
+        if (typeof HoboNavbar !== 'undefined') {
+            const mount = HoboNavbar.getBellMount();
+            if (mount) {
+                const bell = HoboNotifications.createBell();
+                if (bell) mount.appendChild(bell);
+            }
         }
     }
 

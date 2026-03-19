@@ -54,6 +54,8 @@
         }
 
         applyBranding();
+        initNavbar();
+        initNotifications();
         initToolTabs();
         initUpload();
         initOptions();
@@ -90,6 +92,49 @@
         if (ctx.toolId && ctx.toolId !== 'hub') {
             toolTabs.style.display = 'none';
             subdomains.style.display = 'none';
+        }
+    }
+
+    /* ---------- Navbar (Hobo Network unified bar) ---------- */
+    function initNavbar() {
+        const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+        let user = null;
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                user = payload;
+            } catch { /* invalid token */ }
+        }
+
+        if (typeof HoboNavbar !== 'undefined') {
+            HoboNavbar.init({
+                service: 'hoboaudio',
+                brandName: ctx?.brandName || undefined,
+                brandIcon: ctx?.faIcon || undefined,
+                token,
+                user: ctx?.user || user,
+                apiBase: 'https://hobo.tools',
+            });
+        }
+    }
+
+    /* ---------- Notifications (Hobo Network bell + toasts) ---------- */
+    function initNotifications() {
+        const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+        if (typeof HoboNotifications === 'undefined') return;
+
+        HoboNotifications.init({
+            token: token || null,
+            apiBase: 'https://hobo.tools',
+        });
+
+        // Mount bell into navbar if available
+        if (typeof HoboNavbar !== 'undefined') {
+            const mount = HoboNavbar.getBellMount();
+            if (mount) {
+                const bell = HoboNotifications.createBell();
+                if (bell) mount.appendChild(bell);
+            }
         }
     }
 
@@ -477,6 +522,11 @@
     }
 
     /* ---------- Utilities ---------- */
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
     function formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';

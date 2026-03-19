@@ -18,7 +18,7 @@ const { optionalAuth } = require('./auth');
 const { resolveContext } = require('./domain-map');
 const { getTool, listTools } = require('./tools');
 const { uploadSingle } = require('./middleware/upload');
-const { apiLimiter, processLimiter } = require('./middleware/rate-limit');
+const { apiLimiter, processLimiter, burstLimiter } = require('./middleware/rate-limit');
 const retention = require('./retention/manager');
 
 const app = express();
@@ -97,7 +97,7 @@ app.get('/api/tools', (_req, res) => {
 });
 
 // ── Main Processing Endpoint ─────────────────────────────────
-app.post('/api/process', processLimiter, uploadSingle, async (req, res) => {
+app.post('/api/process', burstLimiter, processLimiter, uploadSingle, async (req, res) => {
     try {
         const toolId = req.body.tool || req.ctx.defaultOp || 'convert';
         const tool = getTool(toolId);
@@ -154,7 +154,7 @@ app.post('/api/process', processLimiter, uploadSingle, async (req, res) => {
 });
 
 // ── Direct Download (inline preview) ─────────────────────────
-app.post('/api/process/direct', processLimiter, uploadSingle, async (req, res) => {
+app.post('/api/process/direct', burstLimiter, processLimiter, uploadSingle, async (req, res) => {
     try {
         const toolId = req.body.tool || req.ctx.defaultOp || 'convert';
         const tool = getTool(toolId);

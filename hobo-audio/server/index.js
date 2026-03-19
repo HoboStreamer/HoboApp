@@ -19,7 +19,7 @@ const { resolveContext } = require('./domain-map');
 const { getTool, listTools } = require('./tools');
 const { readMetadata } = require('./tools/metadata');
 const { uploadSingle, uploadMultiple } = require('./middleware/upload');
-const { apiLimiter, processLimiter } = require('./middleware/rate-limit');
+const { apiLimiter, processLimiter, burstLimiter } = require('./middleware/rate-limit');
 const retention = require('./retention/manager');
 const { probe, getDuration, cleanTmp } = require('./tools/ffmpeg-helper');
 
@@ -99,7 +99,7 @@ app.get('/api/tools', (_req, res) => {
 });
 
 // ── Probe / Metadata Endpoint ────────────────────────────────
-app.post('/api/probe', processLimiter, uploadSingle, async (req, res) => {
+app.post('/api/probe', burstLimiter, processLimiter, uploadSingle, async (req, res) => {
     try {
         const info = await probe(req.file.path);
         const meta = await readMetadata(req.file.path);
@@ -112,7 +112,7 @@ app.post('/api/probe', processLimiter, uploadSingle, async (req, res) => {
 });
 
 // ── Main Processing Endpoint ─────────────────────────────────
-app.post('/api/process', processLimiter, uploadSingle, async (req, res) => {
+app.post('/api/process', burstLimiter, processLimiter, uploadSingle, async (req, res) => {
     try {
         const toolId = req.body.tool || req.ctx.defaultOp || 'convert';
         const tool = getTool(toolId);

@@ -129,12 +129,14 @@
         hobostreamer: 'HoboStreamer', hoboquest: 'HoboQuest',
         hobotools: 'HoboTools', hobomaps: 'HoboMaps',
         hobofood: 'HoboFood', hoboimg: 'HoboImg', hoboyt: 'HoboYT',
+        hoboaudio: 'HoboAudio',
     };
 
     const SERVICE_ICONS = {
         hobostreamer: 'fa-tower-broadcast', hoboquest: 'fa-hat-wizard',
         hobotools: 'fa-screwdriver-wrench', hobomaps: 'fa-map-location-dot',
         hobofood: 'fa-utensils', hoboimg: 'fa-images', hoboyt: 'fa-circle-play',
+        hoboaudio: 'fa-headphones',
     };
 
     // Subdomain → brand override for multi-subdomain services (HoboImg)
@@ -159,6 +161,31 @@
         'yt.hobo.tools':       { name: 'HoboYT',        icon: 'fa-circle-play' },
         'maps.hobo.tools':     { name: 'HoboMaps',      icon: 'fa-map-location-dot' },
         'food.hobo.tools':     { name: 'HoboFood',      icon: 'fa-utensils' },
+        // Audio tool subdomains
+        'audio.hobo.tools':    { name: 'HoboAudio',     icon: 'fa-headphones' },
+        'mp3.hobo.tools':      { name: 'HoboMP3',       icon: 'fa-file-audio' },
+        'wav.hobo.tools':      { name: 'HoboWAV',       icon: 'fa-file-audio' },
+        'flac.hobo.tools':     { name: 'HoboFLAC',      icon: 'fa-file-audio' },
+        'ogg.hobo.tools':      { name: 'HoboOGG',       icon: 'fa-file-audio' },
+        'm4a.hobo.tools':      { name: 'HoboM4A',       icon: 'fa-file-audio' },
+        'aac.hobo.tools':      { name: 'HoboAAC',       icon: 'fa-file-audio' },
+        'opus.hobo.tools':     { name: 'HoboOPUS',      icon: 'fa-file-audio' },
+        'wma.hobo.tools':      { name: 'HoboWMA',       icon: 'fa-file-audio' },
+        'aiff.hobo.tools':     { name: 'HoboAIFF',      icon: 'fa-file-audio' },
+        'ac3.hobo.tools':      { name: 'HoboAC3',       icon: 'fa-file-audio' },
+        'trim.hobo.tools':     { name: 'HoboTrim',      icon: 'fa-scissors' },
+        'pitch.hobo.tools':    { name: 'HoboPitch',     icon: 'fa-wave-square' },
+        'speed.hobo.tools':    { name: 'HoboSpeed',     icon: 'fa-gauge-high' },
+        'reverse.hobo.tools':  { name: 'HoboReverse',   icon: 'fa-backward' },
+        'normalize.hobo.tools':{ name: 'HoboNormalize', icon: 'fa-sliders' },
+        'fade.hobo.tools':     { name: 'HoboFade',      icon: 'fa-volume-low' },
+        'bass.hobo.tools':     { name: 'HoboBass',      icon: 'fa-volume-high' },
+        'equalizer.hobo.tools':{ name: 'HoboEQ',        icon: 'fa-bars-staggered' },
+        'echo.hobo.tools':     { name: 'HoboEcho',      icon: 'fa-tower-broadcast' },
+        'reverb.hobo.tools':   { name: 'HoboReverb',    icon: 'fa-church' },
+        'voice.hobo.tools':    { name: 'HoboVoiceFX',   icon: 'fa-user-astronaut' },
+        'extract.hobo.tools':  { name: 'HoboExtract',   icon: 'fa-music' },
+        'ringtone.hobo.tools': { name: 'HoboRingtone',  icon: 'fa-bell' },
     };
 
     const SERVICE_LINKS = {
@@ -193,6 +220,12 @@
         ],
         hoboyt: [
             { label: 'Download', href: '/' },
+        ],
+        hoboaudio: [
+            { label: 'Convert', href: 'https://audio.hobo.tools' },
+            { label: 'Trim', href: 'https://trim.hobo.tools' },
+            { label: 'Pitch', href: 'https://pitch.hobo.tools' },
+            { label: 'Reverb', href: 'https://reverb.hobo.tools' },
         ],
     };
 
