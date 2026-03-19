@@ -278,6 +278,63 @@ textarea.large {
 }
 
 /* ── Output cards (fancy text results) ─────────────────────── */
+
+/* ── Live Input Indicator & Generate Button ────────────────── */
+.live-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 10px;
+    user-select: none;
+    transition: opacity var(--transition);
+}
+
+.live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+    animation: livePulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+}
+
+.generate-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 2px;
+    margin-bottom: -8px;
+}
+
+.generate-btn {
+    font-size: 0.88rem;
+    padding: 10px 24px;
+    gap: 6px;
+}
+
+.generate-btn i {
+    font-size: 0.82rem;
+}
+
+/* Brief highlight flash on the output area when Generate is clicked */
+.output-flash {
+    animation: outputFlash 0.6s ease;
+}
+
+@keyframes outputFlash {
+    0%   { box-shadow: none; }
+    30%  { box-shadow: 0 0 0 2px var(--accent-glow), 0 0 20px var(--accent-glow); }
+    100% { box-shadow: none; }
+}
+
 .output-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

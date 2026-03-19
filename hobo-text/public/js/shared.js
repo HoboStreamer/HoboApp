@@ -132,12 +132,75 @@ async function shareText(text, title = 'HoboText') {
 // ── Common page init ─────────────────────────────────────────
 // Called on every page to set up keyboard shortcuts, etc.
 function initPage() {
-    // Ctrl+Enter to focus input
+    // "/" key focuses input (when not already in a field)
     document.addEventListener('keydown', (e) => {
         if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
             e.preventDefault();
             const input = document.querySelector('textarea, input[type="text"]');
             if (input) input.focus();
+        }
+    });
+
+    // ── Auto-inject UX affordances for live-updating tools ──
+    // Detects tools with textarea/input + output-grid/output area and adds:
+    //   1. A "⚡ Results update as you type" live indicator
+    //   2. A visible "Generate" button for users who expect one
+    //   3. Enter key support for single-line <input> fields
+    const mainInput = document.querySelector('#input, .tool-section textarea, .tool-section input[type="text"]');
+    const outputArea = document.querySelector('#output, .output-grid, .output-section, #result, .result');
+    if (!mainInput || !outputArea) return; // not a text-tool page (picker, hub, etc.)
+
+    // Skip pages that already have their own action buttons (sort, bio, nickname, etc.)
+    const existingBtns = mainInput.closest('.tool-section')?.querySelectorAll('.btn-primary, .btn[data-action]');
+    if (existingBtns && existingBtns.length > 0) return;
+
+    const inputGroup = mainInput.closest('.input-group') || mainInput.parentElement;
+
+    // 1. Live indicator hint
+    if (!document.querySelector('.live-hint')) {
+        const hint = document.createElement('div');
+        hint.className = 'live-hint';
+        hint.innerHTML = '<span class="live-dot"></span> Results update as you type';
+        inputGroup.appendChild(hint);
+    }
+
+    // 2. Generate button (triggers existing input event listeners)
+    if (!document.querySelector('.generate-btn')) {
+        const btnRow = document.createElement('div');
+        btnRow.className = 'generate-row';
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary generate-btn';
+        btn.innerHTML = '<i class="fas fa-bolt"></i> Generate';
+        btn.addEventListener('click', () => {
+            mainInput.dispatchEvent(new Event('input', { bubbles: true }));
+            mainInput.focus();
+            // Brief flash on the output area to draw attention
+            outputArea.classList.add('output-flash');
+            setTimeout(() => outputArea.classList.remove('output-flash'), 600);
+        });
+        btnRow.appendChild(btn);
+        inputGroup.after(btnRow);
+    }
+
+    // 3. Enter key support for single-line <input> fields
+    if (mainInput.tagName === 'INPUT') {
+        mainInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                mainInput.dispatchEvent(new Event('input', { bubbles: true }));
+                outputArea.classList.add('output-flash');
+                setTimeout(() => outputArea.classList.remove('output-flash'), 600);
+            }
+        });
+    }
+
+    // 4. Flash output on first meaningful input change to draw attention
+    let hasFlashed = false;
+    mainInput.addEventListener('input', () => {
+        if (!hasFlashed && mainInput.value.trim().length > 0) {
+            hasFlashed = true;
+            outputArea.classList.add('output-flash');
+            setTimeout(() => outputArea.classList.remove('output-flash'), 600);
         }
     });
 }
