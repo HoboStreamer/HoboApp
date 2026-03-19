@@ -1,14 +1,14 @@
 /* HoboYT — Free YouTube Downloader */
 
 :root {
-    --bg:        #0e0e12;
+    --bg:        var(--bg-primary, #0e0e12);
     --bg-card:   #16161d;
     --bg-input:  #1e1e28;
     --border:    #2a2a38;
-    --text:      #e4e4ef;
-    --text-dim:  #8888a0;
+    --text:      var(--text-primary, #e4e4ef);
+    --text-dim:  var(--text-secondary, #8888a0);
     --accent:    #ff4444;
-    --accent-hover: #ff6666;
+    --accent-hover: var(--accent-light, #ff6666);
     --accent-glow: rgba(255, 68, 68, 0.25);
     --green:     #44cc66;
     --green-glow: rgba(68, 204, 102, 0.25);

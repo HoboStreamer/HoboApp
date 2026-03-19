@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -164,6 +164,7 @@
 
   <script src="/shared/theme-loader.js"></script>
   <script src="/shared/navbar.js"></script>
+  <script src="/shared/notification-ui.js"></script>
   <script src="/shared/account-switcher.js"></script>
   <script src="/js/app.js"></script>
   <script>
@@ -180,6 +181,13 @@
       }
       if (typeof HoboAccountSwitcher !== 'undefined') {
           HoboAccountSwitcher.init({ apiBase: 'https://hobo.tools' });
+      }
+      if (typeof HoboNotifications !== 'undefined' && token) {
+          HoboNotifications.init({ token, apiBase: 'https://hobo.tools' });
+          if (typeof HoboNavbar !== 'undefined') {
+              var mount = HoboNavbar.getBellMount();
+              if (mount) { var bell = HoboNotifications.createBell(); if (bell) mount.appendChild(bell); }
+          }
       }
   })();
   </script>

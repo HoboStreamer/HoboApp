@@ -15,10 +15,10 @@
     --text-secondary: #9e9bab;
     --text-muted:   #6b687a;
     --accent:       #c0965c;
-    --accent-hover: #d4aa70;
+    --accent-hover: var(--accent-light, #d4aa70);
     --accent-glow:  rgba(192, 150, 92, .25);
     --success:      #5cb85c;
-    --error:        #d9534f;
+    --error:        var(--danger, #d9534f);
     --border:       #33334a;
     --radius:       10px;
     --radius-sm:    6px;

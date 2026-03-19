@@ -204,8 +204,7 @@
   // ═══ Map ═══
   function loadMap() {
     if (!state.foodMap) {
-      const theme = document.documentElement.getAttribute('data-theme');
-      const tiles = theme === 'light'
+      const tiles = isLightTheme()
         ? L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OSM' })
         : L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; CARTO' });
       state.foodMap = L.map('food-map', { center: [44, -103], zoom: 4, layers: [tiles] });
@@ -219,12 +218,25 @@
   }
 
   // ═══ Theme ═══
+  function isLightTheme() {
+    if (typeof HoboThemeLoader !== 'undefined') {
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
+      if (bg && bg.startsWith('#') && bg.length >= 7) {
+        const r = parseInt(bg.substr(1, 2), 16), g = parseInt(bg.substr(3, 2), 16), b = parseInt(bg.substr(5, 2), 16);
+        return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+      }
+    }
+    return false;
+  }
+
   function toggleTheme() {
-    const html = document.documentElement;
-    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('hf_theme', next);
-    $('#btn-theme').querySelector('i').className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    if (typeof HoboThemeLoader !== 'undefined') {
+      const next = isLightTheme() ? 'campfire' : 'daylight';
+      HoboThemeLoader.apply(next);
+      HoboThemeLoader.save(next);
+    }
+    const icon = $('#btn-theme')?.querySelector('i');
+    if (icon) icon.className = isLightTheme() ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
   }
 
   // ═══ Events ═══
@@ -273,13 +285,10 @@
 
   // ═══ Init ═══
   function init() {
-    const savedTheme = localStorage.getItem('hf_theme');
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      if (savedTheme === 'light') {
-        const icon = $('#btn-theme')?.querySelector('i');
-        if (icon) icon.className = 'fa-solid fa-sun';
-      }
+    // Theme icon reflects current theme-loader state
+    if (isLightTheme()) {
+      const icon = $('#btn-theme')?.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-sun';
     }
     bindEvents();
   }

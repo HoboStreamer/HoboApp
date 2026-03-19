@@ -56,6 +56,7 @@
         applyBranding();
         initNavbar();
         initNotifications();
+        if (typeof HoboAccountSwitcher !== 'undefined') HoboAccountSwitcher.init({ apiBase: 'https://hobo.tools' });
         initToolTabs();
         initUpload();
         initOptions();

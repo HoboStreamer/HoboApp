@@ -33,10 +33,15 @@
     const retryBtn      = $('#retry-btn');
 
     // --- Auth ---
+    function getCookie(name) {
+        const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+
     function getAuthHeaders() {
         const h = { 'Content-Type': 'application/json' };
-        const m = document.cookie.match(/(?:^|;\s*)hobo_token=([^;]+)/);
-        if (m) h['Authorization'] = `Bearer ${m[1]}`;
+        const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+        if (token) h['Authorization'] = `Bearer ${token}`;
         return h;
     }
 
@@ -355,10 +360,46 @@
     retryBtn.addEventListener('click', reset);
 
     // --- Init ---
-    function init() {
-        if (typeof HoboNavbar !== 'undefined') {
-            HoboNavbar.init({ service: 'hoboyt' });
+    function initNavbar() {
+        const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+        let user = null;
+        if (token) {
+            try { user = JSON.parse(atob(token.split('.')[1])); } catch {}
         }
+        if (typeof HoboNavbar !== 'undefined') {
+            HoboNavbar.init({
+                service: 'hoboyt',
+                brandName: 'HoboYT',
+                brandIcon: 'fa-circle-play',
+                token, user,
+                apiBase: 'https://hobo.tools',
+            });
+        }
+        if (typeof HoboAccountSwitcher !== 'undefined') {
+            HoboAccountSwitcher.init({ apiBase: 'https://hobo.tools' });
+        }
+    }
+
+    function initNotifications() {
+        const token = getCookie('hobo_token') || localStorage.getItem('hobo_token');
+        if (typeof HoboNotifications === 'undefined') return;
+        if (!token) return;
+        HoboNotifications.init({
+            token,
+            apiBase: 'https://hobo.tools',
+        });
+        if (typeof HoboNavbar !== 'undefined') {
+            const mount = HoboNavbar.getBellMount();
+            if (mount) {
+                const bell = HoboNotifications.createBell();
+                if (bell) mount.appendChild(bell);
+            }
+        }
+    }
+
+    function init() {
+        initNavbar();
+        initNotifications();
     }
 
     if (document.readyState === 'loading') {
