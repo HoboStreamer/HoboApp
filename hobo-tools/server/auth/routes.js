@@ -279,6 +279,80 @@ router.post('/reset-password', (req, res) => {
     res.json({ ok: true, message: 'Password reset complete. You can sign in with your new password now.' });
 });
 
+// ── Refresh Token (first-party sliding window) ──────────────
+// Accepts a still-valid JWT and issues a fresh one with a new 24h expiry.
+// This allows *.hobo.tools subdomains to silently renew sessions without
+// requiring a full OAuth2 refresh_token flow.
+// Also accepts tokens expired within the last 7 days (grace period), so
+// users who return after a day away can still get a fresh token.
+router.post('/refresh', (req, res) => {
+    const config = getConfig(req);
+    const publicKey = req.app.locals.publicKey;
+    const algorithm = publicKey.includes('BEGIN') ? 'RS256' : 'HS256';
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies?.hobo_token;
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    let decoded;
+    try {
+        // First try strict verification
+        decoded = jwt.verify(token, publicKey, { algorithms: [algorithm], issuer: config.jwt.issuer });
+    } catch (err) {
+        // Accept recently expired tokens (up to 7 days grace period)
+        if (err.name === 'TokenExpiredError') {
+            try {
+                decoded = jwt.verify(token, publicKey, {
+                    algorithms: [algorithm],
+                    issuer: config.jwt.issuer,
+                    ignoreExpiration: true,
+                });
+                const expiredAt = decoded.exp * 1000;
+                const gracePeriod = 7 * 24 * 60 * 60 * 1000; // 7 days
+                if (Date.now() - expiredAt > gracePeriod) {
+                    return res.status(401).json({ error: 'Token expired beyond grace period' });
+                }
+            } catch {
+                return res.status(401).json({ error: 'Invalid token' });
+            }
+        } else {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+    }
+
+    // Verify user still exists and is valid
+    const db = getDb(req);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.sub || decoded.id);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.is_banned) return res.status(403).json({ error: 'Account banned' });
+
+    // Check token_valid_after (password change invalidation)
+    if (user.token_valid_after) {
+        const tokenIat = decoded.iat * 1000;
+        const validAfter = new Date(user.token_valid_after + (user.token_valid_after.includes('Z') ? '' : 'Z')).getTime();
+        if (tokenIat < validAfter) return res.status(401).json({ error: 'Token revoked' });
+    }
+
+    // Issue fresh token
+    const newToken = signToken(user, req.app.locals.privateKey, config);
+
+    // Update cross-domain cookie
+    res.cookie('hobo_token', newToken, {
+        httpOnly: false,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        sameSite: 'Lax',
+        secure: true,
+        path: '/',
+        domain: '.hobo.tools',
+    });
+
+    res.json({
+        token: newToken,
+        user: sanitizeUser(user),
+        expires_in: 86400,
+    });
+});
+
 // ── Get Current User ─────────────────────────────────────────
 router.get('/me', requireAuth, (req, res) => {
     const db = getDb(req);

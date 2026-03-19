@@ -1014,6 +1014,30 @@
                     const accounts = [{ id: user.id, username: user.username, display_name: user.display_name || user.username, avatar_url: user.avatar_url || null, email: user.email || null, is_anon: false, token: cookieToken, added_at: Date.now() }];
                     localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
                     localStorage.setItem('hobo_active_account', String(user.id));
+                } else if (res.status === 401) {
+                    // Token expired — try refresh
+                    const refreshRes = await fetch('/api/auth/refresh', {
+                        method: 'POST',
+                        headers: { Authorization: 'Bearer ' + cookieToken, 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                    });
+                    if (refreshRes.ok) {
+                        const refreshData = await refreshRes.json();
+                        if (refreshData.token) {
+                            localStorage.setItem('hobo_token', refreshData.token);
+                            document.cookie = `hobo_token=${refreshData.token};path=/;max-age=${60*60*24*30};domain=.hobo.tools;SameSite=Lax;Secure`;
+                            const user = refreshData.user;
+                            if (user) {
+                                const accounts = [{ id: user.id, username: user.username, display_name: user.display_name || user.username, avatar_url: user.avatar_url || null, email: user.email || null, is_anon: false, token: refreshData.token, added_at: Date.now() }];
+                                localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+                                localStorage.setItem('hobo_active_account', String(user.id));
+                            }
+                        }
+                    } else {
+                        // Refresh failed — clear stale cookie
+                        localStorage.removeItem('hobo_token');
+                        document.cookie = 'hobo_token=;path=/;max-age=0;domain=.hobo.tools';
+                    }
                 }
             } catch {}
         }

@@ -67,7 +67,7 @@ router.get('/callback', async (req, res) => {
         // Set cookies and redirect to game
         res.cookie('hobo_token', access_token, {
             httpOnly: false, // JS needs access for WebSocket auth
-            maxAge: 24 * 60 * 60 * 1000, // 24h
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30d (matches JWT refresh grace period)
             sameSite: 'Lax',
             secure: process.env.NODE_ENV === 'production',
             path: '/',
@@ -106,6 +106,52 @@ router.get('/logout', (_req, res) => {
     res.clearCookie('hobo_token', { path: '/' });
     res.clearCookie('hobo_refresh', { path: '/auth/' });
     res.redirect('/');
+});
+
+// ── Token Refresh (uses httpOnly refresh cookie) ────────────
+router.post('/refresh', async (req, res) => {
+    const refreshToken = req.cookies?.hobo_refresh;
+    if (!refreshToken) {
+        return res.status(401).json({ error: 'No refresh token' });
+    }
+    try {
+        const tokenRes = await fetch(`${config.oauth.tokenUrl || config.hoboTools.url + '/oauth/token'}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                grant_type: 'refresh_token',
+                client_id: config.oauth.clientId,
+                client_secret: config.oauth.clientSecret,
+                refresh_token: refreshToken,
+            }),
+        });
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok || !tokenData.access_token) {
+            res.clearCookie('hobo_refresh', { path: '/auth/' });
+            return res.status(401).json({ error: tokenData.error_description || 'Refresh failed' });
+        }
+
+        res.cookie('hobo_token', tokenData.access_token, {
+            httpOnly: false,
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+            sameSite: 'Lax',
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+        });
+        if (tokenData.refresh_token) {
+            res.cookie('hobo_refresh', tokenData.refresh_token, {
+                httpOnly: true,
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+                sameSite: 'Lax',
+                secure: process.env.NODE_ENV === 'production',
+                path: '/auth/',
+            });
+        }
+        res.json({ access_token: tokenData.access_token, expires_in: tokenData.expires_in || 86400 });
+    } catch (err) {
+        console.error('[hobo-quest] Refresh error:', err.message);
+        res.status(500).json({ error: 'Token refresh failed' });
+    }
 });
 
 // ── Get Current User (from JWT) ─────────────────────────────

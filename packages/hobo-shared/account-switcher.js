@@ -515,6 +515,96 @@
         _panelEl = null;
     }
 
+    // ─── Token Refresh ───────────────────────────────────────────
+    // Decode JWT payload without verification (client-side can't verify RS256).
+    // Used only to check `exp` claim for proactive refresh.
+    function decodeJwtPayload(token) {
+        try {
+            const parts = token.split('.');
+            if (parts.length !== 3) return null;
+            const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            return JSON.parse(atob(payload));
+        } catch { return null; }
+    }
+
+    let _refreshTimer = null;
+    let _refreshInProgress = false;
+
+    /**
+     * Silently refresh the JWT if it expires within the next 2 hours,
+     * or if it has already expired (7-day grace period on the server).
+     * Updates localStorage, cookie, and account list.
+     */
+    async function silentRefresh() {
+        if (_refreshInProgress) return;
+        const token = localStorage.getItem(TOKEN_KEY) || getCookieToken();
+        if (!token) return;
+        const payload = decodeJwtPayload(token);
+        if (!payload || !payload.exp) return;
+
+        const expiresAt = payload.exp * 1000;
+        const now = Date.now();
+        const twoHours = 2 * 60 * 60 * 1000;
+
+        // Only refresh if token expires within 2 hours or is already expired
+        if (expiresAt - now > twoHours) return;
+
+        _refreshInProgress = true;
+        try {
+            const res = await fetch(`${_config.apiBase}/api/auth/refresh`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                // If refresh fails with 401, token is truly dead — don't retry
+                if (res.status === 401) {
+                    console.warn('[HoboAuth] Token refresh failed — session expired');
+                }
+                return;
+            }
+            const data = await res.json();
+            if (data.token) {
+                // Update localStorage
+                localStorage.setItem(TOKEN_KEY, data.token);
+                // Update cookie
+                setAuthCookie(data.token);
+                // Update the stored account entry
+                const activeId = getActiveId();
+                if (activeId && !isAnonId(activeId)) {
+                    const accounts = getAccounts();
+                    const idx = accounts.findIndex(a => String(a.id) === String(activeId));
+                    if (idx !== -1) {
+                        accounts[idx].token = data.token;
+                        saveAccounts(accounts);
+                    }
+                }
+                console.log('[HoboAuth] Token refreshed silently');
+            }
+        } catch (err) {
+            console.warn('[HoboAuth] Silent refresh error:', err.message);
+        } finally {
+            _refreshInProgress = false;
+        }
+    }
+
+    /**
+     * Start a periodic timer that checks token expiry and refreshes when needed.
+     * Checks every 15 minutes. Also runs an immediate check.
+     */
+    function startRefreshTimer() {
+        if (_refreshTimer) return;
+        silentRefresh(); // Immediate check
+        _refreshTimer = setInterval(silentRefresh, 15 * 60 * 1000); // Every 15 min
+    }
+
+    function stopRefreshTimer() {
+        if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+    }
+
     // ─── Listen for navbar events ──────────────────────────────
     document.addEventListener('hobo-switch-account', e => {
         switchTo(e.detail.accountId);
@@ -524,6 +614,11 @@
     const HoboAccountSwitcher = {
         init(opts = {}) {
             Object.assign(_config, opts);
+            // Start silent token refresh for logged-in users
+            const activeId = getActiveId();
+            if (activeId && !isAnonId(activeId)) {
+                startRefreshTimer();
+            }
         },
 
         /** Call after login success to store this account. */
@@ -537,6 +632,9 @@
         getAnonAccounts,
         logout,
         logoutAll,
+        silentRefresh,
+        startRefreshTimer,
+        stopRefreshTimer,
 
         /** Show the full-screen account switcher panel. */
         showPanel,
