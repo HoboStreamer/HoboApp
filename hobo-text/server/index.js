@@ -123,6 +123,7 @@ app.use('/shared', express.static(sharedPath, {
 
 // ── Static assets (CSS/JS) ──────────────────────────────────
 app.use(express.static(path.join(__dirname, '..', 'public'), {
+    index: false, // Disable auto index.html — hostname routing handles /
     setHeaders(res, filePath) {
         if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
             res.setHeader('Cache-Control', 'no-cache');
