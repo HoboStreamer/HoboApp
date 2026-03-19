@@ -1,0 +1,20 @@
+[Unit]
+Description=HoboAudio — Unified Audio Converter & Processing Tools
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/hobo-audio
+Environment=NODE_ENV=production
+ExecStart=/home/ubuntu/.nvm/versions/node/v20.20.1/bin/node /opt/hobo-audio/server/index.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/opt/hobo-audio
+
+[Install]
+WantedBy=multi-user.target
