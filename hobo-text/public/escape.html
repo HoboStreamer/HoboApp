@@ -33,6 +33,10 @@
                 <label>Input Text</label>
                 <textarea id="input" rows="5" placeholder='Enter text, HTML, JSON, or URLs...'><div class="hello">It's a "test" & demo — with <special> chars!</div></textarea>
             </div>
+            <div class="live-hint"><span class="live-dot"></span> Results update as you type</div>
+            <div class="generate-row">
+                <button class="btn btn-primary generate-btn" onclick="document.querySelector('#input, textarea').dispatchEvent(new Event('input', {bubbles:true}))"><i class="fas fa-bolt"></i> Generate</button>
+            </div>
         </div>
 
         <div class="escape-grid" id="grid"></div>

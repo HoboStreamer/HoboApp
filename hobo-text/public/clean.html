@@ -36,6 +36,10 @@
             <div class="toggle-row"><label class="toggle"><input type="checkbox" id="optBlank"><span class="slider"></span></label><span class="toggle-label">Remove blank lines entirely</span></div>
             <div class="toggle-row"><label class="toggle"><input type="checkbox" id="optZalgo"><span class="slider"></span></label><span class="toggle-label">Strip Zalgo / combining diacritics</span></div>
             <div class="toggle-row"><label class="toggle"><input type="checkbox" id="optHtml"><span class="slider"></span></label><span class="toggle-label">Strip HTML tags</span></div>
+            <div class="live-hint"><span class="live-dot"></span> Results update as you type</div>
+            <div class="generate-row">
+                <button class="btn btn-primary generate-btn" onclick="document.querySelector('#input, textarea').dispatchEvent(new Event('input', {bubbles:true}))"><i class="fas fa-bolt"></i> Generate</button>
+            </div>
         </div>
 
         <div class="tool-section">

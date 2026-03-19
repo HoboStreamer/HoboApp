@@ -135,6 +135,7 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 app.get('/', (req, res) => {
     const hostname = getHostname(req);
     const file = HOSTNAME_MAP[hostname] || 'index.html';
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(__dirname, '..', 'public', file));
 });
 
@@ -145,6 +146,7 @@ app.get('*', (req, res) => {
     }
     const hostname = getHostname(req);
     const file = HOSTNAME_MAP[hostname] || 'index.html';
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(__dirname, '..', 'public', file));
 });
 

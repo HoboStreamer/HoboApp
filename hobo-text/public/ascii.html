@@ -42,6 +42,10 @@
                 <button class="pill-tab" data-block="0" data-space=" ">00 Zero</button>
                 <button class="pill-tab" data-block="▓" data-space="░">▓░ Shade</button>
             </div>
+            <div class="live-hint"><span class="live-dot"></span> Results update as you type</div>
+            <div class="generate-row">
+                <button class="btn btn-primary generate-btn" onclick="document.querySelector('#input, input[type=text]').dispatchEvent(new Event('input', {bubbles:true}))"><i class="fas fa-bolt"></i> Generate</button>
+            </div>
         </div>
 
         <div class="tool-section">
