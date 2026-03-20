@@ -489,6 +489,129 @@
         .reveal-delay-2 { transition-delay: 0.2s; }
         .reveal-delay-3 { transition-delay: 0.3s; }
 
+        /* ─── All Tools Directory Modal ─── */
+        .dir-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+            display: none; align-items: start; justify-content: center;
+            overflow-y: auto; padding: 40px 16px 60px;
+        }
+        .dir-overlay.open { display: flex; }
+        .dir-panel {
+            width: min(1100px, 100%);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+            animation: dir-in 0.25s ease;
+        }
+        @keyframes dir-in {
+            from { opacity: 0; transform: translateY(20px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .dir-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 24px 28px 0; gap: 16px; flex-wrap: wrap;
+        }
+        .dir-header h2 {
+            font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .dir-header h2 .dir-count {
+            font-size: 0.75rem; font-weight: 700; padding: 4px 10px;
+            border-radius: 999px; background: rgba(192,150,92,0.12);
+            color: var(--accent-light); letter-spacing: 0.04em;
+        }
+        .dir-close {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-secondary); font-size: 1.1rem;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            transition: all .2s;
+        }
+        .dir-close:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+        .dir-search-bar {
+            padding: 16px 28px;
+        }
+        .dir-search {
+            width: 100%; padding: 12px 16px 12px 42px;
+            border-radius: 12px; border: 1px solid var(--border-light);
+            background: var(--bg-tertiary); color: var(--text-primary);
+            font-size: 0.92rem; font-family: inherit; outline: none;
+            transition: border-color .2s;
+        }
+        .dir-search:focus { border-color: rgba(192,150,92,0.4); }
+        .dir-search-wrap {
+            position: relative;
+        }
+        .dir-search-wrap i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); font-size: 0.88rem; pointer-events: none;
+        }
+        .dir-filters {
+            display: flex; gap: 8px; flex-wrap: wrap; padding: 0 28px 8px;
+        }
+        .dir-filter-btn {
+            padding: 7px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+            letter-spacing: 0.03em; color: var(--text-secondary);
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            transition: all .2s; text-transform: capitalize;
+        }
+        .dir-filter-btn:hover { border-color: rgba(192,150,92,0.3); color: var(--text-primary); }
+        .dir-filter-btn.active {
+            background: rgba(192,150,92,0.12); border-color: rgba(192,150,92,0.3);
+            color: var(--accent-light);
+        }
+        .dir-body { padding: 8px 28px 28px; }
+        .dir-category { margin-bottom: 24px; }
+        .dir-category:last-child { margin-bottom: 0; }
+        .dir-cat-head {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 12px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dir-cat-head i { color: var(--accent-light); font-size: 0.95rem; }
+        .dir-cat-head h3 {
+            font-size: 0.95rem; font-weight: 800; letter-spacing: -0.01em;
+        }
+        .dir-cat-head .dir-cat-count {
+            font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+            margin-left: auto;
+        }
+        .dir-tools {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 8px;
+        }
+        .dir-tool {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 10px;
+            background: rgba(255,255,255,0.02); border: 1px solid transparent;
+            transition: all .2s; text-decoration: none; color: inherit;
+        }
+        .dir-tool:hover {
+            background: rgba(255,255,255,0.05); border-color: rgba(192,150,92,0.2);
+            transform: translateX(2px);
+        }
+        .dir-tool-icon {
+            width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.82rem;
+            background: color-mix(in srgb, var(--tool-color, var(--accent)) 12%, transparent);
+            color: var(--tool-color, var(--accent-light));
+        }
+        .dir-tool-name {
+            font-size: 0.84rem; font-weight: 700; line-height: 1.2;
+        }
+        .dir-tool-domain {
+            font-size: 0.72rem; color: var(--text-muted); font-weight: 500;
+        }
+        .dir-empty {
+            text-align: center; padding: 40px 20px;
+            color: var(--text-muted); font-size: 0.92rem;
+        }
+        .dir-empty i { font-size: 1.5rem; display: block; margin-bottom: 8px; color: var(--text-muted); }
+
         /* ─── Responsive ─── */
         @media (max-width: 920px) {
             .bento-featured, .bento-side, .bento-third, .bento-half {
@@ -505,9 +628,14 @@
             }
             .hero-cta { flex-direction: column; align-items: center; }
             .hero-cta .btn { width: 100%; max-width: 320px; }
+            .signed-actions { flex-direction: column; align-items: center; }
+            .signed-actions .btn { width: 100%; max-width: 320px; }
             .stats-ribbon { gap: 24px; }
             .tool-columns { grid-template-columns: 1fr; }
             .footer-inner { flex-direction: column; text-align: center; }
+            .dir-overlay { padding: 16px 8px 40px; }
+            .dir-header, .dir-search-bar, .dir-filters, .dir-body { padding-left: 16px; padding-right: 16px; }
+            .dir-tools { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -526,10 +654,11 @@
                 <div class="hero-cta">
                     <a href="/login" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Create Free Account</a>
                     <a href="/login" class="btn btn-ghost"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
+                    <button type="button" class="btn btn-ghost" onclick="openDirectory()"><i class="fa-solid fa-grid-2"></i> Browse All Tools</button>
                 </div>
                 <div class="stats-ribbon">
                     <div class="stat"><span class="stat-number">10</span><span class="stat-label">Services</span></div>
-                    <div class="stat"><span class="stat-number">100+</span><span class="stat-label">Tools</span></div>
+                    <div class="stat"><span class="stat-number">118+</span><span class="stat-label">Tools</span></div>
                     <div class="stat"><span class="stat-number">34</span><span class="stat-label">Themes</span></div>
                     <div class="stat"><span class="stat-number">100%</span><span class="stat-label">Free</span></div>
                 </div>
@@ -818,6 +947,7 @@
                     <div class="signed-actions">
                         <a href="https://my.hobo.tools" class="btn btn-primary"><i class="fa-solid fa-user-circle"></i> My Account</a>
                         <a href="https://hobostreamer.com" class="btn btn-ghost"><i class="fa-solid fa-tower-broadcast"></i> Go to Stream</a>
+                        <button type="button" class="btn btn-ghost" onclick="openDirectory()"><i class="fa-solid fa-grid-2"></i> Browse All Tools</button>
                         <button type="button" class="btn btn-ghost" onclick="signOut()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
                     </div>
                 </div>
@@ -880,6 +1010,24 @@
                 </div>
             </div>
         </footer>
+    </div>
+
+    <!-- ════════ ALL TOOLS DIRECTORY MODAL ════════ -->
+    <div class="dir-overlay" id="dir-overlay" onclick="if(event.target===this)closeDirectory()">
+        <div class="dir-panel">
+            <div class="dir-header">
+                <h2><i class="fa-solid fa-grid-2" style="color:var(--accent-light)"></i> All Tools <span class="dir-count" id="dir-count"></span></h2>
+                <button class="dir-close" onclick="closeDirectory()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="dir-search-bar">
+                <div class="dir-search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input class="dir-search" id="dir-search" type="text" placeholder="Search tools, domains, categories…" autocomplete="off" spellcheck="false">
+                </div>
+            </div>
+            <div class="dir-filters" id="dir-filters"></div>
+            <div class="dir-body" id="dir-body"></div>
+        </div>
     </div>
 
     <script src="/shared/theme-loader.js"></script>
@@ -990,6 +1138,208 @@
             localStorage.removeItem('hobo_accounts');
             window.location.href = '/';
         }
+
+        /* ─── All Tools Directory ─── */
+        const DIR_DATA = [
+            { cat: 'Core', icon: 'fa-campground', color: '#c0965c', tools: [
+                { name: 'Hobo Network Hub', domain: 'hobo.tools', icon: 'fa-campground' },
+                { name: 'Login / SSO', domain: 'login.hobo.tools', icon: 'fa-right-to-bracket' },
+                { name: 'My Account', domain: 'my.hobo.tools', icon: 'fa-user-gear' },
+                { name: 'HoboYT', domain: 'yt.hobo.tools', icon: 'fa-circle-play' },
+                { name: 'HoboMaps', domain: 'maps.hobo.tools', icon: 'fa-map-location-dot' },
+                { name: 'HoboFood', domain: 'food.hobo.tools', icon: 'fa-utensils' },
+            ]},
+            { cat: 'Image', icon: 'fa-images', color: '#3b82f6', tools: [
+                { name: 'HoboImg Hub', domain: 'img.hobo.tools', icon: 'fa-images' },
+                { name: 'HoboPNG', domain: 'png.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboJPG', domain: 'jpg.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboWebP', domain: 'webp.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboAVIF', domain: 'avif.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboHEIC', domain: 'heic.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboSVG', domain: 'svg.hobo.tools', icon: 'fa-bezier-curve' },
+                { name: 'HoboGIF', domain: 'gif.hobo.tools', icon: 'fa-film' },
+                { name: 'HoboICO', domain: 'ico.hobo.tools', icon: 'fa-icons' },
+                { name: 'HoboTIFF', domain: 'tiff.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboBMP', domain: 'bmp.hobo.tools', icon: 'fa-file-image' },
+                { name: 'HoboConvert', domain: 'convert.hobo.tools', icon: 'fa-arrows-rotate' },
+                { name: 'HoboCompress', domain: 'compress.hobo.tools', icon: 'fa-compress' },
+                { name: 'HoboResize', domain: 'resize.hobo.tools', icon: 'fa-up-right-and-down-left-from-center' },
+                { name: 'HoboCrop', domain: 'crop.hobo.tools', icon: 'fa-crop-simple' },
+                { name: 'HoboFavicon', domain: 'favicon.hobo.tools', icon: 'fa-icons' },
+            ]},
+            { cat: 'Audio — Formats', icon: 'fa-headphones', color: '#06b6d4', tools: [
+                { name: 'HoboAudio Hub', domain: 'audio.hobo.tools', icon: 'fa-headphones' },
+                { name: 'HoboMP3', domain: 'mp3.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboWAV', domain: 'wav.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboFLAC', domain: 'flac.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboOGG', domain: 'ogg.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboM4A', domain: 'm4a.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboOpus', domain: 'opus.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboAAC', domain: 'aac.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboWMA', domain: 'wma.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboAIFF', domain: 'aiff.hobo.tools', icon: 'fa-file-audio' },
+                { name: 'HoboAC3', domain: 'ac3.hobo.tools', icon: 'fa-file-audio' },
+            ]},
+            { cat: 'Audio — Effects', icon: 'fa-sliders', color: '#06b6d4', tools: [
+                { name: 'HoboTrim', domain: 'trim.hobo.tools', icon: 'fa-scissors' },
+                { name: 'HoboMerge', domain: 'merge.hobo.tools', icon: 'fa-code-merge' },
+                { name: 'HoboPitch', domain: 'pitch.hobo.tools', icon: 'fa-wave-square' },
+                { name: 'HoboSpeed', domain: 'speed.hobo.tools', icon: 'fa-gauge-high' },
+                { name: 'HoboReverse', domain: 'reverse.hobo.tools', icon: 'fa-backward' },
+                { name: 'HoboNormalize', domain: 'normalize.hobo.tools', icon: 'fa-chart-line' },
+                { name: 'HoboFade', domain: 'fade.hobo.tools', icon: 'fa-volume-low' },
+                { name: 'HoboLoop', domain: 'loop.hobo.tools', icon: 'fa-repeat' },
+                { name: 'HoboBass', domain: 'bass.hobo.tools', icon: 'fa-volume-high' },
+                { name: 'HoboEQ', domain: 'equalizer.hobo.tools', icon: 'fa-sliders' },
+                { name: 'HoboEcho', domain: 'echo.hobo.tools', icon: 'fa-circle-radiation' },
+                { name: 'HoboReverb', domain: 'reverb.hobo.tools', icon: 'fa-church' },
+                { name: 'HoboChorus', domain: 'chorus.hobo.tools', icon: 'fa-users' },
+                { name: 'HoboDistortion', domain: 'distortion.hobo.tools', icon: 'fa-bolt' },
+                { name: 'HoboCompressor', domain: 'compressor.hobo.tools', icon: 'fa-down-left-and-up-right-to-center' },
+                { name: 'HoboStereo', domain: 'stereo.hobo.tools', icon: 'fa-headphones-simple' },
+                { name: 'HoboSilence', domain: 'silence.hobo.tools', icon: 'fa-volume-xmark' },
+                { name: 'HoboBitcrusher', domain: 'bitcrusher.hobo.tools', icon: 'fa-microchip' },
+                { name: 'HoboNoise', domain: 'noise.hobo.tools', icon: 'fa-broom' },
+                { name: 'HoboVoiceFX', domain: 'voice.hobo.tools', icon: 'fa-microphone' },
+            ]},
+            { cat: 'Audio — Specialized', icon: 'fa-wand-magic-sparkles', color: '#06b6d4', tools: [
+                { name: 'HoboVocal', domain: 'vocal.hobo.tools', icon: 'fa-microphone-lines' },
+                { name: 'HoboKaraoke', domain: 'karaoke.hobo.tools', icon: 'fa-music' },
+                { name: 'HoboExtract', domain: 'extract.hobo.tools', icon: 'fa-file-export' },
+                { name: 'HoboWaveform', domain: 'waveform.hobo.tools', icon: 'fa-wave-square' },
+                { name: 'HoboRingtone', domain: 'ringtone.hobo.tools', icon: 'fa-bell' },
+                { name: 'HoboPodcast', domain: 'podcast.hobo.tools', icon: 'fa-podcast' },
+                { name: 'HoboMeta', domain: 'metadata.hobo.tools', icon: 'fa-tags' },
+            ]},
+            { cat: 'Text — Generators', icon: 'fa-pen-fancy', color: '#a78bfa', tools: [
+                { name: 'HoboText Hub', domain: 'text.hobo.tools', icon: 'fa-pen-fancy' },
+                { name: 'HoboFancy', domain: 'fancy.hobo.tools', icon: 'fa-wand-sparkles' },
+                { name: 'HoboZalgo', domain: 'zalgo.hobo.tools', icon: 'fa-skull' },
+                { name: 'HoboSmallCaps', domain: 'smallcaps.hobo.tools', icon: 'fa-font' },
+                { name: 'HoboCursive', domain: 'cursive.hobo.tools', icon: 'fa-italic' },
+                { name: 'HoboGothic', domain: 'gothic.hobo.tools', icon: 'fa-book-skull' },
+                { name: 'HoboWide', domain: 'wide.hobo.tools', icon: 'fa-text-width' },
+                { name: 'HoboMono', domain: 'monospaced.hobo.tools', icon: 'fa-code' },
+                { name: 'HoboBubble', domain: 'bubble.hobo.tools', icon: 'fa-circle' },
+            ]},
+            { cat: 'Text — Encoding', icon: 'fa-lock', color: '#a78bfa', tools: [
+                { name: 'HoboBraille', domain: 'braille.hobo.tools', icon: 'fa-braille' },
+                { name: 'HoboMorse', domain: 'morse.hobo.tools', icon: 'fa-tower-cell' },
+                { name: 'HoboBinary', domain: 'binary.hobo.tools', icon: 'fa-hashtag' },
+            ]},
+            { cat: 'Text — Utilities', icon: 'fa-screwdriver-wrench', color: '#a78bfa', tools: [
+                { name: 'HoboCase', domain: 'case.hobo.tools', icon: 'fa-font' },
+                { name: 'HoboClean', domain: 'clean.hobo.tools', icon: 'fa-broom' },
+                { name: 'HoboCount', domain: 'count.hobo.tools', icon: 'fa-calculator' },
+                { name: 'HoboSort', domain: 'sort.hobo.tools', icon: 'fa-arrow-down-a-z' },
+                { name: 'HoboDedupe', domain: 'dedupe.hobo.tools', icon: 'fa-filter' },
+                { name: 'HoboSlug', domain: 'slug.hobo.tools', icon: 'fa-link' },
+                { name: 'HoboCompare', domain: 'compare.hobo.tools', icon: 'fa-code-compare' },
+                { name: 'HoboMarkdown', domain: 'markdown.hobo.tools', icon: 'fa-file-lines' },
+                { name: 'HoboJSON', domain: 'json.hobo.tools', icon: 'fa-brackets-curly' },
+                { name: 'HoboEscape', domain: 'escape.hobo.tools', icon: 'fa-shield' },
+                { name: 'HoboReverse Text', domain: 'reverse.hobo.tools', icon: 'fa-right-left' },
+            ]},
+            { cat: 'Text — Symbols & Identity', icon: 'fa-star', color: '#a78bfa', tools: [
+                { name: 'HoboSymbols', domain: 'symbols.hobo.tools', icon: 'fa-icons' },
+                { name: 'HoboUnicode', domain: 'unicode.hobo.tools', icon: 'fa-globe' },
+                { name: 'HoboKaomoji', domain: 'kaomoji.hobo.tools', icon: 'fa-face-smile' },
+                { name: 'HoboEmojis', domain: 'emojis.hobo.tools', icon: 'fa-face-grin' },
+                { name: 'HoboBio', domain: 'bio.hobo.tools', icon: 'fa-address-card' },
+                { name: 'HoboNickname', domain: 'nickname.hobo.tools', icon: 'fa-id-badge' },
+                { name: 'HoboASCII Art', domain: 'ascii.hobo.tools', icon: 'fa-terminal' },
+                { name: 'HoboBanner', domain: 'banner.hobo.tools', icon: 'fa-heading' },
+            ]},
+            { cat: 'Logo & Design', icon: 'fa-wand-magic-sparkles', color: '#f472b6', tools: [
+                { name: 'HoboLogo Hub', domain: 'logo.hobo.tools', icon: 'fa-wand-magic-sparkles' },
+                { name: 'HoboTitle', domain: 'title.hobo.tools', icon: 'fa-heading' },
+                { name: 'HoboWordmark', domain: 'wordmark.hobo.tools', icon: 'fa-signature' },
+                { name: 'HoboTransparent', domain: 'transparent.hobo.tools', icon: 'fa-chess-board' },
+                { name: 'HoboBadge', domain: 'badge.hobo.tools', icon: 'fa-certificate' },
+                { name: 'HoboThumbnail', domain: 'thumbnail.hobo.tools', icon: 'fa-photo-film' },
+                { name: 'HoboWatermark', domain: 'watermark.hobo.tools', icon: 'fa-droplet' },
+                { name: 'HoboNeon', domain: 'neon.hobo.tools', icon: 'fa-lightbulb' },
+                { name: 'HoboOverlay', domain: 'overlay.hobo.tools', icon: 'fa-layer-group' },
+                { name: 'HoboLowerThird', domain: 'lowerthird.hobo.tools', icon: 'fa-closed-captioning' },
+            ]},
+            { cat: 'Community', icon: 'fa-users', color: '#8b5cf6', tools: [
+                { name: 'HoboStreamer', domain: 'hobostreamer.com', icon: 'fa-tower-broadcast' },
+                { name: 'HoboQuest', domain: 'hobo.quest', icon: 'fa-hat-wizard' },
+            ]},
+        ];
+
+        let dirFilter = 'all';
+        function openDirectory() {
+            const overlay = document.getElementById('dir-overlay');
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            renderDirectory();
+            document.getElementById('dir-search').value = '';
+            document.getElementById('dir-search').focus();
+        }
+        function closeDirectory() {
+            document.getElementById('dir-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && document.getElementById('dir-overlay').classList.contains('open')) closeDirectory();
+        });
+        function renderDirectory(query) {
+            const q = (query || '').toLowerCase().trim();
+            const filtersEl = document.getElementById('dir-filters');
+            const bodyEl = document.getElementById('dir-body');
+
+            // Simplify category names for filter buttons
+            const catNames = ['all', ...new Set(DIR_DATA.map(c => c.cat.split(' — ')[0]))];
+            filtersEl.innerHTML = catNames.map(c =>
+                `<button class="dir-filter-btn${(dirFilter === c) ? ' active' : ''}" onclick="setDirFilter('${c}')">${c}</button>`
+            ).join('');
+
+            let totalShown = 0;
+            let html = '';
+            for (const cat of DIR_DATA) {
+                const baseCat = cat.cat.split(' — ')[0];
+                if (dirFilter !== 'all' && baseCat !== dirFilter) continue;
+                const filtered = cat.tools.filter(t =>
+                    !q || t.name.toLowerCase().includes(q) || t.domain.toLowerCase().includes(q) || cat.cat.toLowerCase().includes(q)
+                );
+                if (!filtered.length) continue;
+                totalShown += filtered.length;
+                html += `<div class="dir-category">
+                    <div class="dir-cat-head">
+                        <i class="fa-solid ${cat.icon}"></i>
+                        <h3>${cat.cat}</h3>
+                        <span class="dir-cat-count">${filtered.length}</span>
+                    </div>
+                    <div class="dir-tools">
+                        ${filtered.map(t => {
+                            const href = t.domain.includes('.') ? `https://${t.domain}` : '#';
+                            return `<a class="dir-tool" href="${href}" target="_blank" rel="noopener" style="--tool-color:${cat.color}">
+                                <div class="dir-tool-icon"><i class="fa-solid ${t.icon}"></i></div>
+                                <div>
+                                    <div class="dir-tool-name">${highlightMatch(t.name, q)}</div>
+                                    <div class="dir-tool-domain">${highlightMatch(t.domain, q)}</div>
+                                </div>
+                            </a>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            }
+            if (!totalShown) {
+                html = `<div class="dir-empty"><i class="fa-solid fa-magnifying-glass"></i>No tools match "${escHtml(q)}"</div>`;
+            }
+            bodyEl.innerHTML = html;
+            document.getElementById('dir-count').textContent = totalShown + ' tools';
+        }
+        function setDirFilter(f) { dirFilter = f; renderDirectory(document.getElementById('dir-search').value); }
+        function highlightMatch(text, q) {
+            if (!q) return escHtml(text);
+            const idx = text.toLowerCase().indexOf(q);
+            if (idx === -1) return escHtml(text);
+            return escHtml(text.slice(0, idx)) + '<mark style="background:rgba(192,150,92,0.25);color:inherit;border-radius:2px;padding:0 1px">' + escHtml(text.slice(idx, idx + q.length)) + '</mark>' + escHtml(text.slice(idx + q.length));
+        }
+        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        document.getElementById('dir-search').addEventListener('input', e => renderDirectory(e.target.value));
 
         // Scroll reveal
         const observer = new IntersectionObserver((entries) => {
