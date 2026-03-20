@@ -654,7 +654,7 @@
                 <div class="hero-cta">
                     <a href="/login" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Create Free Account</a>
                     <a href="/login" class="btn btn-ghost"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
-                    <button type="button" class="btn btn-ghost" onclick="openDirectory()"><i class="fa-solid fa-grid-2"></i> Browse All Tools</button>
+                    <button type="button" class="btn btn-ghost" onclick="openDirectory()"><i class="fa-solid fa-grip"></i> Browse All Tools</button>
                 </div>
                 <div class="stats-ribbon">
                     <div class="stat"><span class="stat-number">10</span><span class="stat-label">Services</span></div>
@@ -947,7 +947,7 @@
                     <div class="signed-actions">
                         <a href="https://my.hobo.tools" class="btn btn-primary"><i class="fa-solid fa-user-circle"></i> My Account</a>
                         <a href="https://hobostreamer.com" class="btn btn-ghost"><i class="fa-solid fa-tower-broadcast"></i> Go to Stream</a>
-                        <button type="button" class="btn btn-ghost" onclick="openDirectory()"><i class="fa-solid fa-grid-2"></i> Browse All Tools</button>
+                        <button type="button" class="btn btn-ghost" onclick="openDirectory()"><i class="fa-solid fa-grip"></i> Browse All Tools</button>
                         <button type="button" class="btn btn-ghost" onclick="signOut()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
                     </div>
                 </div>
@@ -989,6 +989,10 @@
                         <div class="quick-icon"><i class="fa-solid fa-bell"></i></div>
                         <div><h3>Notifications</h3><p>Manage alerts across services</p></div>
                     </a>
+                    <button class="quick-card" onclick="openDirectory()" style="text-align:left;cursor:pointer">
+                        <div class="quick-icon"><i class="fa-solid fa-grip"></i></div>
+                        <div><h3>Browse all tools</h3><p>118 subdomains across every category</p></div>
+                    </button>
                 </div>
             </div>
         </section>
@@ -1016,7 +1020,7 @@
     <div class="dir-overlay" id="dir-overlay" onclick="if(event.target===this)closeDirectory()">
         <div class="dir-panel">
             <div class="dir-header">
-                <h2><i class="fa-solid fa-grid-2" style="color:var(--accent-light)"></i> All Tools <span class="dir-count" id="dir-count"></span></h2>
+                <h2><i class="fa-solid fa-grip" style="color:var(--accent-light)"></i> All Tools <span class="dir-count" id="dir-count"></span></h2>
                 <button class="dir-close" onclick="closeDirectory()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="dir-search-bar">
