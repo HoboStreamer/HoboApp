@@ -25,7 +25,18 @@ app.set('trust proxy', 2);
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net", "fonts.googleapis.com", "https://hobo.tools"],
+            styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"],
+            fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'", "wss:", "https://hobo.tools"],
+            frameSrc: ["'self'"],
+            workerSrc: ["'self'", "blob:"],
+        },
+    },
     crossOriginEmbedderPolicy: false,
 }));
 
@@ -143,6 +154,16 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── Static Files ────────────────────────────────────────────
+// Serve hobo-shared client-side libs (navbar, notifications, themes)
+const sharedPath = path.resolve(__dirname, '..', '..', 'packages', 'hobo-shared');
+app.use('/shared', express.static(sharedPath, {
+    setHeaders(res) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('Cache-Control', 'public, max-age=300');
+    },
+}));
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ── Game & Canvas Pages ─────────────────────────────────────

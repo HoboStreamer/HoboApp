@@ -20,6 +20,7 @@ const app = express();
 const cache = new NodeCache({ stdTTL: config.cache.search, checkperiod: 60 });
 
 // ── Middleware ──────────────────────────────────────────────
+app.set('trust proxy', 2); // Cloudflare → Nginx → Node
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {

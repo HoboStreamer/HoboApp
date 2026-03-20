@@ -108,7 +108,7 @@ a:hover { color: var(--gold); }
 /* ── Navigation ────────────────────────────────────────── */
 .nav {
     position: fixed;
-    top: 0;
+    top: 52px; /* Below the shared Hobo Network navbar */
     left: 0;
     right: 0;
     z-index: 100;
@@ -295,7 +295,7 @@ a:hover { color: var(--gold); }
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 120px 24px 80px;
+    padding: 172px 24px 80px;
     overflow: hidden;
 }
 .hero-bg {
@@ -1069,7 +1069,7 @@ a:hover { color: var(--gold); }
     .nav { padding: 12px 16px; }
     .nav-links a:not(.nav-cta) { display: none; }
     .section { padding: 60px 16px; }
-    .hero { padding: 100px 16px 60px; }
+    .hero { padding: 152px 16px 60px; }
     .mode-strip { padding: 0 16px 18px; }
     .hero-actions { flex-direction: column; }
     .btn-hero { width: 100%; justify-content: center; }
@@ -1547,7 +1547,10 @@ a:hover { color: var(--gold); }
 </footer>
 
 <!-- ════════════════════════ SCRIPTS ══════════════════════════ -->
-<script src="/notification-ui.js"></script>
+<script src="/shared/theme-loader.js"></script>
+<script src="/shared/navbar.js"></script>
+<script src="/shared/notification-ui.js"></script>
+<script src="/shared/account-switcher.js"></script>
 <script>
 /* ── Cookie Helper ─────────────────────────────────────────── */
 function getCookie(name) {
@@ -1555,6 +1558,15 @@ function getCookie(name) {
     return m ? decodeURIComponent(m[1]) : null;
 }
 const token = getCookie('hobo_token');
+
+/* ── Shared Navbar ─────────────────────────────────────────── */
+if (window.HoboNavbar) {
+    HoboNavbar.init({
+        service: 'hoboquest',
+        token: token || undefined,
+        apiBase: 'https://hobo.tools',
+    });
+}
 
 /* ── Auth State ────────────────────────────────────────────── */
 if (token) {

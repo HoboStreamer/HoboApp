@@ -16,8 +16,17 @@ const MAPS_API = process.env.MAPS_API || 'http://127.0.0.1:3300';
 
 const app = express();
 
-app.set('trust proxy', 1);
-app.use(cors());
+app.set('trust proxy', 2); // Cloudflare → Nginx → Node
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (/^https:\/\/[a-z0-9-]+\.hobo\.tools$/.test(origin)) return callback(null, true);
+    if (/^https:\/\/(hobostreamer\.com|hobo\.quest)$/.test(origin)) return callback(null, true);
+    if (process.env.NODE_ENV === 'development' && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return callback(null, true);
+    return callback(new Error('Origin not allowed'));
+  },
+  credentials: true,
+}));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
