@@ -58,7 +58,18 @@
 
     function setCookie(name, value, days) {
         const maxAge = days * 24 * 60 * 60;
-        document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=${maxAge};domain=.hobo.tools;SameSite=Lax;Secure`;
+        const encoded = encodeURIComponent(value);
+        const host = (typeof location !== 'undefined' && location.hostname) || '';
+        // Always set on .hobo.tools for cross-subdomain sync
+        document.cookie = `${name}=${encoded};path=/;max-age=${maxAge};domain=.hobo.tools;SameSite=Lax;Secure`;
+        // If we're on a non-hobo.tools domain (e.g. hobostreamer.com), also set on that domain
+        if (host && !host.endsWith('.hobo.tools') && host !== 'hobo.tools') {
+            const domainParts = host.split('.');
+            const rootDomain = domainParts.length >= 2
+                ? '.' + domainParts.slice(-2).join('.')
+                : host;
+            document.cookie = `${name}=${encoded};path=/;max-age=${maxAge};domain=${rootDomain};SameSite=Lax;Secure`;
+        }
     }
 
     /**
@@ -159,7 +170,7 @@
     if (typeof fetch !== 'undefined') {
         setTimeout(function () {
             const token = getCookie('hobo_token') ||
-                (typeof localStorage !== 'undefined' && localStorage.getItem('hobo_token'));
+                (typeof localStorage !== 'undefined' && (localStorage.getItem('hobo_token') || localStorage.getItem('token')));
             if (!token) return;
             fetch(API_BASE + '/api/themes/me/active', {
                 headers: { 'Authorization': 'Bearer ' + token },

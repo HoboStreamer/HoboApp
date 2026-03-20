@@ -358,6 +358,9 @@
         const svcName = _config.brandName || (subBrand && subBrand.name) || SERVICE_NAMES[svc] || 'Hobo';
         const svcIcon = _config.brandIcon || (subBrand && subBrand.icon) || SERVICE_ICONS[svc] || 'fa-campground';
 
+        // my.hobo.tools home should go to hobo.tools root, not back to itself
+        const brandHref = (host === 'my.hobo.tools') ? 'https://hobo.tools/' : '/';
+
         const u = _config.user;
         const accounts = getAccounts();
         const isAnon = u && u.is_anon;
@@ -365,7 +368,7 @@
         const addAccountHref = `https://hobo.tools/login?add_account=1&return=${encodeURIComponent(window.location.href)}`;
 
         nav.innerHTML = `
-            <a class="hobo-navbar-brand" href="/">
+            <a class="hobo-navbar-brand" href="${brandHref}">
                 <span class="flame"><i class="fa-solid ${svcIcon}"></i></span>
                 <div>
                     <div class="name">${svcName}</div>
