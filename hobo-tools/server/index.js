@@ -88,6 +88,7 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "blob:", "image.tmdb.org"],
             connectSrc: ["'self'", "https://*.hobo.tools", "https://hobostreamer.com", "https://hobo.quest"],
             frameSrc: ["'none'"],
+            scriptSrcAttr: ["'unsafe-inline'"],
         },
     },
     crossOriginEmbedderPolicy: false,

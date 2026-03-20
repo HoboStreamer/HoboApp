@@ -36,6 +36,7 @@ app.use(helmet({
       fontSrc: ["'self'", 'fonts.gstatic.com', 'cdnjs.cloudflare.com'],
       imgSrc: ["'self'", 'data:', 'image.tmdb.org', '*.tile.openstreetmap.org', '*.basemaps.cartocdn.com', 'server.arcgisonline.com'],
       connectSrc: ["'self'", 'nominatim.openstreetmap.org', 'https://hobo.tools'],
+      scriptSrcAttr: ["'unsafe-inline'"],
     },
   },
 }));

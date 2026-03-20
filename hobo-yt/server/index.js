@@ -29,6 +29,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https://i.ytimg.com", "https://img.youtube.com", "https://*.ggpht.com"],
             connectSrc: ["'self'", "https://hobo.tools", "https://*.hobo.tools"],
+            scriptSrcAttr: ["'unsafe-inline'"],
         },
     },
     crossOriginEmbedderPolicy: false,

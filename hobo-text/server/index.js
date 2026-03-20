@@ -21,8 +21,9 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"],
             fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'", "https://hobo.tools"],
+            connectSrc: ["'self'", "https://hobo.tools", "https://api.exchangerate-api.com"],
             frameSrc: ["'none'"],
+            scriptSrcAttr: ["'unsafe-inline'"],
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -112,6 +113,14 @@ const HOSTNAME_MAP = {
     'neon.hobo.tools':       'wordmark.html',
     'overlay.hobo.tools':    'watermark.html',
     'lowerthird.hobo.tools': 'watermark.html',
+    // Community / Mexican tools
+    'ice.hobo.tools':        'ice.html',
+    'peso.hobo.tools':       'peso.html',
+    'currency.hobo.tools':   'peso.html',
+    'mxn.hobo.tools':        'peso.html',
+    'spanish.hobo.tools':    'spanish.html',
+    'espanol.hobo.tools':    'spanish.html',
+    'slang.hobo.tools':      'slang.html',
 };
 
 function getHostname(req) {

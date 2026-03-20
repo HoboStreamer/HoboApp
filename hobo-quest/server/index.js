@@ -35,6 +35,7 @@ app.use(helmet({
             connectSrc: ["'self'", "wss:", "https://hobo.tools"],
             frameSrc: ["'self'"],
             workerSrc: ["'self'", "blob:"],
+            scriptSrcAttr: ["'unsafe-inline'"],
         },
     },
     crossOriginEmbedderPolicy: false,

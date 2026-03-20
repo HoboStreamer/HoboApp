@@ -31,6 +31,7 @@ app.use(helmet({
       connectSrc: ["'self'", "nominatim.openstreetmap.org", "api.weather.gov", "api.open-meteo.com", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "https://hobo.tools"],
       fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
       frameSrc: ["'none'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
     },
   },
 }));
