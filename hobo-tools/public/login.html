@@ -566,10 +566,39 @@ function escapeHtml(str) {
 
 // ── Account Selection ───────────────────────────────────────
 async function selectAccount(account) {
+    // Validate the saved token first — refresh if expired (7-day grace)
+    let validToken = account.token;
+    try {
+        const checkRes = await fetch(API_BASE + '/api/auth/me', {
+            headers: { Authorization: 'Bearer ' + account.token },
+        });
+        if (!checkRes.ok) {
+            // Token expired or invalid — try refresh
+            const refreshRes = await fetch(API_BASE + '/api/auth/refresh', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + account.token, 'Content-Type': 'application/json' },
+            });
+            if (refreshRes.ok) {
+                const refreshData = await refreshRes.json();
+                validToken = refreshData.token;
+                // Update the saved account with the new token
+                account.token = validToken;
+                saveAccount(refreshData.user || account, validToken);
+            } else {
+                // Refresh also failed — session is truly expired
+                toast('Session expired for ' + (account.display_name || account.username) + '. Please sign in again.', 'error');
+                removeAccount(account.id);
+                return;
+            }
+        }
+    } catch {
+        // Network error — proceed with existing token and let the redirect handle it
+    }
+
     // Set this as the active account
-    localStorage.setItem('hobo_token', account.token);
+    localStorage.setItem('hobo_token', validToken);
     localStorage.setItem('hobo_active_account', account.id);
-    setAuthCookie(account.token);
+    setAuthCookie(validToken);
 
     if (isOAuth) {
         // Call /oauth/confirm to get the redirect URL
@@ -578,7 +607,7 @@ async function selectAccount(account) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    token: account.token,
+                    token: validToken,
                     client_id: params.get('client_id'),
                     redirect_uri: params.get('redirect_uri'),
                     scope: params.get('scope') || 'profile theme',
@@ -588,7 +617,6 @@ async function selectAccount(account) {
             const data = await res.json();
             if (!res.ok) {
                 if (res.status === 401) {
-                    // Token expired — remove from saved and show login
                     toast('Session expired for ' + (account.display_name || account.username) + '. Please sign in again.', 'error');
                     removeAccount(account.id);
                     return;
@@ -602,7 +630,7 @@ async function selectAccount(account) {
         }
     } else {
         // Not OAuth — just switch the active account and go home
-        toast('Switched to ' + (account.display_name || account.username) + ' <i class="fa-solid fa-campground"></i>', 'success');
+        toast('Welcome back, ' + (account.display_name || account.username) + '! <i class="fa-solid fa-campground"></i>', 'success');
         setTimeout(() => window.location.href = getReturnUrl(), 600);
     }
 }

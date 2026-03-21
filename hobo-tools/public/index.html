@@ -1184,12 +1184,43 @@
                     id: 'anon', role: 'anon', email: null, avatar_url: null, is_anon: true,
                 };
             }
+            const token = getAuthToken();
+            if (!token) throw new Error('Not authenticated');
             const response = await fetch('/api/auth/me', {
-                headers: { ...authHeaders() }, credentials: 'include',
+                headers: { Authorization: `Bearer ${token}` }, credentials: 'include',
             });
-            if (!response.ok) throw new Error('Not authenticated');
-            const data = await response.json();
-            return data.user || data;
+            if (response.ok) {
+                const data = await response.json();
+                return data.user || data;
+            }
+
+            // Token expired — try refresh (7-day grace period)
+            if (response.status === 401) {
+                const refreshRes = await fetch('/api/auth/refresh', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                });
+                if (refreshRes.ok) {
+                    const refreshData = await refreshRes.json();
+                    const newToken = refreshData.token;
+                    localStorage.setItem('hobo_token', newToken);
+                    document.cookie = `hobo_token=${newToken};path=/;max-age=${60*60*24*30};domain=.hobo.tools;SameSite=Lax;Secure`;
+                    // Update saved account with new token
+                    const user = refreshData.user;
+                    if (user) {
+                        const accounts = getStoredAccounts().map(a =>
+                            String(a.id) === String(user.id) ? { ...a, token: newToken } : a
+                        );
+                        localStorage.setItem('hobo_accounts', JSON.stringify(accounts));
+                    }
+                    return user || refreshData;
+                }
+                // Refresh failed — clear stale auth state
+                localStorage.removeItem('hobo_token');
+                document.cookie = 'hobo_token=;path=/;max-age=0;domain=.hobo.tools';
+            }
+            throw new Error('Not authenticated');
         }
 
         function setSignedIn(user) {
