@@ -6,8 +6,19 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 
 const config = require('./config');
+
+// ── Analytics ────────────────────────────────────────────────
+const Database = require('better-sqlite3');
+const { AnalyticsTracker } = require('hobo-shared/analytics');
+const INTERNAL_SECRET = 'hobo-internal-2026';
+const analyticsDbPath = path.join(__dirname, '..', 'data', 'analytics.db');
+fs.mkdirSync(path.dirname(analyticsDbPath), { recursive: true });
+const analyticsDb = new Database(analyticsDbPath);
+analyticsDb.pragma('journal_mode = WAL');
+const analytics = new AnalyticsTracker(analyticsDb, 'hobo-text');
 
 const app = express();
 
@@ -45,6 +56,9 @@ app.use(cors({
 
 // ── Rate Limiting ────────────────────────────────────────────
 app.use(rateLimit({ windowMs: 60_000, max: 200 }));
+
+// ── Analytics Middleware ─────────────────────────────────────
+app.use(analytics.middleware());
 
 // ── Hostname → HTML file mapping ─────────────────────────────
 // Each subdomain gets its own static HTML page for SEO + focused UX.
@@ -127,6 +141,18 @@ function getHostname(req) {
     return String(req.headers.host || '').split(':')[0].toLowerCase();
 }
 
+// ── Internal Analytics API ────────────────────────────────────
+app.get('/api/internal/analytics', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, analytics: analytics.getStats({ days: Math.min(parseInt(req.query.days) || 30, 365) }) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+app.get('/api/internal/analytics/bots', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, bots: analytics.getBotAnalysis(Math.min(parseInt(req.query.days) || 30, 365)) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
 // ── Health check ─────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', service: 'hobo-text', version: '1.0.0' });
@@ -173,7 +199,7 @@ app.get('*', (req, res) => {
 });
 
 // ── Start ────────────────────────────────────────────────────
-app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, () => {
     const toolCount = new Set(Object.values(HOSTNAME_MAP)).size;
     const domainCount = Object.keys(HOSTNAME_MAP).length;
     console.log(`\n╔═══════════════════════════════════════╗`);
@@ -184,3 +210,14 @@ app.listen(config.port, config.host, () => {
     console.log(`║  Domains: ${String(domainCount).padEnd(28)}║`);
     console.log(`╚═══════════════════════════════════════╝\n`);
 });
+
+// ── Graceful Shutdown ────────────────────────────────────────
+function shutdown() {
+    console.log('[HoboText] Shutting down...');
+    analytics.destroy();
+    analyticsDb.close();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 5000);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

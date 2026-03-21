@@ -9,7 +9,18 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 const cookieParser = require('cookie-parser');
+
+// ── Analytics ────────────────────────────────────────────────
+const Database = require('better-sqlite3');
+const { AnalyticsTracker } = require('hobo-shared/analytics');
+const INTERNAL_SECRET = 'hobo-internal-2026';
+const analyticsDbPath = path.join(__dirname, '..', 'data', 'analytics.db');
+fs.mkdirSync(path.dirname(analyticsDbPath), { recursive: true });
+const analyticsDb = new Database(analyticsDbPath);
+analyticsDb.pragma('journal_mode = WAL');
+const analytics = new AnalyticsTracker(analyticsDb, 'hobo-food');
 
 const PORT = parseInt(process.env.PORT) || 3301;
 const MAPS_API = process.env.MAPS_API || 'http://127.0.0.1:3300';
@@ -42,6 +53,9 @@ app.use(helmet({
 }));
 app.use(rateLimit({ windowMs: 60000, max: 60 }));
 app.use(cookieParser());
+
+// ── Analytics Middleware ─────────────────────────────────────
+app.use(analytics.middleware());
 
 // Serve hobo-shared client-side libs
 const sharedPath = path.resolve(__dirname, '..', '..', 'packages', 'hobo-shared');
@@ -77,9 +91,32 @@ app.get('/api/foods', proxyToMaps('/api/foods'));
 app.get('/api/meal-plan', proxyToMaps('/api/meal-plan'));
 app.get('/api/geocode', proxyToMaps('/api/geocode'));
 
+// ── Internal Analytics API ────────────────────────────────────
+app.get('/api/internal/analytics', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, analytics: analytics.getStats({ days: Math.min(parseInt(req.query.days) || 30, 365) }) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+app.get('/api/internal/analytics/bots', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, bots: analytics.getBotAnalysis(Math.min(parseInt(req.query.days) || 30, 365)) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
 // SPA fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 
-app.listen(PORT, '127.0.0.1', () => {
+const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`[HoboFood] 🍽️  food.hobo.tools listening on 127.0.0.1:${PORT}`);
 });
+
+// ── Graceful Shutdown ────────────────────────────────────────
+function shutdown() {
+    console.log('[HoboFood] Shutting down...');
+    analytics.destroy();
+    analyticsDb.close();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 5000);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

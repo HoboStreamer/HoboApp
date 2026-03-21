@@ -123,7 +123,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
 @keyframes toast-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 
 /* Sub-tabs */
-.sub-tabs{display:flex;gap:4px;margin-bottom:16px}
+.sub-tabs{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:wrap}
 .sub-tabs button{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer}
 .sub-tabs button.active{background:var(--bg-card);color:var(--accent-light);border-color:var(--accent-dark)}
 
@@ -145,6 +145,11 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
 @media(max-width:800px){
     .page{padding:12px}
     .stats-grid{grid-template-columns:repeat(2,1fr)}
+    #analytics-overview > div[style*="grid-template-columns:1fr 1fr"],
+    #analytics-service-detail > div[style*="grid-template-columns:1fr 1fr"],
+    #analytics-service-detail > div[style*="grid-template-columns:1fr 1fr 1fr"]{display:block!important}
+    #analytics-overview > div[style*="grid-template-columns"] > .card,
+    #analytics-service-detail > div[style*="grid-template-columns"] > .card{margin-bottom:12px}
 }
 @media(max-width:500px){
     .stats-grid{grid-template-columns:1fr}
@@ -187,6 +192,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                 <button class="admin-tab-btn" onclick="showTab('ses',this)"><i class="fa-solid fa-envelope"></i> SES</button>
                 <button class="admin-tab-btn" onclick="showTab('vkeys',this)"><i class="fa-solid fa-key"></i> Keys</button>
                 <button class="admin-tab-btn" onclick="showTab('audit',this)"><i class="fa-solid fa-clipboard-list"></i> Audit</button>
+                <button class="admin-tab-btn" onclick="showTab('analytics',this)"><i class="fa-solid fa-chart-pie"></i> Analytics</button>
             </div>
         </div>
         <button class="tabs-scroll-btn" id="main-tabs-right" onclick="scrollMainTabs(1)" title="Scroll right" aria-label="Scroll right">
@@ -336,9 +342,120 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
         <div id="audit-content"><div class="loading">Loading...</div></div>
         <div id="audit-pager" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px"></div>
     </div>
+
+    <!-- Analytics -->
+    <div class="section" id="sec-analytics">
+        <div class="sub-tabs" id="analytics-sub-tabs">
+            <button class="active" onclick="showAnalyticsSubTab('overview',this)">Overview</button>
+            <button onclick="showAnalyticsSubTab('hobostreamer',this)">HoboStreamer</button>
+            <button onclick="showAnalyticsSubTab('hobo-tools',this)">Hobo.Tools</button>
+            <button onclick="showAnalyticsSubTab('hobo-quest',this)">Hobo.Quest</button>
+            <button onclick="showAnalyticsSubTab('hobo-maps',this)">Hobo.Maps</button>
+            <button onclick="showAnalyticsSubTab('hobo-food',this)">Hobo.Food</button>
+            <button onclick="showAnalyticsSubTab('hobo-img',this)">Hobo.Img</button>
+            <button onclick="showAnalyticsSubTab('hobo-yt',this)">Hobo.YT</button>
+            <button onclick="showAnalyticsSubTab('hobo-audio',this)">Hobo.Audio</button>
+            <button onclick="showAnalyticsSubTab('hobo-text',this)">Hobo.Text</button>
+            <button onclick="showAnalyticsSubTab('bots',this)">Bot Analysis</button>
+        </div>
+        <div class="input-row" style="margin-bottom:16px">
+            <select id="analytics-period" onchange="reloadAnalytics()" style="max-width:180px">
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last year</option>
+            </select>
+            <button class="btn btn-outline" onclick="reloadAnalytics()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+
+        <!-- Overview sub-tab -->
+        <div id="analytics-overview">
+            <div class="stats-grid" id="analytics-stats"><div class="loading">Loading analytics...</div></div>
+            <div class="card" id="analytics-realtime-card" style="display:none">
+                <h3><i class="fa-solid fa-signal" style="color:var(--success)"></i> Real-time (last 5 min)</h3>
+                <div id="analytics-realtime"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-chart-area"></i> Traffic Trend</h3>
+                    <canvas id="chart-traffic-trend" height="260"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-ranking-star"></i> Service Comparison</h3>
+                    <canvas id="chart-service-compare" height="260"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-robot"></i> Bots vs Humans</h3>
+                    <canvas id="chart-bot-ratio" height="220"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-server"></i> Per-Service Traffic</h3>
+                    <div id="analytics-service-table"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service detail sub-tab -->
+        <div id="analytics-service-detail" style="display:none">
+            <div class="stats-grid" id="svc-analytics-stats"><div class="loading">Loading...</div></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-chart-line"></i> Daily Traffic</h3>
+                    <canvas id="chart-svc-daily" height="260"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-clock"></i> Hourly (24h)</h3>
+                    <canvas id="chart-svc-hourly" height="260"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-laptop"></i> Devices</h3>
+                    <canvas id="chart-svc-devices" height="220"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-globe"></i> Browsers</h3>
+                    <canvas id="chart-svc-browsers" height="220"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-desktop"></i> OS</h3>
+                    <canvas id="chart-svc-os" height="220"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-link"></i> Top Pages</h3>
+                    <div id="svc-top-pages"></div>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-arrow-up-right-from-square"></i> Top Referers</h3>
+                    <div id="svc-top-referers"></div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-circle-exclamation"></i> Status Codes</h3>
+                    <canvas id="chart-svc-status" height="200"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-earth-americas"></i> Countries</h3>
+                    <div id="svc-countries"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot analysis sub-tab -->
+        <div id="analytics-bots-detail" style="display:none">
+            <div id="bots-content"><div class="loading">Loading bot analysis...</div></div>
+        </div>
+    </div>
 </div>
 
 <!-- Shared scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="/shared/navbar.js"></script>
 <script src="/shared/notification-ui.js"></script>
 <script src="/shared/account-switcher.js"></script>
@@ -418,6 +535,7 @@ const tabLoaders = {
     ses: loadSES,
     vkeys: loadVKeys,
     audit: loadAudit,
+    analytics: loadAnalytics,
 };
 
 function showTab(id, btn) {
@@ -1461,6 +1579,401 @@ async function revokeVKey(id) {
         toast('Key revoked', 'success');
         loadVKeys();
     } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Analytics
+// ═══════════════════════════════════════════════════════════════
+let analyticsCurrentSubTab = 'overview';
+let analyticsCharts = {};
+const CHART_COLORS = {
+    accent: '#c0965c',
+    accentLight: '#dbb077',
+    success: '#2ecc71',
+    danger: '#e74c3c',
+    warning: '#f59e0b',
+    info: '#3498db',
+    purple: '#9b59b6',
+    pink: '#e84393',
+    teal: '#00cec9',
+    navy: '#2d3436',
+};
+const PIE_COLORS = ['#c0965c', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f59e0b', '#e84393', '#00cec9', '#1abc9c', '#fd79a8'];
+
+function getAnalyticsDays() {
+    return parseInt(document.getElementById('analytics-period')?.value) || 30;
+}
+
+function showAnalyticsSubTab(tab, btn) {
+    analyticsCurrentSubTab = tab;
+    document.querySelectorAll('#analytics-sub-tabs button').forEach(b => b.classList.remove('active'));
+    btn?.classList.add('active');
+    document.getElementById('analytics-overview').style.display = tab === 'overview' ? 'block' : 'none';
+    const serviceNames = ['hobostreamer','hobo-tools','hobo-quest','hobo-maps','hobo-food','hobo-img','hobo-yt','hobo-audio','hobo-text'];
+    document.getElementById('analytics-service-detail').style.display = serviceNames.includes(tab) ? 'block' : 'none';
+    document.getElementById('analytics-bots-detail').style.display = tab === 'bots' ? 'block' : 'none';
+    if (tab === 'overview') loadAnalyticsOverview();
+    else if (tab === 'bots') loadBotAnalysis();
+    else loadServiceAnalytics(tab);
+}
+
+function reloadAnalytics() {
+    if (analyticsCurrentSubTab === 'overview') loadAnalyticsOverview();
+    else if (analyticsCurrentSubTab === 'bots') loadBotAnalysis();
+    else loadServiceAnalytics(analyticsCurrentSubTab);
+}
+
+async function loadAnalytics() {
+    loadAnalyticsOverview();
+}
+
+function destroyChart(id) {
+    if (analyticsCharts[id]) { analyticsCharts[id].destroy(); delete analyticsCharts[id]; }
+}
+
+function createChart(canvasId, config) {
+    destroyChart(canvasId);
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    // Default dark theme
+    config.options = config.options || {};
+    config.options.responsive = true;
+    config.options.maintainAspectRatio = false;
+    config.options.plugins = config.options.plugins || {};
+    config.options.plugins.legend = config.options.plugins.legend || { labels: { color: '#b0b0b8', font: { size: 11 } } };
+    if (config.options.scales) {
+        for (const [, axis] of Object.entries(config.options.scales)) {
+            axis.ticks = axis.ticks || {};
+            axis.ticks.color = axis.ticks.color || '#707080';
+            axis.grid = axis.grid || {};
+            axis.grid.color = axis.grid.color || 'rgba(42,42,58,0.5)';
+        }
+    }
+    analyticsCharts[canvasId] = new Chart(ctx, config);
+    return analyticsCharts[canvasId];
+}
+
+function fmtNum(n) { return (n || 0).toLocaleString(); }
+
+async function loadAnalyticsOverview() {
+    const days = getAnalyticsDays();
+    const statsEl = document.getElementById('analytics-stats');
+    statsEl.innerHTML = '<div class="loading">Loading analytics...</div>';
+    try {
+        const data = await api(`/api/admin/analytics/overview?days=${days}`);
+        const ov = data.overview;
+        const t = ov.totals || {};
+
+        statsEl.innerHTML = [
+            { icon: 'fa-eye', label: 'Total Page Views', value: fmtNum(t.total_pageviews) },
+            { icon: 'fa-code', label: 'API Calls', value: fmtNum(t.total_api_calls) },
+            { icon: 'fa-users', label: 'Unique Visitors', value: fmtNum(t.total_unique_visitors) },
+            { icon: 'fa-robot', label: 'Bot Hits', value: fmtNum(t.total_bot_hits) },
+            { icon: 'fa-circle-exclamation', label: 'Errors', value: fmtNum(t.total_errors) },
+            { icon: 'fa-gauge-high', label: 'Avg Response', value: (t.avg_response_ms || 0) + 'ms' },
+        ].map(s => `<div class="stat-card"><div class="value">${s.value}</div><div class="label"><i class="fa-solid ${s.icon}"></i> ${s.label}</div></div>`).join('');
+
+        // Real-time card
+        const rt = ov.realtime || {};
+        const rtCard = document.getElementById('analytics-realtime-card');
+        if (rt.requests > 0) {
+            rtCard.style.display = 'block';
+            document.getElementById('analytics-realtime').innerHTML = `
+                <div style="display:flex;gap:24px;font-size:14px">
+                    <span><strong style="color:var(--accent-light)">${fmtNum(rt.requests)}</strong> requests</span>
+                    <span><strong style="color:var(--success)">${fmtNum(rt.visitors)}</strong> visitors</span>
+                    <span><strong style="color:var(--danger)">${fmtNum(rt.bots)}</strong> bots</span>
+                </div>`;
+        } else {
+            rtCard.style.display = 'none';
+        }
+
+        // Traffic trend chart
+        const trend = ov.dailyTrend || [];
+        if (trend.length) {
+            createChart('chart-traffic-trend', {
+                type: 'line',
+                data: {
+                    labels: trend.map(d => d.date.slice(5)),
+                    datasets: [
+                        { label: 'Page Views', data: trend.map(d => d.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3 },
+                        { label: 'API Calls', data: trend.map(d => d.api_calls), borderColor: CHART_COLORS.info, backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.3 },
+                        { label: 'Visitors', data: trend.map(d => d.unique_visitors), borderColor: CHART_COLORS.success, backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.3 },
+                    ],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true } } },
+            });
+        }
+
+        // Service comparison bar chart
+        const svcs = ov.services || [];
+        if (svcs.length) {
+            createChart('chart-service-compare', {
+                type: 'bar',
+                data: {
+                    labels: svcs.map(s => s.label || s.name),
+                    datasets: [
+                        { label: 'Page Views', data: svcs.map(s => s.total_pageviews || 0), backgroundColor: CHART_COLORS.accent },
+                        { label: 'API Calls', data: svcs.map(s => s.total_api_calls || 0), backgroundColor: CHART_COLORS.info },
+                        { label: 'Bot Hits', data: svcs.map(s => s.total_bot_hits || 0), backgroundColor: CHART_COLORS.danger },
+                    ],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true } } },
+            });
+        }
+
+        // Bot ratio donut
+        const totalHuman = (t.total_pageviews || 0) + (t.total_api_calls || 0);
+        const totalBots = t.total_bot_hits || 0;
+        if (totalHuman > 0 || totalBots > 0) {
+            createChart('chart-bot-ratio', {
+                type: 'doughnut',
+                data: {
+                    labels: ['Human Traffic', 'Bot Traffic'],
+                    datasets: [{ data: [totalHuman, totalBots], backgroundColor: [CHART_COLORS.success, CHART_COLORS.danger], borderWidth: 0 }],
+                },
+                options: { plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // Service table
+        const tbl = document.getElementById('analytics-service-table');
+        tbl.innerHTML = svcs.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Service</th><th>Views</th><th>API</th><th>Visitors</th><th>Bots</th><th>Errors</th><th>Avg ms</th></tr></thead>
+                <tbody>${svcs.map(s => `
+                    <tr>
+                        <td><strong>${esc(s.label || s.name)}</strong></td>
+                        <td>${fmtNum(s.total_pageviews)}</td>
+                        <td>${fmtNum(s.total_api_calls)}</td>
+                        <td>${fmtNum(s.total_unique_visitors)}</td>
+                        <td>${fmtNum(s.total_bot_hits)}</td>
+                        <td>${fmtNum(s.total_errors)}</td>
+                        <td>${s.avg_response_ms || 0}ms</td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>` : '<p class="muted">No data yet</p>';
+    } catch (e) {
+        statsEl.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`;
+    }
+}
+
+async function loadServiceAnalytics(serviceName) {
+    const days = getAnalyticsDays();
+    const statsEl = document.getElementById('svc-analytics-stats');
+    statsEl.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const data = await api(`/api/admin/analytics/service/${serviceName}?days=${days}`);
+        const a = data.analytics;
+        const s = a.summary || {};
+
+        statsEl.innerHTML = [
+            { icon: 'fa-eye', label: 'Page Views', value: fmtNum(s.total_pageviews) },
+            { icon: 'fa-code', label: 'API Calls', value: fmtNum(s.total_api_calls) },
+            { icon: 'fa-users', label: 'Unique Visitors', value: fmtNum(s.total_unique_visitors) },
+            { icon: 'fa-user', label: 'Unique Users', value: fmtNum(s.total_unique_users) },
+            { icon: 'fa-robot', label: 'Bot Hits', value: fmtNum(s.total_bot_hits) },
+            { icon: 'fa-circle-exclamation', label: 'Errors', value: fmtNum(s.total_errors) },
+            { icon: 'fa-gauge-high', label: 'Avg Response', value: (s.avg_response_ms || 0) + 'ms' },
+        ].map(s => `<div class="stat-card"><div class="value">${s.value}</div><div class="label"><i class="fa-solid ${s.icon}"></i> ${s.label}</div></div>`).join('');
+
+        // Daily traffic
+        const daily = a.daily || [];
+        if (daily.length) {
+            createChart('chart-svc-daily', {
+                type: 'line',
+                data: {
+                    labels: daily.map(d => d.date.slice(5)),
+                    datasets: [
+                        { label: 'Page Views', data: daily.map(d => d.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
+                        { label: 'API Calls', data: daily.map(d => d.api_calls), borderColor: CHART_COLORS.info, tension: 0.3, pointRadius: 2 },
+                        { label: 'Visitors', data: daily.map(d => d.unique_visitors), borderColor: CHART_COLORS.success, tension: 0.3, pointRadius: 2 },
+                        { label: 'Bots', data: daily.map(d => d.bot_hits), borderColor: CHART_COLORS.danger, borderDash: [5,5], tension: 0.3, pointRadius: 1 },
+                    ],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true } } },
+            });
+        }
+
+        // Hourly
+        const hourly = a.hourly || [];
+        if (hourly.length) {
+            createChart('chart-svc-hourly', {
+                type: 'bar',
+                data: {
+                    labels: hourly.map(h => h.hour?.slice(11, 16) || ''),
+                    datasets: [
+                        { label: 'Page Views', data: hourly.map(h => h.pageviews), backgroundColor: 'rgba(192,150,92,0.7)' },
+                        { label: 'API Calls', data: hourly.map(h => h.api_calls), backgroundColor: 'rgba(52,152,219,0.7)' },
+                    ],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // Devices pie
+        const devices = a.deviceBreakdown || [];
+        if (devices.length) {
+            createChart('chart-svc-devices', {
+                type: 'doughnut',
+                data: {
+                    labels: devices.map(d => d.device_type || 'unknown'),
+                    datasets: [{ data: devices.map(d => d.cnt), backgroundColor: PIE_COLORS.slice(0, devices.length), borderWidth: 0 }],
+                },
+                options: { plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // Browsers pie
+        const browsers = a.browserBreakdown || [];
+        if (browsers.length) {
+            createChart('chart-svc-browsers', {
+                type: 'doughnut',
+                data: {
+                    labels: browsers.map(d => d.browser || 'unknown'),
+                    datasets: [{ data: browsers.map(d => d.cnt), backgroundColor: PIE_COLORS.slice(0, browsers.length), borderWidth: 0 }],
+                },
+                options: { plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // OS pie
+        const oses = a.osBreakdown || [];
+        if (oses.length) {
+            createChart('chart-svc-os', {
+                type: 'doughnut',
+                data: {
+                    labels: oses.map(d => d.os || 'unknown'),
+                    datasets: [{ data: oses.map(d => d.cnt), backgroundColor: PIE_COLORS.slice(0, oses.length), borderWidth: 0 }],
+                },
+                options: { plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // Top pages
+        const pages = a.topPages || [];
+        document.getElementById('svc-top-pages').innerHTML = pages.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Path</th><th>Hits</th><th>Visitors</th></tr></thead>
+                <tbody>${pages.slice(0, 15).map(p => `
+                    <tr><td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.path)}">${esc(p.path)}</td><td>${fmtNum(p.hits)}</td><td>${fmtNum(p.visitors)}</td></tr>
+                `).join('')}</tbody>
+            </table>` : '<p class="muted">No data</p>';
+
+        // Referers
+        const refs = a.topReferers || [];
+        document.getElementById('svc-top-referers').innerHTML = refs.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Referer</th><th>Hits</th></tr></thead>
+                <tbody>${refs.slice(0, 10).map(r => `
+                    <tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.referer)}">${esc(r.referer)}</td><td>${fmtNum(r.hits)}</td></tr>
+                `).join('')}</tbody>
+            </table>` : '<p class="muted">No referers tracked</p>';
+
+        // Status codes
+        const statuses = a.statusCodes || [];
+        if (statuses.length) {
+            const statusColors = { '2xx': CHART_COLORS.success, '3xx': CHART_COLORS.info, '4xx': CHART_COLORS.warning, '5xx': CHART_COLORS.danger, 'other': '#707080' };
+            createChart('chart-svc-status', {
+                type: 'bar',
+                data: {
+                    labels: statuses.map(s => s.group_code),
+                    datasets: [{ label: 'Count', data: statuses.map(s => s.cnt), backgroundColor: statuses.map(s => statusColors[s.group_code] || '#707080') }],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true } }, plugins: { legend: { display: false } } },
+            });
+        }
+
+        // Countries
+        const countries = a.countryBreakdown || [];
+        document.getElementById('svc-countries').innerHTML = countries.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Country</th><th>Hits</th></tr></thead>
+                <tbody>${countries.slice(0, 15).map(c => `
+                    <tr><td>${esc(c.country || 'Unknown')}</td><td>${fmtNum(c.cnt)}</td></tr>
+                `).join('')}</tbody>
+            </table>` : '<p class="muted">No country data (requires Cloudflare CF-IPCountry header)</p>';
+    } catch (e) {
+        statsEl.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`;
+    }
+}
+
+async function loadBotAnalysis() {
+    const days = getAnalyticsDays();
+    const el = document.getElementById('bots-content');
+    el.innerHTML = '<div class="loading">Loading bot analysis...</div>';
+    try {
+        const data = await api(`/api/admin/analytics/bots?days=${days}`);
+        const bots = data.bots || {};
+        let html = '';
+
+        for (const [svcName, svcBots] of Object.entries(bots)) {
+            if (!svcBots) continue;
+            const label = svcName === 'hobostreamer' ? 'HoboStreamer' : svcName === 'hobo-tools' ? 'Hobo.Tools' : svcName === 'hobo-quest' ? 'Hobo.Quest' : svcName;
+
+            html += `<div class="card"><h3><i class="fa-solid fa-robot"></i> ${esc(label)}</h3>`;
+
+            // Bot types
+            const types = svcBots.botTypes || [];
+            if (types.length) {
+                html += `<h4 style="font-size:12px;color:var(--text-muted);margin:12px 0 8px">Bot Types</h4>
+                    <table class="admin-table"><thead><tr><th>Type</th><th>Hits</th><th>Unique IPs</th></tr></thead>
+                    <tbody>${types.map(t => `<tr><td><span class="badge badge-danger">${esc(t.bot_type || 'unknown')}</span></td><td>${fmtNum(t.hits)}</td><td>${fmtNum(t.unique_ips)}</td></tr>`).join('')}</tbody></table>`;
+            }
+
+            // Top bot IPs
+            const topIPs = svcBots.topBotIPs || [];
+            if (topIPs.length) {
+                html += `<h4 style="font-size:12px;color:var(--text-muted);margin:12px 0 8px">Top Bot IPs</h4>
+                    <table class="admin-table"><thead><tr><th>IP</th><th>Hits</th><th>Type</th><th>First Seen</th><th>Last Seen</th></tr></thead>
+                    <tbody>${topIPs.slice(0, 15).map(ip => `
+                        <tr><td style="font-family:monospace;font-size:11px">${esc(ip.ip)}</td><td>${fmtNum(ip.hits)}</td>
+                        <td><span class="badge badge-warning">${esc(ip.bot_type || '?')}</span></td>
+                        <td style="font-size:11px">${ip.first_seen ? timeAgo(ip.first_seen) : '-'}</td>
+                        <td style="font-size:11px">${ip.last_seen ? timeAgo(ip.last_seen) : '-'}</td></tr>
+                    `).join('')}</tbody></table>`;
+            }
+
+            // Suspicious human IPs  
+            const suspicious = svcBots.suspiciousIPs || [];
+            if (suspicious.length) {
+                html += `<h4 style="font-size:12px;color:var(--text-muted);margin:12px 0 8px">Suspicious IPs (high volume, classified as human)</h4>
+                    <table class="admin-table"><thead><tr><th>IP</th><th>Total Hits</th><th>Errors</th><th>Unique Paths</th><th>Period</th></tr></thead>
+                    <tbody>${suspicious.map(s => `
+                        <tr><td style="font-family:monospace;font-size:11px">${esc(s.ip)}</td><td>${fmtNum(s.total_hits)}</td>
+                        <td style="color:var(--danger)">${fmtNum(s.error_hits)}</td><td>${fmtNum(s.unique_paths)}</td>
+                        <td style="font-size:11px">${s.first_seen ? timeAgo(s.first_seen) : '-'} — ${s.last_seen ? timeAgo(s.last_seen) : '-'}</td></tr>
+                    `).join('')}</tbody></table>`;
+            }
+
+            // Bot trend
+            const trend = svcBots.botTrend || [];
+            if (trend.length) {
+                const canvasId = `chart-bot-trend-${svcName}`;
+                html += `<div style="margin-top:12px"><canvas id="${canvasId}" height="180"></canvas></div>`;
+                // Queue chart creation after DOM update
+                setTimeout(() => {
+                    createChart(canvasId, {
+                        type: 'line',
+                        data: {
+                            labels: trend.map(d => d.date?.slice(5) || ''),
+                            datasets: [
+                                { label: 'Human', data: trend.map(d => d.human_hits || 0), borderColor: CHART_COLORS.success, tension: 0.3, fill: true, backgroundColor: 'rgba(46,204,113,0.1)' },
+                                { label: 'Bots', data: trend.map(d => d.bot_hits || 0), borderColor: CHART_COLORS.danger, tension: 0.3, fill: true, backgroundColor: 'rgba(231,76,60,0.1)' },
+                            ],
+                        },
+                        options: { scales: { x: {}, y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+                    });
+                }, 50);
+            }
+
+            html += '</div>';
+        }
+
+        el.innerHTML = html || '<p class="muted">No bot data available yet. Analytics data will appear once traffic is recorded.</p>';
+    } catch (e) {
+        el.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════

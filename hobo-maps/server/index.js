@@ -11,10 +11,21 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 const NodeCache = require('node-cache');
 const cookieParser = require('cookie-parser');
 
 const config = require('./config');
+
+// ── Analytics ────────────────────────────────────────────────
+const Database = require('better-sqlite3');
+const { AnalyticsTracker } = require('hobo-shared/analytics');
+const INTERNAL_SECRET = 'hobo-internal-2026';
+const analyticsDbPath = path.join(__dirname, '..', 'data', 'analytics.db');
+fs.mkdirSync(path.dirname(analyticsDbPath), { recursive: true });
+const analyticsDb = new Database(analyticsDbPath);
+analyticsDb.pragma('journal_mode = WAL');
+const analytics = new AnalyticsTracker(analyticsDb, 'hobo-maps');
 
 const app = express();
 const cache = new NodeCache({ stdTTL: config.cache.search, checkperiod: 60 });
@@ -46,6 +57,9 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests — slow down, hobo.' },
 });
 app.use('/api/', apiLimiter);
+
+// ── Analytics Middleware ─────────────────────────────────────
+app.use(analytics.middleware());
 
 // ── Static files ───────────────────────────────────────────
 // Serve hobo-shared client-side libs
@@ -406,12 +420,35 @@ app.get('/api/meal-plan', (req, res) => {
   res.json(grocery.optimizeMealPlan(budget, days, prefs));
 });
 
+// ── Internal Analytics API ────────────────────────────────────
+app.get('/api/internal/analytics', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, analytics: analytics.getStats({ days: Math.min(parseInt(req.query.days) || 30, 365) }) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+app.get('/api/internal/analytics/bots', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, bots: analytics.getBotAnalysis(Math.min(parseInt(req.query.days) || 30, 365)) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
 // ── SPA fallback ───────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 // ── Start ──────────────────────────────────────────────────
-app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, () => {
   console.log(`[HoboMaps] 🗺️  maps.hobo.tools listening on ${config.host}:${config.port}`);
 });
+
+// ── Graceful Shutdown ────────────────────────────────────────
+function shutdown() {
+    console.log('[HoboMaps] Shutting down...');
+    analytics.destroy();
+    analyticsDb.close();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 5000);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

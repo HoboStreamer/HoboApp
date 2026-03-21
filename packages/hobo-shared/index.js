@@ -5,6 +5,7 @@ const { HoboAuthClient } = require('./auth-client');
 const { CSS_VARIABLES, DEFAULT_VARS, BUILTIN_THEMES, applyTheme, resolveBuiltinTheme, sanitizeCssValue, loadFromStorage, saveToStorage, syncThemeToServer } = require('./theme-sync');
 const { extractToken, requireHoboAuth, optionalHoboAuth, internalApiAuth } = require('./middleware');
 const { PRIORITY, CATEGORY, TYPES, SOUNDS, EMAIL_ELIGIBLE_CATEGORIES, createNotification, DEFAULT_NOTIFICATION_PREFS } = require('./notifications');
+const { AnalyticsTracker, classifyRequest, parseUserAgent, ANALYTICS_SCHEMA, BOT_USER_AGENTS, SUSPICIOUS_PATTERNS } = require('./analytics');
 
 module.exports = {
     // Brand
@@ -33,6 +34,13 @@ module.exports = {
     EMAIL_ELIGIBLE_CATEGORIES,
     createNotification,
     DEFAULT_NOTIFICATION_PREFS,
+    // Analytics
+    AnalyticsTracker,
+    classifyRequest,
+    parseUserAgent,
+    ANALYTICS_SCHEMA,
+    BOT_USER_AGENTS,
+    SUSPICIOUS_PATTERNS,
     // Client-side modules (browser only — require() for bundlers, <script> tag for direct use)
     // HoboNotifications: require('./notification-ui'),
     // HoboUserCard: require('./user-card'),

@@ -21,6 +21,16 @@ const { uploadSingle } = require('./middleware/upload');
 const { apiLimiter, processLimiter, burstLimiter } = require('./middleware/rate-limit');
 const retention = require('./retention/manager');
 
+// ── Analytics ────────────────────────────────────────────────
+const Database = require('better-sqlite3');
+const { AnalyticsTracker } = require('hobo-shared/analytics');
+const INTERNAL_SECRET = 'hobo-internal-2026';
+const analyticsDbPath = path.join(__dirname, '..', 'data', 'analytics.db');
+fs.mkdirSync(path.dirname(analyticsDbPath), { recursive: true });
+const analyticsDb = new Database(analyticsDbPath);
+analyticsDb.pragma('journal_mode = WAL');
+const analytics = new AnalyticsTracker(analyticsDb, 'hobo-img');
+
 const app = express();
 
 // ── Security ─────────────────────────────────────────────────
@@ -57,6 +67,9 @@ app.use(cors({
 
 // ── Rate Limiting ────────────────────────────────────────────
 app.use('/api/', apiLimiter);
+
+// ── Analytics Middleware ─────────────────────────────────────
+app.use(analytics.middleware());
 
 // ── Auth (optional on all routes) ────────────────────────────
 app.use(optionalAuth);
@@ -207,6 +220,18 @@ app.get('/api/download/:id', (req, res) => {
     res.sendFile(entry.filePath);
 });
 
+// ── Internal Analytics API ────────────────────────────────────
+app.get('/api/internal/analytics', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, analytics: analytics.getStats({ days: Math.min(parseInt(req.query.days) || 30, 365) }) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+app.get('/api/internal/analytics/bots', (req, res) => {
+    if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    try { res.json({ ok: true, bots: analytics.getBotAnalysis(Math.min(parseInt(req.query.days) || 30, 365)) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
 // ── Static Files ─────────────────────────────────────────────
 // Serve hobo-shared client-side libs
 const sharedPath = path.resolve(__dirname, '..', '..', 'packages', 'hobo-shared');
@@ -236,7 +261,7 @@ app.get('*', (req, res) => {
 });
 
 // ── Start ────────────────────────────────────────────────────
-app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, () => {
     retention.startCleanup();
     console.log(`\n╔═══════════════════════════════════════╗`);
     console.log(`║   🖼️  HoboImg — Image Conversion Hub   ║`);
@@ -244,4 +269,16 @@ app.listen(config.port, config.host, () => {
     console.log(`║  Port: ${String(config.port).padEnd(30)}║`);
     console.log(`║  Host: ${config.host.padEnd(30)}║`);
     console.log(`╚═══════════════════════════════════════╝\n`);
+});
+
+// ── Graceful Shutdown ────────────────────────────────────────
+function shutdown() {
+    console.log('[HoboImg] Shutting down...');
+    analytics.destroy();
+    analyticsDb.close();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 5000);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 });

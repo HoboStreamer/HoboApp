@@ -50,5 +50,23 @@ module.exports = {
             internalUrl: process.env.HOBOQUEST_INTERNAL_URL || 'http://127.0.0.1:3200',
             webhookSecret: process.env.HOBOQUEST_WEBHOOK_SECRET || '',
         },
+        hobomaps: {
+            internalUrl: process.env.HOBOMAPS_INTERNAL_URL || 'http://127.0.0.1:3300',
+        },
+        hobofood: {
+            internalUrl: process.env.HOBOFOOD_INTERNAL_URL || 'http://127.0.0.1:3301',
+        },
+        hoboimg: {
+            internalUrl: process.env.HOBOIMG_INTERNAL_URL || 'http://127.0.0.1:3400',
+        },
+        hoboyt: {
+            internalUrl: process.env.HOBOYT_INTERNAL_URL || 'http://127.0.0.1:3401',
+        },
+        hoboaudio: {
+            internalUrl: process.env.HOBOAUDIO_INTERNAL_URL || 'http://127.0.0.1:3500',
+        },
+        hobotext: {
+            internalUrl: process.env.HOBOTEXT_INTERNAL_URL || 'http://127.0.0.1:3600',
+        },
     },
 };

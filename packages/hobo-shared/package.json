@@ -5,6 +5,7 @@
   "main": "index.js",
   "exports": {
     ".": "./index.js",
+    "./analytics": "./analytics.js",
     "./auth-client": "./auth-client.js",
     "./theme-sync": "./theme-sync.js",
     "./brand": "./brand.js",

@@ -21,6 +21,7 @@ const { NotificationService } = require('./notifications/notification-service');
 const { SESService } = require('./notifications/ses-service');
 const createNotificationRoutes = require('./notifications/routes');
 const createAdminRoutes = require('./admin/routes');
+const { AnalyticsTracker } = require('hobo-shared/analytics');
 
 const app = express();
 
@@ -134,7 +135,10 @@ app.use('/api/auth/', rateLimit({ windowMs: 15 * 60_000, max: 30, skipSuccessful
 
 // ── Database ─────────────────────────────────────────────────
 const db = initDb(config.db.path);
-
+// ── Analytics Tracking ────────────────────────────────────────
+const analytics = new AnalyticsTracker(db, 'hobo-tools');
+app.locals.analytics = analytics;
+app.use(analytics.middleware());
 // ── Load RSA Keys ────────────────────────────────────────────
 let privateKey, publicKey;
 try {
@@ -219,6 +223,10 @@ app.use('/api/notifications', createNotificationRoutes(db, notificationService, 
 
 // Admin panel API
 app.use('/api/admin', createAdminRoutes(db, notificationService, sesService, requireAuth));
+
+// Analytics admin API
+const createAnalyticsRoutes = require('./admin/analytics-routes');
+app.use('/api/admin/analytics', createAnalyticsRoutes(analytics, requireAuth, config));
 
 // ── Admin Proxy to HoboStreamer ──────────────────────────────
 // Proxies /api/admin/streamer/* → hobostreamer.com /api/admin/*

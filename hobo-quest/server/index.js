@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const config = require('./config');
+const { AnalyticsTracker } = require('hobo-shared/analytics');
 
 const app = express();
 const server = http.createServer(app);
@@ -58,6 +59,9 @@ app.use(express.json({ limit: '1mb' }));
 // ── Rate Limiting ───────────────────────────────────────────
 app.use('/api/', rateLimit({ windowMs: 60_000, max: 200 }));
 app.use('/auth/', rateLimit({ windowMs: 15 * 60_000, max: 30 }));
+
+// ── Analytics Tracking ────────────────────────────────────────
+// Initialized after DB is ready (below)
 
 // ── Load RSA Public Key (for JWT verification) ──────────────
 let publicKey;
@@ -110,6 +114,11 @@ const { initDb } = require('./db/database');
 const db = initDb(config.db.path);
 app.locals.db = db;
 
+// Initialize analytics tracker
+const analytics = new AnalyticsTracker(db, 'hobo-quest');
+app.locals.analytics = analytics;
+app.use(analytics.middleware());
+
 // ── Game Systems Initialization ─────────────────────────────
 const dbAdapter = require('./game/db-adapter');
 const gameAuth = require('./game/game-auth');
@@ -148,6 +157,31 @@ const internalRoutes = require('./api/internal-routes');
 app.use('/api/game/canvas', canvasRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/internal', internalRoutes);
+
+// ── Internal Analytics API ──────────────────────────────────
+// Called by hobo-tools admin panel to fetch analytics
+app.get('/api/internal/analytics', (req, res) => {
+    if (req.headers['x-internal-secret'] !== 'hobo-internal-2026') {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    try {
+        const days = Math.min(parseInt(req.query.days) || 30, 365);
+        res.json({ ok: true, analytics: analytics.getStats({ days }) });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+app.get('/api/internal/analytics/bots', (req, res) => {
+    if (req.headers['x-internal-secret'] !== 'hobo-internal-2026') {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    try {
+        const days = Math.min(parseInt(req.query.days) || 30, 365);
+        res.json({ ok: true, bots: analytics.getBotAnalysis(days) });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
 
 // ── Health ──────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -207,6 +241,7 @@ process.on('SIGTERM', () => {
     console.log('[hobo-quest] SIGTERM received — shutting down');
     gameServer.close();
     canvasServer.close();
+    analytics.destroy();
     server.close(() => {
         db.close();
         process.exit(0);
@@ -217,6 +252,7 @@ process.on('SIGINT', () => {
     console.log('[hobo-quest] SIGINT received — shutting down');
     gameServer.close();
     canvasServer.close();
+    analytics.destroy();
     server.close(() => {
         db.close();
         process.exit(0);
