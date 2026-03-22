@@ -256,9 +256,11 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
         <div class="sub-tabs" id="settings-sub-tabs">
             <button class="active" onclick="showSettingsSub('tools',this)">Hobo.Tools</button>
             <button onclick="showSettingsSub('streamer',this)">HoboStreamer</button>
+            <button onclick="showSettingsSub('media',this)">Media Tools</button>
         </div>
         <div id="settings-tools" class="settings-sub active"></div>
         <div id="settings-streamer" class="settings-sub" style="display:none"></div>
+        <div id="settings-media" class="settings-sub" style="display:none"></div>
     </div>
 
     <!-- TTS -->
@@ -908,8 +910,10 @@ function showSettingsSub(sub, btn) {
     btn?.classList.add('active');
     document.getElementById('settings-tools').style.display = sub === 'tools' ? 'block' : 'none';
     document.getElementById('settings-streamer').style.display = sub === 'streamer' ? 'block' : 'none';
+    document.getElementById('settings-media').style.display = sub === 'media' ? 'block' : 'none';
     if (sub === 'tools') loadToolsSettings();
-    else loadStreamerSettings();
+    else if (sub === 'streamer') loadStreamerSettings();
+    else loadStreamerMediaTools();
 }
 
 async function loadSettings() {
@@ -1005,6 +1009,100 @@ async function saveStreamerSettings() {
         await api('/api/admin/streamer/settings', { method: 'PUT', body: { settings } });
         toast('HoboStreamer settings saved', 'success');
     } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadStreamerMediaTools() {
+    const c = document.getElementById('settings-media');
+    c.innerHTML = '<div class="loading">Loading...</div>';
+
+    let status = {};
+    try {
+        status = await api('/api/admin/streamer/media-tools/status');
+    } catch (e) {
+        c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`;
+        return;
+    }
+
+    c.innerHTML = `
+        <div style="display:grid;gap:16px;max-width:860px">
+            <div class="card">
+                <h3><i class="fa-solid fa-wrench"></i> HoboStreamer yt-dlp Status</h3>
+                <div style="display:grid;gap:8px;font-size:0.95rem">
+                    <div><strong>yt-dlp available:</strong> ${status.ytdlp_available
+                        ? '<span style="color:var(--success,#22c55e)"><i class="fa-solid fa-check-circle"></i> Yes</span>'
+                        : '<span style="color:var(--danger,#ef4444)"><i class="fa-solid fa-xmark-circle"></i> No</span>'
+                    }</div>
+                    <div><strong>Path:</strong> <span style="font-family:monospace;font-size:0.88rem">${esc(status.ytdlp_path || '')}</span></div>
+                    <div><strong>YouTube cookies:</strong> ${status.cookies_configured
+                        ? `<span style="color:var(--success,#22c55e)"><i class="fa-solid fa-cookie"></i> Configured (${esc(String(status.cookies_size || 0))} bytes)</span>`
+                        : '<span class="muted"><i class="fa-solid fa-cookie-bite"></i> Not configured</span>'
+                    }</div>
+                    ${!status.cookies_configured ? '<div style="color:var(--warn,#f59e0b);font-size:0.88rem"><i class="fa-solid fa-triangle-exclamation"></i> YouTube server-side downloads will fail until cookies.txt is added.</div>' : ''}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-cookie"></i> YouTube Cookies</h3>
+                <p class="muted" style="margin-top:0">Paste a Netscape-format cookies.txt export from a browser session logged into YouTube. This is required when YouTube bot detection blocks server-side downloads.</p>
+                <textarea id="streamer-media-cookies-input" rows="10" placeholder="# Netscape HTTP Cookie File&#10;.youtube.com&#9;TRUE&#9;/&#9;TRUE&#9;0&#9;SID&#9;value..."
+                    style="width:100%;background:var(--bg-input);color:var(--text);border:1px solid var(--border);padding:10px;border-radius:6px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                    <button type="button" class="btn btn-primary" onclick="saveStreamerMediaCookies()"><i class="fa-solid fa-floppy-disk"></i> Save Cookies</button>
+                    <button type="button" class="btn" onclick="deleteStreamerMediaCookies()" ${status.cookies_configured ? '' : 'disabled'}><i class="fa-solid fa-trash"></i> Remove Cookies</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-flask-vial"></i> Test Extraction</h3>
+                <p class="muted" style="margin-top:0">Test a YouTube URL against the live HoboStreamer server to confirm cookies and yt-dlp are working.</p>
+                <div class="input-row">
+                    <input type="text" id="streamer-media-test-url" placeholder="https://www.youtube.com/watch?v=...">
+                    <button type="button" class="btn btn-primary" onclick="testStreamerMediaExtraction()"><i class="fa-solid fa-play"></i> Test</button>
+                </div>
+                <div id="streamer-media-test-results" style="margin-top:12px"></div>
+            </div>
+        </div>`;
+}
+
+async function saveStreamerMediaCookies() {
+    const ta = document.getElementById('streamer-media-cookies-input');
+    const cookies = ta?.value?.trim() || '';
+    if (!cookies) return toast('Paste cookies.txt content first', 'error');
+    try {
+        await api('/api/admin/streamer/media-tools/cookies', { method: 'PUT', body: { cookies } });
+        toast('HoboStreamer cookies saved', 'success');
+        loadStreamerMediaTools();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteStreamerMediaCookies() {
+    if (!confirm('Remove HoboStreamer yt-dlp cookies?')) return;
+    try {
+        await api('/api/admin/streamer/media-tools/cookies', { method: 'DELETE' });
+        toast('HoboStreamer cookies removed', 'success');
+        loadStreamerMediaTools();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function testStreamerMediaExtraction() {
+    const url = document.getElementById('streamer-media-test-url')?.value?.trim() || '';
+    const results = document.getElementById('streamer-media-test-results');
+    if (!url) return toast('Enter a URL to test', 'error');
+    results.innerHTML = '<p class="muted"><i class="fa-solid fa-spinner fa-spin"></i> Testing live HoboStreamer extraction…</p>';
+    try {
+        const data = await api('/api/admin/streamer/media-tools/test', { method: 'POST', body: { url } });
+        results.innerHTML = `<div style="display:grid;gap:8px;font-size:0.9rem">${(data.steps || []).map(step => {
+            const icon = step.ok
+                ? '<i class="fa-solid fa-check-circle" style="color:var(--success,#22c55e)"></i>'
+                : '<i class="fa-solid fa-xmark-circle" style="color:var(--danger,#ef4444)"></i>';
+            const detail = step.error
+                ? `<span style="color:var(--danger,#ef4444)"> — ${esc(step.error)}</span>`
+                : step.data ? ` — ${esc(JSON.stringify(step.data))}` : '';
+            return `<div>${icon} <strong>${esc(step.name)}</strong>${detail}</div>`;
+        }).join('')}</div>`;
+    } catch (e) {
+        results.innerHTML = `<p style="color:var(--danger,#ef4444)">${esc(e.message)}</p>`;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
