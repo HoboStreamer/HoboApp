@@ -1434,6 +1434,7 @@ async function loadSES() {
                     <label><strong>SES Enabled</strong></label>
                     <input type="checkbox" id="ses-enabled" ${ses.enabled ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
                 </div>
+                ${ses.issue ? `<div style="background:#e74c3c22;border:1px solid #e74c3c44;border-radius:8px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:#e74c3c"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(ses.issue)}</div>` : ses.ready ? `<div style="background:#27ae6022;border:1px solid #27ae6044;border-radius:8px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:#27ae60"><i class="fa-solid fa-circle-check"></i> SES is ready to send emails</div>` : ''}
                 <div class="form-field"><label>AWS Region</label><input type="text" id="ses-region" value="${esc(ses.region || '')}" placeholder="us-east-1"></div>
                 <div class="form-field"><label>Access Key ID</label><input type="text" id="ses-key-id" value="${esc(ses.access_key_id || '')}" placeholder="AKIA..." autocomplete="off"></div>
                 <div class="form-field"><label>Secret Access Key</label><input type="password" id="ses-secret" value="${esc(ses.secret_access_key || '')}" placeholder="Enter new secret to change" autocomplete="off"></div>
@@ -1515,8 +1516,12 @@ async function testSES() {
     const email = prompt('Send test email to:');
     if (!email) return;
     try {
-        await api('/api/admin/ses/test', { method: 'POST', body: { email } });
-        toast('Test email sent', 'success');
+        const result = await api('/api/admin/ses/test', { method: 'POST', body: { email } });
+        if (result.sent) {
+            toast('Test email sent successfully! Check your inbox.', 'success');
+        } else {
+            toast(result.error || 'Send failed — check delivery log', 'error');
+        }
     } catch (e) { toast(e.message, 'error'); }
 }
 

@@ -109,10 +109,11 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
         try {
             const { email } = req.body;
             if (!email) return res.status(400).json({ ok: false, error: 'Email required' });
-            const sent = await sesService.sendTestEmail(email);
-            res.json({ ok: true, sent });
+            await sesService.sendTestEmail(email);
+            res.json({ ok: true, sent: true });
         } catch (err) {
-            res.status(500).json({ ok: false, error: err.message });
+            // sendTestEmail throws with descriptive errors — surface them
+            res.status(400).json({ ok: false, error: err.message });
         }
     });
 

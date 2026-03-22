@@ -80,16 +80,33 @@ class SESService {
         return this._fromEmail;
     }
 
+    /**
+     * Diagnose why SES isn't ready. Returns a user-friendly error string, or null if ready.
+     */
+    diagnose() {
+        if (!this._enabled) {
+            const dbEnabled = this.db.getSetting('ses_enabled');
+            if (dbEnabled !== true) return 'SES is disabled — enable the toggle in admin panel and save';
+            return 'SES failed to initialize after being enabled — check server logs';
+        }
+        const accessKeyId = this.db.getSetting('ses_access_key_id');
+        const secretAccessKey = this.db.getSetting('ses_secret_access_key');
+        if (!accessKeyId || !secretAccessKey) return 'AWS credentials are missing — enter Access Key ID and Secret Access Key';
+        if (!this._client) return 'SES client failed to initialize — check AWS SDK installation or server logs';
+        return null;
+    }
+
     async _sendEmail({ to, subject, htmlBody, textBody, emailType = 'generic', userId = null, notificationId = null, metadata = null, fromEmail = null }) {
         if (!to) return false;
 
         if (!this.isEnabled) {
+            const reason = this.diagnose() || 'SES is disabled or not configured';
             this._recordDelivery({
                 emailType,
                 recipient: to,
                 subject,
                 status: 'failed',
-                errorMessage: 'SES is disabled or not configured',
+                errorMessage: reason,
                 userId,
                 notificationId,
                 metadata,
@@ -344,9 +361,12 @@ body { margin: 0; padding: 0; background: #1a1a24; font-family: -apple-system, B
      */
     getStatus() {
         const accessKeyId = this.db.getSetting('ses_access_key_id') || '';
+        const issue = this.diagnose();
         return {
             enabled: this._enabled,
+            ready: this.isEnabled,
             hasClient: this._client !== null,
+            issue: issue || null,
             region: this.db.getSetting('ses_region') || 'us-east-1',
             from_email: this._fromEmail,
             from_name: this._fromName,
@@ -363,8 +383,12 @@ body { margin: 0; padding: 0; background: #1a1a24; font-family: -apple-system, B
 
     /**
      * Send a test email (admin only).
+     * Throws with a descriptive error if SES is not ready.
      */
     async sendTestEmail(to) {
+        const issue = this.diagnose();
+        if (issue) throw new Error(issue);
+
         const subject = '🔥 Hobo Network — SES Test Email';
         const notification = {
             icon: '🧪',
@@ -374,7 +398,7 @@ body { margin: 0; padding: 0; background: #1a1a24; font-family: -apple-system, B
             service: 'hobo-tools',
             url: 'https://hobo.tools/admin',
         };
-        return this._sendEmail({
+        const sent = await this._sendEmail({
             to,
             subject,
             htmlBody: this._buildEmailHtml({ username: 'Admin', notification }),
@@ -382,6 +406,8 @@ body { margin: 0; padding: 0; background: #1a1a24; font-family: -apple-system, B
             emailType: 'test',
             metadata: { source: 'admin' },
         });
+        if (!sent) throw new Error('Email send failed — check the delivery log below for details');
+        return true;
     }
 
     _recordDelivery({ emailType, recipient, subject, status, errorMessage = null, userId = null, notificationId = null, metadata = null }) {
