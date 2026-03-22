@@ -72,16 +72,22 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
     // PUT /api/admin/ses — update SES config
     router.put('/ses', (req, res) => {
         try {
-            const { enabled, region, access_key_id, secret_access_key, from_email, from_name } = req.body;
+            const { enabled, region, access_key_id, secret_access_key, from_email, from_name,
+                    from_email_hobostreamer, from_email_hoboquest, from_email_hobotools } = req.body;
             const setSetting = db.prepare('INSERT OR REPLACE INTO site_settings (key, value, type) VALUES (?, ?, ?)');
 
             const tx = db.transaction(() => {
                 if (enabled !== undefined) setSetting.run('ses_enabled', String(enabled), 'boolean');
                 if (region) setSetting.run('ses_region', region, 'string');
-                if (access_key_id !== undefined) setSetting.run('ses_access_key_id', access_key_id, 'string');
-                if (secret_access_key !== undefined) setSetting.run('ses_secret_access_key', secret_access_key, 'string');
+                // Only update credentials if they're not masked placeholder values
+                if (access_key_id && !/\u2022/.test(access_key_id)) setSetting.run('ses_access_key_id', access_key_id, 'string');
+                if (secret_access_key && !/\u2022/.test(secret_access_key)) setSetting.run('ses_secret_access_key', secret_access_key, 'string');
                 if (from_email) setSetting.run('ses_from_email', from_email, 'string');
-                if (from_name) setSetting.run('ses_from_name', from_name, 'string');
+                if (from_name !== undefined) setSetting.run('ses_from_name', from_name || 'Hobo Network', 'string');
+                // Per-service from addresses
+                if (from_email_hobostreamer !== undefined) setSetting.run('ses_from_email_hobostreamer', from_email_hobostreamer, 'string');
+                if (from_email_hoboquest !== undefined) setSetting.run('ses_from_email_hoboquest', from_email_hoboquest, 'string');
+                if (from_email_hobotools !== undefined) setSetting.run('ses_from_email_hobotools', from_email_hobotools, 'string');
             });
             tx();
 
@@ -118,13 +124,15 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
         try {
             const rows = db.prepare('SELECT * FROM site_settings').all();
             const settings = {};
+            // Keys managed exclusively by the SES tab — hide from generic settings
+            const SES_MANAGED_KEYS = new Set([
+                'ses_enabled', 'ses_region', 'ses_access_key_id', 'ses_secret_access_key',
+                'ses_from_email', 'ses_from_name',
+                'ses_from_email_hobostreamer', 'ses_from_email_hoboquest', 'ses_from_email_hobotools',
+            ]);
             for (const r of rows) {
-                // Don't expose secrets in full
-                if (r.key === 'ses_secret_access_key' && r.value) {
-                    settings[r.key] = { value: '••••' + r.value.slice(-4), type: r.type };
-                } else {
-                    settings[r.key] = { value: r.value, type: r.type };
-                }
+                if (SES_MANAGED_KEYS.has(r.key)) continue;
+                settings[r.key] = { value: r.value, type: r.type };
             }
             res.json({ ok: true, settings });
         } catch (err) {

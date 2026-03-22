@@ -158,6 +158,22 @@ router.post('/register', (req, res) => {
     const token = signToken(user, req.app.locals.privateKey, config);
 
     console.log(`[Auth] New user registered: ${username} (id: ${user.id})${reserved ? ' [verification key redeemed]' : ''}`);
+
+    // Send welcome notification
+    try {
+        const notifService = req.app.locals.notificationService;
+        if (notifService) {
+            notifService.create({
+                user_id: user.id,
+                type: 'WELCOME',
+                title: 'Welcome to Hobo Network',
+                message: `Hey ${user.display_name || user.username}! Your account is ready. Explore HoboStreamer, Hobo Quest, and more.`,
+                service: 'hobotools',
+                url: 'https://hobo.tools/my',
+            });
+        }
+    } catch { /* non-critical */ }
+
     res.status(201).json({ token, user: sanitizeUser(user) });
 });
 

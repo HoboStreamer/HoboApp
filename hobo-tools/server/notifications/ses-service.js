@@ -67,7 +67,20 @@ class SESService {
 
     get isEnabled() { return this._enabled && this._client !== null; }
 
-    async _sendEmail({ to, subject, htmlBody, textBody, emailType = 'generic', userId = null, notificationId = null, metadata = null }) {
+    /**
+     * Resolve the from-address for a given service.
+     * Falls back to the global from-email if no per-service override.
+     */
+    getFromEmail(service) {
+        if (service) {
+            const key = `ses_from_email_${service.replace(/[^a-z0-9]/gi, '').toLowerCase()}`;
+            const override = this.db.getSetting(key);
+            if (override) return override;
+        }
+        return this._fromEmail;
+    }
+
+    async _sendEmail({ to, subject, htmlBody, textBody, emailType = 'generic', userId = null, notificationId = null, metadata = null, fromEmail = null }) {
         if (!to) return false;
 
         if (!this.isEnabled) {
@@ -85,9 +98,10 @@ class SESService {
         }
 
         try {
+            const source = fromEmail || this._fromEmail;
             const { SendEmailCommand } = require('@aws-sdk/client-ses');
             const cmd = new SendEmailCommand({
-                Source: `${this._fromName} <${this._fromEmail}>`,
+                Source: `${this._fromName} <${source}>`,
                 Destination: { ToAddresses: [to] },
                 Message: {
                     Subject: { Data: subject, Charset: 'UTF-8' },
@@ -132,6 +146,7 @@ class SESService {
     async sendNotificationEmail({ to, username, subject, notification }) {
         const htmlBody = this._buildEmailHtml({ username, notification });
         const textBody = this._buildEmailText({ username, notification });
+        const fromEmail = this.getFromEmail(notification.service);
         const sent = await this._sendEmail({
             to,
             subject: subject || notification.title || 'Notification',
@@ -140,6 +155,7 @@ class SESService {
             emailType: `notification:${notification.type || 'GENERIC'}`,
             userId: notification.user_id || null,
             notificationId: notification.id || null,
+            fromEmail,
             metadata: {
                 category: notification.category || null,
                 priority: notification.priority || null,
@@ -324,15 +340,24 @@ body { margin: 0; padding: 0; background: #1a1a24; font-family: -apple-system, B
 
     /**
      * Get current SES configuration status (for admin panel).
+     * Returns field names matching the form inputs (snake_case).
      */
     getStatus() {
+        const accessKeyId = this.db.getSetting('ses_access_key_id') || '';
         return {
             enabled: this._enabled,
             hasClient: this._client !== null,
             region: this.db.getSetting('ses_region') || 'us-east-1',
-            fromEmail: this._fromEmail,
-            fromName: this._fromName,
-            hasCredentials: !!(this.db.getSetting('ses_access_key_id')),
+            from_email: this._fromEmail,
+            from_name: this._fromName,
+            // Per-service from addresses (fall back to global)
+            from_email_hobostreamer: this.db.getSetting('ses_from_email_hobostreamer') || '',
+            from_email_hoboquest: this.db.getSetting('ses_from_email_hoboquest') || '',
+            from_email_hobotools: this.db.getSetting('ses_from_email_hobotools') || '',
+            hasCredentials: !!accessKeyId,
+            // Masked credentials for display
+            access_key_id: accessKeyId ? accessKeyId.slice(0, 4) + '••••' + accessKeyId.slice(-4) : '',
+            secret_access_key: this.db.getSetting('ses_secret_access_key') ? '••••••••' : '',
         };
     }
 

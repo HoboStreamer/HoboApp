@@ -239,21 +239,26 @@ class NotificationService {
 
     // ─── Email Queue ──────────────────────────────────────────
 
-    /**
-     * Get notifications that should be emailed (critical, not yet emailed).
-     */
+    /**\n     * Get notifications that should be emailed.\n     * Now checks ALL un-emailed notifications (not just critical),\n     * because shouldEmail() will filter by user preference.\n     */
     getPendingEmails() {
         return this._getPendingEmails.all();
     }
 
     /**
      * Check if a notification should trigger an email.
+     * Priority: user's per-category email preference > built-in rules.
+     * Built-in: CRITICAL + system/moderation/admin always email.
+     * User opt-in: any category the user explicitly enabled email for.
      */
     shouldEmail(notification) {
         const pref = this._getPrefByCategory.get(notification.user_id, notification.category);
+        // If user disabled the whole category, no email
         if (pref && !pref.enabled) return false;
+        // LOW priority never emails
         if (notification.priority === PRIORITY.LOW) return false;
+        // User explicitly opted into email for this category
         if (pref && pref.email) return true;
+        // Built-in: CRITICAL + eligible categories always email
         return notification.priority === PRIORITY.CRITICAL && EMAIL_ELIGIBLE_CATEGORIES.has(notification.category);
     }
 
