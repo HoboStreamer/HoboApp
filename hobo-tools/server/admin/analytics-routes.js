@@ -89,12 +89,13 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
                 const data = v.analytics;
                 if (!data) continue;
 
-                allDataSources.push(data);
+                allDataSources.push({ ...data, _name: v.name, _label: v.label });
                 services.push({
                     name: v.name,
                     label: v.label,
                     ...data.summary,
                     realtime: data.realtime,
+                    authBreakdown: data.authBreakdown || {},
                 });
             }
 
@@ -161,6 +162,30 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
             }
             const timeBuckets = Array.from(timeBucketMap.values()).sort((a, b) => a.bucket.localeCompare(b.bucket));
 
+            // Aggregate auth trend across services
+            const authTrendMap = new Map();
+            for (const src of allDataSources) {
+                if (!src?.authTrend) continue;
+                for (const b of src.authTrend) {
+                    const existing = authTrendMap.get(b.bucket) || { bucket: b.bucket, auth_visitors: 0, anon_visitors: 0, auth_hits: 0, anon_hits: 0 };
+                    existing.auth_visitors += b.auth_visitors || 0;
+                    existing.anon_visitors += b.anon_visitors || 0;
+                    existing.auth_hits += b.auth_hits || 0;
+                    existing.anon_hits += b.anon_hits || 0;
+                    authTrendMap.set(b.bucket, existing);
+                }
+            }
+            const authTrend = Array.from(authTrendMap.values()).sort((a, b) => a.bucket.localeCompare(b.bucket));
+
+            // Per-service hourly trend (for stacked charts)
+            const perServiceTrend = [];
+            for (const src of allDataSources) {
+                const trend = (hours && hours < 24 && src.timeBuckets?.length) ? src.timeBuckets : src.daily || [];
+                if (trend.length) {
+                    perServiceTrend.push({ name: src._name, label: src._label, data: trend });
+                }
+            }
+
             res.json({
                 ok: true,
                 overview: {
@@ -173,6 +198,8 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
                     realtime: realtimeTotal,
                     bandwidth: totalBandwidth,
                     sessionCount: totalSessions,
+                    authTrend,
+                    perServiceTrend,
                 },
             });
         } catch (err) {

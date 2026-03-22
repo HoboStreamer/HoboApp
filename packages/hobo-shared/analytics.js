@@ -858,6 +858,38 @@ class AnalyticsTracker {
             `).all(svc, rangeCutoff);
         } catch {}
 
+        // Authenticated vs anonymous time trend
+        let authTrend = [];
+        try {
+            if (isSubDay) {
+                const bucketMin = hours <= 1 ? 5 : hours <= 12 ? 15 : 30;
+                authTrend = this.db.prepare(`
+                    SELECT
+                        strftime('%Y-%m-%d %H:', created_at) ||
+                            CAST((CAST(strftime('%M', created_at) AS INTEGER) / ${bucketMin}) * ${bucketMin} AS TEXT) as bucket,
+                        COUNT(DISTINCT ip) FILTER (WHERE user_id IS NOT NULL) AS auth_visitors,
+                        COUNT(DISTINCT ip) FILTER (WHERE user_id IS NULL) AS anon_visitors,
+                        COUNT(*) FILTER (WHERE user_id IS NOT NULL) AS auth_hits,
+                        COUNT(*) FILTER (WHERE user_id IS NULL) AS anon_hits
+                    FROM analytics_events
+                    WHERE service = ? AND created_at >= ? AND is_bot = 0
+                    GROUP BY bucket ORDER BY bucket ASC
+                `).all(svc, rangeCutoff);
+            } else {
+                authTrend = this.db.prepare(`
+                    SELECT
+                        strftime('%Y-%m-%d', created_at) AS bucket,
+                        COUNT(DISTINCT ip) FILTER (WHERE user_id IS NOT NULL) AS auth_visitors,
+                        COUNT(DISTINCT ip) FILTER (WHERE user_id IS NULL) AS anon_visitors,
+                        COUNT(*) FILTER (WHERE user_id IS NOT NULL) AS auth_hits,
+                        COUNT(*) FILTER (WHERE user_id IS NULL) AS anon_hits
+                    FROM analytics_events
+                    WHERE service = ? AND created_at >= ? AND is_bot = 0
+                    GROUP BY bucket ORDER BY bucket ASC
+                `).all(svc, rangeCutoff);
+            }
+        } catch {}
+
         return {
             service: svc,
             period_days: effectiveDays,
@@ -885,6 +917,7 @@ class AnalyticsTracker {
             sessionCount,
             visitorTypes,
             slowestEndpoints,
+            authTrend,
         };
     }
 

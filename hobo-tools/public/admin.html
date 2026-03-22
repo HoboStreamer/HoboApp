@@ -394,6 +394,34 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                     <canvas id="chart-service-compare" height="260"></canvas>
                 </div>
             </div>
+            <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-users"></i> Unique Visitors Trend</h3>
+                    <canvas id="chart-visitors-trend" height="240"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-user-check"></i> Logged-in vs Anonymous</h3>
+                    <canvas id="chart-auth-trend" height="240"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-chart-pie"></i> Per-Service Traffic Share</h3>
+                    <canvas id="chart-service-share" height="260"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-chart-pie"></i> Per-Service Visitors</h3>
+                    <canvas id="chart-service-visitors" height="260"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-layer-group"></i> Per-Service Traffic Over Time</h3>
+                    <canvas id="chart-per-service-trend" height="280"></canvas>
+                </div>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
                 <div class="card">
                     <h3><i class="fa-solid fa-robot"></i> Bots vs Humans</h3>
@@ -1914,6 +1942,123 @@ async function loadAnalyticsOverview() {
             });
         }
 
+        // ── Unique Visitors Trend (dedicated chart) ──────────
+        if (trendData.length) {
+            createChart('chart-visitors-trend', {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [
+                        { label: 'Unique Visitors', data: trendData.map(d => d.unique_visitors || 0), borderColor: CHART_COLORS.success, backgroundColor: 'rgba(46,204,113,0.15)', fill: true, tension: 0.3, pointRadius: 3 },
+                    ],
+                },
+                options: {
+                    scales: { x: {}, y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } },
+                },
+            });
+        }
+
+        // ── Logged-in vs Anonymous Trend ─────────────────────
+        const authTrend = ov.authTrend || [];
+        if (authTrend.length) {
+            const authLabels = useSubDay
+                ? authTrend.map(d => { const parts = d.bucket?.split(' '); return parts?.[1] || d.bucket; })
+                : authTrend.map(d => d.bucket?.slice(5) || '');
+            createChart('chart-auth-trend', {
+                type: 'line',
+                data: {
+                    labels: authLabels,
+                    datasets: [
+                        { label: 'Logged-in Visitors', data: authTrend.map(d => d.auth_visitors || 0), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.15)', fill: true, tension: 0.3, pointRadius: 2 },
+                        { label: 'Anonymous Visitors', data: authTrend.map(d => d.anon_visitors || 0), borderColor: '#6c6c80', backgroundColor: 'rgba(108,108,128,0.15)', fill: true, tension: 0.3, pointRadius: 2 },
+                    ],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true, stacked: true } }, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // ── Per-Service Traffic Share (doughnut) ─────────────
+        if (svcs.length) {
+            const svcTraffic = svcs.map(s => (s.total_pageviews || 0) + (s.total_api_calls || 0)).filter(v => v > 0);
+            const svcLabelsFiltered = svcs.filter((s, i) => svcTraffic.length > i && ((s.total_pageviews || 0) + (s.total_api_calls || 0)) > 0);
+            if (svcTraffic.length) {
+                createChart('chart-service-share', {
+                    type: 'doughnut',
+                    data: {
+                        labels: svcLabelsFiltered.map(s => s.label || s.name),
+                        datasets: [{ data: svcLabelsFiltered.map(s => (s.total_pageviews || 0) + (s.total_api_calls || 0)), backgroundColor: PIE_COLORS.slice(0, svcLabelsFiltered.length), borderWidth: 0 }],
+                    },
+                    options: { plugins: { legend: { position: 'bottom' } } },
+                });
+            }
+
+            // Per-service visitors doughnut
+            const svcVis = svcs.filter(s => (s.total_unique_visitors || 0) > 0);
+            if (svcVis.length) {
+                createChart('chart-service-visitors', {
+                    type: 'doughnut',
+                    data: {
+                        labels: svcVis.map(s => s.label || s.name),
+                        datasets: [{ data: svcVis.map(s => s.total_unique_visitors || 0), backgroundColor: PIE_COLORS.slice(0, svcVis.length), borderWidth: 0 }],
+                    },
+                    options: { plugins: { legend: { position: 'bottom' } } },
+                });
+            }
+        }
+
+        // ── Per-Service Traffic Over Time (stacked area) ─────
+        const perSvcTrend = ov.perServiceTrend || [];
+        if (perSvcTrend.length) {
+            // Build unified labels from all series
+            const labelSet = new Set();
+            for (const s of perSvcTrend) {
+                for (const d of s.data) labelSet.add(d.date || d.bucket);
+            }
+            const labels = Array.from(labelSet).sort();
+            const fmtLabel = (l) => useSubDay ? (l.split(' ')[1] || l) : (l.slice(5) || l);
+            const datasets = perSvcTrend.map((s, i) => {
+                const dataMap = new Map(s.data.map(d => [d.date || d.bucket, (d.pageviews || 0) + (d.api_calls || 0)]));
+                const color = PIE_COLORS[i % PIE_COLORS.length];
+                return {
+                    label: s.label || s.name,
+                    data: labels.map(l => dataMap.get(l) || 0),
+                    borderColor: color,
+                    backgroundColor: color + '33',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 1,
+                };
+            });
+            createChart('chart-per-service-trend', {
+                type: 'line',
+                data: { labels: labels.map(fmtLabel), datasets },
+                options: { scales: { x: {}, y: { beginAtZero: true, stacked: true } }, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // ── Service table with auth breakdown columns ────────
+        const tblEl = document.getElementById('analytics-service-table');
+        tblEl.innerHTML = svcs.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Service</th><th>Views</th><th>API</th><th>Visitors</th><th>Logged-in</th><th>Anon</th><th>Bots</th><th>Errors</th><th>Avg ms</th></tr></thead>
+                <tbody>${svcs.map(s => {
+                    const auth = s.authBreakdown || {};
+                    return `
+                    <tr>
+                        <td><strong>${esc(s.label || s.name)}</strong></td>
+                        <td>${fmtNum(s.total_pageviews)}</td>
+                        <td>${fmtNum(s.total_api_calls)}</td>
+                        <td>${fmtNum(s.total_unique_visitors)}</td>
+                        <td style="color:var(--accent-light)">${fmtNum(auth.unique_authenticated_users)}</td>
+                        <td style="color:var(--text-secondary)">${fmtNum(auth.anonymous)}</td>
+                        <td>${fmtNum(s.total_bot_hits)}</td>
+                        <td>${fmtNum(s.total_errors)}</td>
+                        <td>${s.avg_response_ms || 0}ms</td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table>` : '<p class="muted">No data yet</p>';
+
         // Bot ratio donut
         const totalHuman = (t.total_pageviews || 0) + (t.total_api_calls || 0);
         const totalBots = t.total_bot_hits || 0;
@@ -1940,23 +2085,6 @@ async function loadAnalyticsOverview() {
                 <div><strong style="color:var(--success)">${fmtNum(t.total_unique_users || 0)}</strong><br><span class="muted">Logged-in Users</span></div>
             </div>`;
 
-        // Service table
-        const tbl = document.getElementById('analytics-service-table');
-        tbl.innerHTML = svcs.length ? `
-            <table class="admin-table">
-                <thead><tr><th>Service</th><th>Views</th><th>API</th><th>Visitors</th><th>Bots</th><th>Errors</th><th>Avg ms</th></tr></thead>
-                <tbody>${svcs.map(s => `
-                    <tr>
-                        <td><strong>${esc(s.label || s.name)}</strong></td>
-                        <td>${fmtNum(s.total_pageviews)}</td>
-                        <td>${fmtNum(s.total_api_calls)}</td>
-                        <td>${fmtNum(s.total_unique_visitors)}</td>
-                        <td>${fmtNum(s.total_bot_hits)}</td>
-                        <td>${fmtNum(s.total_errors)}</td>
-                        <td>${s.avg_response_ms || 0}ms</td>
-                    </tr>
-                `).join('')}</tbody>
-            </table>` : '<p class="muted">No data yet</p>';
     } catch (e) {
         statsEl.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`;
     }
