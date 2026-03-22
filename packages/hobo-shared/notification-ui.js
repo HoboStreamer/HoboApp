@@ -91,8 +91,8 @@
 
             /* ── Panel ────────────────────────────────────── */
             .hobo-notif-panel {
-                position: fixed; top: 56px; right: 16px;
-                width: 380px; max-height: calc(100vh - 80px);
+                position: fixed; top: 62px; right: 16px;
+                width: 380px; max-height: calc(100vh - 86px);
                 background: var(--bg-secondary, #252530);
                 border: 1px solid var(--border, #333340);
                 border-radius: 12px;
