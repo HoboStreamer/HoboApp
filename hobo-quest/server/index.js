@@ -166,7 +166,8 @@ app.get('/api/internal/analytics', (req, res) => {
     }
     try {
         const days = Math.min(parseInt(req.query.days) || 30, 365);
-        res.json({ ok: true, analytics: analytics.getStats({ days }) });
+        const hours = req.query.hours ? Math.min(parseInt(req.query.hours), 8760) : null;
+        res.json({ ok: true, analytics: analytics.getStats({ days, hours }) });
     } catch (err) {
         res.status(500).json({ ok: false, error: err.message });
     }

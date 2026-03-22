@@ -144,7 +144,7 @@ function getHostname(req) {
 // ── Internal Analytics API ────────────────────────────────────
 app.get('/api/internal/analytics', (req, res) => {
     if (req.headers['x-internal-secret'] !== INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
-    try { res.json({ ok: true, analytics: analytics.getStats({ days: Math.min(parseInt(req.query.days) || 30, 365) }) }); }
+    try { const d = Math.min(parseInt(req.query.days) || 30, 365); const h = req.query.hours ? Math.min(parseInt(req.query.hours), 8760) : null; res.json({ ok: true, analytics: analytics.getStats({ days: d, hours: h }) }); }
     catch (err) { res.status(500).json({ ok: false, error: err.message }); }
 });
 app.get('/api/internal/analytics/bots', (req, res) => {

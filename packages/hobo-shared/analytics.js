@@ -526,40 +526,93 @@ class AnalyticsTracker {
 
     /**
      * Get analytics data for the admin dashboard.
+     * @param {object} options
+     * @param {number} options.days - Number of days to look back (default 30)
+     * @param {number} options.hours - If set, overrides days with an hour-based range (e.g. 1, 12, 24, 72)
+     * @param {string} options.service - Service name override
      */
     getStats(options = {}) {
-        const { days = 30, service } = options;
+        const { days = 30, hours, service } = options;
         const svc = service || this.service;
-        const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 
-        // Daily trend
-        const daily = this.db.prepare(`
-            SELECT * FROM analytics_daily
-            WHERE service = ? AND date >= ?
-            ORDER BY date ASC
-        `).all(svc, cutoff);
+        // Compute cutoff timestamp for raw event queries
+        const rangeMs = hours ? hours * 3600000 : days * 86400000;
+        const rangeCutoff = new Date(Date.now() - rangeMs).toISOString().slice(0, 19).replace('T', ' ');
+        const isSubDay = hours && hours < 24;
+        const effectiveDays = hours ? hours / 24 : days;
 
-        // Hourly for last 24h
-        const hourCutoff = new Date(Date.now() - 86400000).toISOString().slice(0, 19).replace('T', ' ');
+        // Daily trend (use daily aggregates for multi-day, raw events for sub-day)
+        let daily = [];
+        if (!isSubDay) {
+            const dateCutoff = new Date(Date.now() - rangeMs).toISOString().slice(0, 10);
+            daily = this.db.prepare(`
+                SELECT * FROM analytics_daily
+                WHERE service = ? AND date >= ?
+                ORDER BY date ASC
+            `).all(svc, dateCutoff);
+        }
+
+        // Hourly trend (always useful — scope to the requested range)
+        const hourlyLimit = hours ? Math.min(hours, 168) : 24;
+        const hourlyCutoff = new Date(Date.now() - hourlyLimit * 3600000).toISOString().slice(0, 19).replace('T', ' ');
         const hourly = this.db.prepare(`
             SELECT * FROM analytics_hourly
             WHERE service = ? AND hour >= ?
             ORDER BY hour ASC
-        `).all(svc, hourCutoff);
+        `).all(svc, hourlyCutoff);
 
-        // Summary totals
-        const summary = this.db.prepare(`
-            SELECT
-                SUM(pageviews) as total_pageviews,
-                SUM(api_calls) as total_api_calls,
-                SUM(unique_visitors) as total_unique_visitors,
-                SUM(unique_users) as total_unique_users,
-                SUM(bot_hits) as total_bot_hits,
-                SUM(error_count) as total_errors,
-                CAST(AVG(avg_response_ms) AS INTEGER) as avg_response_ms
-            FROM analytics_daily
-            WHERE service = ? AND date >= ?
-        `).get(svc, cutoff);
+        // For sub-day ranges, generate fine-grained time buckets from raw events
+        let timeBuckets = [];
+        if (isSubDay) {
+            // 5-minute buckets for ≤1h, 15-min for ≤12h, 30-min for ≤24h
+            const bucketMin = hours <= 1 ? 5 : hours <= 12 ? 15 : 30;
+            timeBuckets = this.db.prepare(`
+                SELECT
+                    strftime('%Y-%m-%d %H:', created_at) ||
+                        CAST((CAST(strftime('%M', created_at) AS INTEGER) / ${bucketMin}) * ${bucketMin} AS TEXT) as bucket,
+                    COUNT(*) FILTER (WHERE event_type = 'pageview' AND is_bot = 0) AS pageviews,
+                    COUNT(*) FILTER (WHERE event_type = 'api_call' AND is_bot = 0) AS api_calls,
+                    COUNT(DISTINCT ip) FILTER (WHERE is_bot = 0) AS unique_visitors,
+                    COUNT(*) FILTER (WHERE is_bot = 1) AS bot_hits,
+                    COUNT(*) FILTER (WHERE status_code >= 400) AS errors,
+                    CAST(AVG(response_time_ms) AS INTEGER) AS avg_response_ms
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ?
+                GROUP BY bucket
+                ORDER BY bucket ASC
+            `).all(svc, rangeCutoff);
+        }
+
+        // Summary totals — for sub-day ranges, compute from raw events
+        let summary;
+        if (hours && hours < 48) {
+            summary = this.db.prepare(`
+                SELECT
+                    COUNT(*) FILTER (WHERE event_type = 'pageview' AND is_bot = 0) AS total_pageviews,
+                    COUNT(*) FILTER (WHERE event_type = 'api_call' AND is_bot = 0) AS total_api_calls,
+                    COUNT(DISTINCT ip) FILTER (WHERE is_bot = 0) AS total_unique_visitors,
+                    COUNT(DISTINCT user_id) FILTER (WHERE is_bot = 0 AND user_id IS NOT NULL) AS total_unique_users,
+                    COUNT(*) FILTER (WHERE is_bot = 1) AS total_bot_hits,
+                    COUNT(*) FILTER (WHERE status_code >= 400) AS total_errors,
+                    CAST(AVG(response_time_ms) AS INTEGER) AS avg_response_ms
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ?
+            `).get(svc, rangeCutoff);
+        } else {
+            const dateCutoff = new Date(Date.now() - rangeMs).toISOString().slice(0, 10);
+            summary = this.db.prepare(`
+                SELECT
+                    SUM(pageviews) as total_pageviews,
+                    SUM(api_calls) as total_api_calls,
+                    SUM(unique_visitors) as total_unique_visitors,
+                    SUM(unique_users) as total_unique_users,
+                    SUM(bot_hits) as total_bot_hits,
+                    SUM(error_count) as total_errors,
+                    CAST(AVG(avg_response_ms) AS INTEGER) as avg_response_ms
+                FROM analytics_daily
+                WHERE service = ? AND date >= ?
+            `).get(svc, dateCutoff);
+        }
 
         // Real-time (last 5 min)
         const fiveMinAgo = new Date(Date.now() - 300000).toISOString().slice(0, 19).replace('T', ' ');
@@ -572,30 +625,30 @@ class AnalyticsTracker {
             WHERE service = ? AND created_at >= ?
         `).get(svc, fiveMinAgo);
 
-        // Top pages (last N days, human only)
+        // Top pages (human only)
         const topPages = this.db.prepare(`
             SELECT path, COUNT(*) as hits, COUNT(DISTINCT ip) as visitors
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days') AND is_bot = 0
+            WHERE service = ? AND created_at >= ? AND is_bot = 0
             GROUP BY path ORDER BY hits DESC LIMIT 20
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         // Top referers
         const topReferers = this.db.prepare(`
             SELECT referer, COUNT(*) as hits
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days')
+            WHERE service = ? AND created_at >= ?
               AND referer IS NOT NULL AND referer != '' AND is_bot = 0
             GROUP BY referer ORDER BY hits DESC LIMIT 15
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         // Bot breakdown
         const botBreakdown = this.db.prepare(`
             SELECT bot_type, COUNT(*) as hits
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days') AND is_bot = 1
+            WHERE service = ? AND created_at >= ? AND is_bot = 1
             GROUP BY bot_type ORDER BY hits DESC LIMIT 15
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         // Status code distribution
         const statusCodes = this.db.prepare(`
@@ -609,48 +662,211 @@ class AnalyticsTracker {
                 END as group_code,
                 COUNT(*) as cnt
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days')
+            WHERE service = ? AND created_at >= ?
             GROUP BY group_code ORDER BY cnt DESC
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         // Device/browser/OS breakdown
         const deviceBreakdown = this.db.prepare(`
             SELECT device_type, COUNT(*) as cnt
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days') AND is_bot = 0
+            WHERE service = ? AND created_at >= ? AND is_bot = 0
             GROUP BY device_type ORDER BY cnt DESC
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         const browserBreakdown = this.db.prepare(`
             SELECT browser, COUNT(*) as cnt
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days') AND is_bot = 0
+            WHERE service = ? AND created_at >= ? AND is_bot = 0
             GROUP BY browser ORDER BY cnt DESC
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         const osBreakdown = this.db.prepare(`
             SELECT os, COUNT(*) as cnt
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days') AND is_bot = 0
+            WHERE service = ? AND created_at >= ? AND is_bot = 0
             GROUP BY os ORDER BY cnt DESC
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
 
         // Country breakdown
         const countryBreakdown = this.db.prepare(`
             SELECT country, COUNT(*) as cnt
             FROM analytics_events
-            WHERE service = ? AND created_at >= datetime('now', '-' || ? || ' days')
+            WHERE service = ? AND created_at >= ?
               AND country IS NOT NULL AND is_bot = 0
             GROUP BY country ORDER BY cnt DESC LIMIT 20
-        `).all(svc, days);
+        `).all(svc, rangeCutoff);
+
+        // ── Enhanced Metrics ─────────────────────────────────
+
+        // Response time percentiles (p50, p90, p95, p99)
+        let responsePercentiles = {};
+        try {
+            const rtRows = this.db.prepare(`
+                SELECT response_time_ms FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND response_time_ms IS NOT NULL AND is_bot = 0
+                ORDER BY response_time_ms ASC
+            `).all(svc, rangeCutoff);
+            if (rtRows.length > 0) {
+                const vals = rtRows.map(r => r.response_time_ms);
+                const pct = (p) => vals[Math.min(Math.floor(vals.length * p), vals.length - 1)];
+                responsePercentiles = { p50: pct(0.5), p90: pct(0.9), p95: pct(0.95), p99: pct(0.99), max: vals[vals.length - 1] };
+            }
+        } catch {}
+
+        // Bandwidth estimation (response_time_ms * rough factor isn't great,
+        // but we can count requests and estimate from content-length if tracked;
+        // for now, count total requests * avg page weight heuristic)
+        let bandwidth = {};
+        try {
+            const bwData = this.db.prepare(`
+                SELECT
+                    COUNT(*) as total_requests,
+                    COUNT(*) FILTER (WHERE event_type = 'pageview') AS page_requests,
+                    COUNT(*) FILTER (WHERE event_type = 'api_call') AS api_requests,
+                    SUM(CASE WHEN event_type = 'pageview' THEN 50000 ELSE 2000 END) AS estimated_bytes
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND is_bot = 0
+            `).get(svc, rangeCutoff);
+            if (bwData) {
+                bandwidth = {
+                    total_requests: bwData.total_requests || 0,
+                    page_requests: bwData.page_requests || 0,
+                    api_requests: bwData.api_requests || 0,
+                    estimated_bytes: bwData.estimated_bytes || 0,
+                };
+            }
+        } catch {}
+
+        // Authenticated vs anonymous sessions
+        let authBreakdown = {};
+        try {
+            authBreakdown = this.db.prepare(`
+                SELECT
+                    COUNT(*) FILTER (WHERE user_id IS NOT NULL) AS authenticated,
+                    COUNT(*) FILTER (WHERE user_id IS NULL) AS anonymous,
+                    COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL) AS unique_authenticated_users,
+                    COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL) AS total_sessions
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND is_bot = 0
+            `).get(svc, rangeCutoff) || {};
+        } catch {}
+
+        // Error rate over time (hourly for multi-day, bucketed for sub-day)
+        let errorTrend = [];
+        try {
+            if (isSubDay) {
+                const bucketMin = hours <= 1 ? 5 : hours <= 12 ? 15 : 30;
+                errorTrend = this.db.prepare(`
+                    SELECT
+                        strftime('%Y-%m-%d %H:', created_at) ||
+                            CAST((CAST(strftime('%M', created_at) AS INTEGER) / ${bucketMin}) * ${bucketMin} AS TEXT) as bucket,
+                        COUNT(*) AS total,
+                        COUNT(*) FILTER (WHERE status_code >= 400) AS errors,
+                        COUNT(*) FILTER (WHERE status_code >= 500) AS server_errors
+                    FROM analytics_events
+                    WHERE service = ? AND created_at >= ? AND is_bot = 0
+                    GROUP BY bucket ORDER BY bucket ASC
+                `).all(svc, rangeCutoff);
+            } else {
+                errorTrend = this.db.prepare(`
+                    SELECT hour as bucket,
+                        (pageviews + api_calls) as total,
+                        error_count as errors
+                    FROM analytics_hourly
+                    WHERE service = ? AND hour >= ?
+                    ORDER BY hour ASC
+                `).all(svc, hourlyCutoff);
+            }
+        } catch {}
+
+        // Peak hours (which hours of day get most traffic)
+        let peakHours = [];
+        try {
+            peakHours = this.db.prepare(`
+                SELECT
+                    CAST(strftime('%H', created_at) AS INTEGER) AS hour_of_day,
+                    COUNT(*) AS hits,
+                    COUNT(DISTINCT ip) AS visitors,
+                    CAST(AVG(response_time_ms) AS INTEGER) AS avg_ms
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND is_bot = 0
+                GROUP BY hour_of_day
+                ORDER BY hour_of_day ASC
+            `).all(svc, rangeCutoff);
+        } catch {}
+
+        // Top API endpoints (separate from top pages)
+        let topApiEndpoints = [];
+        try {
+            topApiEndpoints = this.db.prepare(`
+                SELECT path, method, COUNT(*) as hits,
+                    CAST(AVG(response_time_ms) AS INTEGER) AS avg_ms,
+                    COUNT(*) FILTER (WHERE status_code >= 400) AS errors
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND event_type = 'api_call' AND is_bot = 0
+                GROUP BY path, method ORDER BY hits DESC LIMIT 20
+            `).all(svc, rangeCutoff);
+        } catch {}
+
+        // Unique sessions count
+        let sessionCount = 0;
+        try {
+            const sc = this.db.prepare(`
+                SELECT COUNT(DISTINCT session_id) as cnt
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND session_id IS NOT NULL AND is_bot = 0
+            `).get(svc, rangeCutoff);
+            sessionCount = sc?.cnt || 0;
+        } catch {}
+
+        // New vs returning visitors (first-time IPs in this period vs seen before)
+        let visitorTypes = {};
+        try {
+            visitorTypes = this.db.prepare(`
+                SELECT
+                    COUNT(DISTINCT ip) FILTER (
+                        WHERE ip NOT IN (
+                            SELECT DISTINCT ip FROM analytics_events
+                            WHERE service = ? AND created_at < ? AND is_bot = 0
+                        )
+                    ) AS new_visitors,
+                    COUNT(DISTINCT ip) FILTER (
+                        WHERE ip IN (
+                            SELECT DISTINCT ip FROM analytics_events
+                            WHERE service = ? AND created_at < ? AND is_bot = 0
+                        )
+                    ) AS returning_visitors
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND is_bot = 0
+            `).get(svc, rangeCutoff, svc, rangeCutoff, svc, rangeCutoff) || {};
+        } catch {}
+
+        // Slowest endpoints
+        let slowestEndpoints = [];
+        try {
+            slowestEndpoints = this.db.prepare(`
+                SELECT path, method,
+                    COUNT(*) as hits,
+                    CAST(AVG(response_time_ms) AS INTEGER) AS avg_ms,
+                    MAX(response_time_ms) AS max_ms
+                FROM analytics_events
+                WHERE service = ? AND created_at >= ? AND response_time_ms IS NOT NULL AND is_bot = 0
+                GROUP BY path, method
+                HAVING hits >= 3
+                ORDER BY avg_ms DESC LIMIT 10
+            `).all(svc, rangeCutoff);
+        } catch {}
 
         return {
             service: svc,
-            period_days: days,
+            period_days: effectiveDays,
+            period_hours: hours || null,
             summary: summary || {},
             realtime: realtime || {},
             daily,
             hourly,
+            timeBuckets,
             topPages,
             topReferers,
             botBreakdown,
@@ -659,6 +875,16 @@ class AnalyticsTracker {
             browserBreakdown,
             osBreakdown,
             countryBreakdown,
+            // Enhanced metrics
+            responsePercentiles,
+            bandwidth,
+            authBreakdown,
+            errorTrend,
+            peakHours,
+            topApiEndpoints,
+            sessionCount,
+            visitorTypes,
+            slowestEndpoints,
         };
     }
 

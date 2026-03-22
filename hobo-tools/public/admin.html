@@ -364,6 +364,10 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
         </div>
         <div class="input-row" style="margin-bottom:16px">
             <select id="analytics-period" onchange="reloadAnalytics()" style="max-width:180px">
+                <option value="1h">Last hour</option>
+                <option value="12h">Last 12 hours</option>
+                <option value="24h">Last 24 hours</option>
+                <option value="3d">Last 3 days</option>
                 <option value="7">Last 7 days</option>
                 <option value="14">Last 14 days</option>
                 <option value="30" selected>Last 30 days</option>
@@ -396,6 +400,12 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                     <canvas id="chart-bot-ratio" height="220"></canvas>
                 </div>
                 <div class="card">
+                    <h3><i class="fa-solid fa-network-wired"></i> Bandwidth &amp; Usage</h3>
+                    <div id="analytics-bandwidth"></div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px">
+                <div class="card">
                     <h3><i class="fa-solid fa-server"></i> Per-Service Traffic</h3>
                     <div id="analytics-service-table"></div>
                 </div>
@@ -411,8 +421,18 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                     <canvas id="chart-svc-daily" height="260"></canvas>
                 </div>
                 <div class="card">
-                    <h3><i class="fa-solid fa-clock"></i> Hourly (24h)</h3>
+                    <h3><i class="fa-solid fa-clock"></i> <span id="svc-hourly-title">Hourly (24h)</span></h3>
                     <canvas id="chart-svc-hourly" height="260"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
+                    <h3><i class="fa-solid fa-gauge-high"></i> Response Time Percentiles</h3>
+                    <div id="svc-response-percentiles"></div>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-clock-rotate-left"></i> Peak Hours</h3>
+                    <canvas id="chart-svc-peak-hours" height="200"></canvas>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px">
@@ -431,12 +451,32 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
                 <div class="card">
+                    <h3><i class="fa-solid fa-network-wired"></i> Bandwidth &amp; Sessions</h3>
+                    <div id="svc-bandwidth-sessions"></div>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-user-check"></i> Auth vs Anonymous</h3>
+                    <canvas id="chart-svc-auth" height="200"></canvas>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
                     <h3><i class="fa-solid fa-link"></i> Top Pages</h3>
                     <div id="svc-top-pages"></div>
                 </div>
                 <div class="card">
+                    <h3><i class="fa-solid fa-bolt"></i> Top API Endpoints</h3>
+                    <div id="svc-top-api"></div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                <div class="card">
                     <h3><i class="fa-solid fa-arrow-up-right-from-square"></i> Top Referers</h3>
                     <div id="svc-top-referers"></div>
+                </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-snail"></i> Slowest Endpoints</h3>
+                    <div id="svc-slowest"></div>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
@@ -1722,6 +1762,31 @@ function getAnalyticsDays() {
     return parseInt(document.getElementById('analytics-period')?.value) || 30;
 }
 
+/** Parse the period select value into {days, hours, qs} */
+function getAnalyticsPeriod() {
+    const val = document.getElementById('analytics-period')?.value || '30';
+    if (val.endsWith('h')) {
+        const hours = parseInt(val);
+        return { days: Math.ceil(hours / 24), hours, qs: `days=${Math.ceil(hours / 24)}&hours=${hours}` };
+    }
+    if (val.endsWith('d')) {
+        const d = parseInt(val);
+        const hours = d * 24;
+        return { days: d, hours, qs: `days=${d}&hours=${hours}` };
+    }
+    const days = parseInt(val) || 30;
+    return { days, hours: null, qs: `days=${days}` };
+}
+
+function fmtBytes(bytes) {
+    if (!bytes || bytes < 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    let v = bytes;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return v.toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+
 function showAnalyticsSubTab(tab, btn) {
     analyticsCurrentSubTab = tab;
     document.querySelectorAll('#analytics-sub-tabs button').forEach(b => b.classList.remove('active'));
@@ -1774,21 +1839,24 @@ function createChart(canvasId, config) {
 function fmtNum(n) { return (n || 0).toLocaleString(); }
 
 async function loadAnalyticsOverview() {
-    const days = getAnalyticsDays();
+    const period = getAnalyticsPeriod();
     const statsEl = document.getElementById('analytics-stats');
     statsEl.innerHTML = '<div class="loading">Loading analytics...</div>';
     try {
-        const data = await api(`/api/admin/analytics/overview?days=${days}`);
+        const data = await api(`/api/admin/analytics/overview?${period.qs}`);
         const ov = data.overview;
         const t = ov.totals || {};
+        const bw = ov.bandwidth || {};
 
         statsEl.innerHTML = [
-            { icon: 'fa-eye', label: 'Total Page Views', value: fmtNum(t.total_pageviews) },
+            { icon: 'fa-eye', label: 'Page Views', value: fmtNum(t.total_pageviews) },
             { icon: 'fa-code', label: 'API Calls', value: fmtNum(t.total_api_calls) },
             { icon: 'fa-users', label: 'Unique Visitors', value: fmtNum(t.total_unique_visitors) },
+            { icon: 'fa-id-badge', label: 'Sessions', value: fmtNum(ov.sessionCount || 0) },
             { icon: 'fa-robot', label: 'Bot Hits', value: fmtNum(t.total_bot_hits) },
             { icon: 'fa-circle-exclamation', label: 'Errors', value: fmtNum(t.total_errors) },
             { icon: 'fa-gauge-high', label: 'Avg Response', value: (t.avg_response_ms || 0) + 'ms' },
+            { icon: 'fa-arrow-up-from-bracket', label: 'Est. Bandwidth', value: fmtBytes(bw.estimated_bytes) },
         ].map(s => `<div class="stat-card"><div class="value">${s.value}</div><div class="label"><i class="fa-solid ${s.icon}"></i> ${s.label}</div></div>`).join('');
 
         // Real-time card
@@ -1806,17 +1874,23 @@ async function loadAnalyticsOverview() {
             rtCard.style.display = 'none';
         }
 
-        // Traffic trend chart
+        // Traffic trend chart — use timeBuckets for sub-day, dailyTrend for multi-day
+        const buckets = ov.timeBuckets || [];
         const trend = ov.dailyTrend || [];
-        if (trend.length) {
+        const useSubDay = period.hours && period.hours < 24 && buckets.length > 0;
+        const trendData = useSubDay ? buckets : trend;
+        const trendLabels = useSubDay
+            ? trendData.map(d => { const parts = d.bucket?.split(' '); return parts?.[1] || d.bucket; })
+            : trendData.map(d => d.date?.slice(5) || '');
+        if (trendData.length) {
             createChart('chart-traffic-trend', {
                 type: 'line',
                 data: {
-                    labels: trend.map(d => d.date.slice(5)),
+                    labels: trendLabels,
                     datasets: [
-                        { label: 'Page Views', data: trend.map(d => d.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3 },
-                        { label: 'API Calls', data: trend.map(d => d.api_calls), borderColor: CHART_COLORS.info, backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.3 },
-                        { label: 'Visitors', data: trend.map(d => d.unique_visitors), borderColor: CHART_COLORS.success, backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.3 },
+                        { label: 'Page Views', data: trendData.map(d => d.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3 },
+                        { label: 'API Calls', data: trendData.map(d => d.api_calls), borderColor: CHART_COLORS.info, backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.3 },
+                        { label: 'Visitors', data: trendData.map(d => d.unique_visitors), borderColor: CHART_COLORS.success, backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.3 },
                     ],
                 },
                 options: { scales: { x: {}, y: { beginAtZero: true } } },
@@ -1854,6 +1928,18 @@ async function loadAnalyticsOverview() {
             });
         }
 
+        // Bandwidth & usage card
+        const bwEl = document.getElementById('analytics-bandwidth');
+        bwEl.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
+                <div><strong style="color:var(--accent-light)">${fmtNum(bw.total_requests)}</strong><br><span class="muted">Total Requests</span></div>
+                <div><strong style="color:var(--accent-light)">${fmtBytes(bw.estimated_bytes)}</strong><br><span class="muted">Est. Transfer</span></div>
+                <div><strong style="color:var(--info)">${fmtNum(bw.page_requests)}</strong><br><span class="muted">Page Loads</span></div>
+                <div><strong style="color:var(--info)">${fmtNum(bw.api_requests)}</strong><br><span class="muted">API Requests</span></div>
+                <div><strong style="color:var(--success)">${fmtNum(ov.sessionCount || 0)}</strong><br><span class="muted">Unique Sessions</span></div>
+                <div><strong style="color:var(--success)">${fmtNum(t.total_unique_users || 0)}</strong><br><span class="muted">Logged-in Users</span></div>
+            </div>`;
+
         // Service table
         const tbl = document.getElementById('analytics-service-table');
         tbl.innerHTML = svcs.length ? `
@@ -1877,43 +1963,73 @@ async function loadAnalyticsOverview() {
 }
 
 async function loadServiceAnalytics(serviceName) {
-    const days = getAnalyticsDays();
+    const period = getAnalyticsPeriod();
     const statsEl = document.getElementById('svc-analytics-stats');
     statsEl.innerHTML = '<div class="loading">Loading...</div>';
     try {
-        const data = await api(`/api/admin/analytics/service/${serviceName}?days=${days}`);
+        const data = await api(`/api/admin/analytics/service/${serviceName}?${period.qs}`);
         const a = data.analytics;
         const s = a.summary || {};
+        const bw = a.bandwidth || {};
+        const auth = a.authBreakdown || {};
+        const vis = a.visitorTypes || {};
+        const rp = a.responsePercentiles || {};
 
+        // Stat cards — more metrics
         statsEl.innerHTML = [
             { icon: 'fa-eye', label: 'Page Views', value: fmtNum(s.total_pageviews) },
             { icon: 'fa-code', label: 'API Calls', value: fmtNum(s.total_api_calls) },
             { icon: 'fa-users', label: 'Unique Visitors', value: fmtNum(s.total_unique_visitors) },
-            { icon: 'fa-user', label: 'Unique Users', value: fmtNum(s.total_unique_users) },
+            { icon: 'fa-user', label: 'Logged-in Users', value: fmtNum(s.total_unique_users) },
+            { icon: 'fa-id-badge', label: 'Sessions', value: fmtNum(a.sessionCount || 0) },
             { icon: 'fa-robot', label: 'Bot Hits', value: fmtNum(s.total_bot_hits) },
             { icon: 'fa-circle-exclamation', label: 'Errors', value: fmtNum(s.total_errors) },
             { icon: 'fa-gauge-high', label: 'Avg Response', value: (s.avg_response_ms || 0) + 'ms' },
+            { icon: 'fa-arrow-up-from-bracket', label: 'Est. Bandwidth', value: fmtBytes(bw.estimated_bytes) },
+            { icon: 'fa-user-plus', label: 'New Visitors', value: fmtNum(vis.new_visitors) },
         ].map(s => `<div class="stat-card"><div class="value">${s.value}</div><div class="label"><i class="fa-solid ${s.icon}"></i> ${s.label}</div></div>`).join('');
 
-        // Daily traffic
-        const daily = a.daily || [];
-        if (daily.length) {
+        // For sub-day ranges, use timeBuckets for the "daily" chart
+        const isSubDay = period.hours && period.hours < 24;
+        const buckets = a.timeBuckets || [];
+
+        // Daily / fine-grained traffic chart
+        if (isSubDay && buckets.length) {
+            document.getElementById('svc-hourly-title').textContent = 'Traffic (' + period.hours + 'h)';
             createChart('chart-svc-daily', {
                 type: 'line',
                 data: {
-                    labels: daily.map(d => d.date.slice(5)),
+                    labels: buckets.map(b => { const parts = b.bucket?.split(' '); return parts?.[1] || b.bucket; }),
                     datasets: [
-                        { label: 'Page Views', data: daily.map(d => d.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
-                        { label: 'API Calls', data: daily.map(d => d.api_calls), borderColor: CHART_COLORS.info, tension: 0.3, pointRadius: 2 },
-                        { label: 'Visitors', data: daily.map(d => d.unique_visitors), borderColor: CHART_COLORS.success, tension: 0.3, pointRadius: 2 },
-                        { label: 'Bots', data: daily.map(d => d.bot_hits), borderColor: CHART_COLORS.danger, borderDash: [5,5], tension: 0.3, pointRadius: 1 },
+                        { label: 'Page Views', data: buckets.map(b => b.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
+                        { label: 'API Calls', data: buckets.map(b => b.api_calls), borderColor: CHART_COLORS.info, tension: 0.3, pointRadius: 2 },
+                        { label: 'Visitors', data: buckets.map(b => b.unique_visitors), borderColor: CHART_COLORS.success, tension: 0.3, pointRadius: 2 },
+                        { label: 'Bots', data: buckets.map(b => b.bot_hits), borderColor: CHART_COLORS.danger, borderDash: [5,5], tension: 0.3, pointRadius: 1 },
                     ],
                 },
                 options: { scales: { x: {}, y: { beginAtZero: true } } },
             });
+        } else {
+            document.getElementById('svc-hourly-title').textContent = 'Hourly (24h)';
+            const daily = a.daily || [];
+            if (daily.length) {
+                createChart('chart-svc-daily', {
+                    type: 'line',
+                    data: {
+                        labels: daily.map(d => d.date.slice(5)),
+                        datasets: [
+                            { label: 'Page Views', data: daily.map(d => d.pageviews), borderColor: CHART_COLORS.accent, backgroundColor: 'rgba(192,150,92,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
+                            { label: 'API Calls', data: daily.map(d => d.api_calls), borderColor: CHART_COLORS.info, tension: 0.3, pointRadius: 2 },
+                            { label: 'Visitors', data: daily.map(d => d.unique_visitors), borderColor: CHART_COLORS.success, tension: 0.3, pointRadius: 2 },
+                            { label: 'Bots', data: daily.map(d => d.bot_hits), borderColor: CHART_COLORS.danger, borderDash: [5,5], tension: 0.3, pointRadius: 1 },
+                        ],
+                    },
+                    options: { scales: { x: {}, y: { beginAtZero: true } } },
+                });
+            }
         }
 
-        // Hourly
+        // Hourly bar chart
         const hourly = a.hourly || [];
         if (hourly.length) {
             createChart('chart-svc-hourly', {
@@ -1923,6 +2039,35 @@ async function loadServiceAnalytics(serviceName) {
                     datasets: [
                         { label: 'Page Views', data: hourly.map(h => h.pageviews), backgroundColor: 'rgba(192,150,92,0.7)' },
                         { label: 'API Calls', data: hourly.map(h => h.api_calls), backgroundColor: 'rgba(52,152,219,0.7)' },
+                    ],
+                },
+                options: { scales: { x: {}, y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
+        // Response time percentiles
+        const rpEl = document.getElementById('svc-response-percentiles');
+        if (rp.p50 !== undefined) {
+            const pctBar = (label, val, max) => {
+                const pct = max > 0 ? Math.min(100, (val / max) * 100) : 0;
+                const color = val < 100 ? 'var(--success)' : val < 300 ? 'var(--accent-light)' : val < 1000 ? 'var(--warning)' : 'var(--danger)';
+                return `<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px"><span class="muted">${label}</span><strong>${val}ms</strong></div><div class="storage-bar"><div class="storage-bar-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
+            };
+            rpEl.innerHTML = pctBar('Median (p50)', rp.p50, rp.max) + pctBar('p90', rp.p90, rp.max) + pctBar('p95', rp.p95, rp.max) + pctBar('p99', rp.p99, rp.max) + pctBar('Max', rp.max, rp.max);
+        } else {
+            rpEl.innerHTML = '<p class="muted">No response time data</p>';
+        }
+
+        // Peak hours chart
+        const peakHours = a.peakHours || [];
+        if (peakHours.length) {
+            createChart('chart-svc-peak-hours', {
+                type: 'bar',
+                data: {
+                    labels: peakHours.map(h => h.hour_of_day + ':00'),
+                    datasets: [
+                        { label: 'Hits', data: peakHours.map(h => h.hits), backgroundColor: 'rgba(192,150,92,0.7)' },
+                        { label: 'Visitors', data: peakHours.map(h => h.visitors), backgroundColor: 'rgba(46,204,113,0.5)' },
                     ],
                 },
                 options: { scales: { x: {}, y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
@@ -1968,6 +2113,32 @@ async function loadServiceAnalytics(serviceName) {
             });
         }
 
+        // Bandwidth & sessions card
+        const bsEl = document.getElementById('svc-bandwidth-sessions');
+        bsEl.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+                <div><strong style="color:var(--accent-light)">${fmtBytes(bw.estimated_bytes)}</strong><br><span class="muted">Est. Transfer</span></div>
+                <div><strong style="color:var(--accent-light)">${fmtNum(bw.total_requests)}</strong><br><span class="muted">Total Requests</span></div>
+                <div><strong style="color:var(--info)">${fmtNum(bw.page_requests)}</strong><br><span class="muted">Page Loads</span></div>
+                <div><strong style="color:var(--info)">${fmtNum(bw.api_requests)}</strong><br><span class="muted">API Requests</span></div>
+                <div><strong style="color:var(--success)">${fmtNum(a.sessionCount || 0)}</strong><br><span class="muted">Sessions</span></div>
+                <div><strong style="color:var(--success)">${fmtNum(vis.new_visitors || 0)}</strong> new / <strong>${fmtNum(vis.returning_visitors || 0)}</strong> returning<br><span class="muted">Visitors</span></div>
+            </div>`;
+
+        // Auth vs anonymous chart
+        const authCount = auth.authenticated || 0;
+        const anonCount = auth.anonymous || 0;
+        if (authCount > 0 || anonCount > 0) {
+            createChart('chart-svc-auth', {
+                type: 'doughnut',
+                data: {
+                    labels: ['Authenticated (' + fmtNum(auth.unique_authenticated_users) + ' users)', 'Anonymous'],
+                    datasets: [{ data: [authCount, anonCount], backgroundColor: [CHART_COLORS.accent, '#4a4a5a'], borderWidth: 0 }],
+                },
+                options: { plugins: { legend: { position: 'bottom' } } },
+            });
+        }
+
         // Top pages
         const pages = a.topPages || [];
         document.getElementById('svc-top-pages').innerHTML = pages.length ? `
@@ -1978,6 +2149,22 @@ async function loadServiceAnalytics(serviceName) {
                 `).join('')}</tbody>
             </table>` : '<p class="muted">No data</p>';
 
+        // Top API endpoints
+        const apiEndpoints = a.topApiEndpoints || [];
+        document.getElementById('svc-top-api').innerHTML = apiEndpoints.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Endpoint</th><th>Method</th><th>Hits</th><th>Avg ms</th><th>Errors</th></tr></thead>
+                <tbody>${apiEndpoints.slice(0, 15).map(e => `
+                    <tr>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.path)}">${esc(e.path)}</td>
+                        <td><span class="badge badge-info">${esc(e.method)}</span></td>
+                        <td>${fmtNum(e.hits)}</td>
+                        <td>${e.avg_ms || 0}ms</td>
+                        <td style="color:${e.errors > 0 ? 'var(--danger)' : 'inherit'}">${fmtNum(e.errors)}</td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>` : '<p class="muted">No API data</p>';
+
         // Referers
         const refs = a.topReferers || [];
         document.getElementById('svc-top-referers').innerHTML = refs.length ? `
@@ -1987,6 +2174,22 @@ async function loadServiceAnalytics(serviceName) {
                     <tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.referer)}">${esc(r.referer)}</td><td>${fmtNum(r.hits)}</td></tr>
                 `).join('')}</tbody>
             </table>` : '<p class="muted">No referers tracked</p>';
+
+        // Slowest endpoints
+        const slow = a.slowestEndpoints || [];
+        document.getElementById('svc-slowest').innerHTML = slow.length ? `
+            <table class="admin-table">
+                <thead><tr><th>Endpoint</th><th>Method</th><th>Avg ms</th><th>Max ms</th><th>Hits</th></tr></thead>
+                <tbody>${slow.slice(0, 10).map(e => `
+                    <tr>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.path)}">${esc(e.path)}</td>
+                        <td><span class="badge badge-warning">${esc(e.method)}</span></td>
+                        <td style="color:${e.avg_ms > 500 ? 'var(--danger)' : e.avg_ms > 200 ? 'var(--warning)' : 'inherit'}">${e.avg_ms || 0}ms</td>
+                        <td style="color:var(--danger)">${e.max_ms || 0}ms</td>
+                        <td>${fmtNum(e.hits)}</td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>` : '<p class="muted">No data</p>';
 
         // Status codes
         const statuses = a.statusCodes || [];
@@ -2017,11 +2220,11 @@ async function loadServiceAnalytics(serviceName) {
 }
 
 async function loadBotAnalysis() {
-    const days = getAnalyticsDays();
+    const period = getAnalyticsPeriod();
     const el = document.getElementById('bots-content');
     el.innerHTML = '<div class="loading">Loading bot analysis...</div>';
     try {
-        const data = await api(`/api/admin/analytics/bots?days=${days}`);
+        const data = await api(`/api/admin/analytics/bots?${period.qs}`);
         const bots = data.bots || {};
         let html = '';
 

@@ -38,9 +38,10 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
     router.use(requireAuth, requireAdmin);
 
     // ── Helper: fetch analytics from a remote service ────────
-    async function fetchRemoteAnalytics(svc, subPath, token, days) {
+    async function fetchRemoteAnalytics(svc, subPath, token, days, hours) {
         try {
-            const url = `${svc.url}${svc.path}${subPath}?days=${days}`;
+            const qs = hours ? `days=${days}&hours=${hours}` : `days=${days}`;
+            const url = `${svc.url}${svc.path}${subPath}?${qs}`;
             const headers = { 'Content-Type': 'application/json' };
 
             if (svc.auth === 'internal') {
@@ -65,12 +66,13 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
     router.get('/overview', async (req, res) => {
         try {
             const days = Math.min(parseInt(req.query.days) || 30, 365);
+            const hours = req.query.hours ? Math.min(parseInt(req.query.hours), 8760) : null;
 
             // Fetch from all services in parallel
             const promises = [
-                Promise.resolve({ ok: true, analytics: analytics.getStats({ days }), name: 'hobo-tools', label: 'Hobo.Tools' }),
+                Promise.resolve({ ok: true, analytics: analytics.getStats({ days, hours }), name: 'hobo-tools', label: 'Hobo.Tools' }),
                 ...REMOTE_SERVICES.map(svc =>
-                    fetchRemoteAnalytics(svc, '', req.token, days).then(result => ({
+                    fetchRemoteAnalytics(svc, '', req.token, days, hours).then(result => ({
                         ...result, name: svc.name, label: svc.label,
                     }))
                 ),
@@ -129,14 +131,48 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
                 bots: services.reduce((s, v) => s + (v.realtime?.bots || 0), 0),
             };
 
+            // Aggregate enhanced metrics across services
+            const totalBandwidth = {
+                total_requests: 0, page_requests: 0, api_requests: 0, estimated_bytes: 0,
+            };
+            const totalSessions = allDataSources.reduce((s, d) => s + (d.sessionCount || 0), 0);
+            for (const src of allDataSources) {
+                if (src?.bandwidth) {
+                    totalBandwidth.total_requests += src.bandwidth.total_requests || 0;
+                    totalBandwidth.page_requests += src.bandwidth.page_requests || 0;
+                    totalBandwidth.api_requests += src.bandwidth.api_requests || 0;
+                    totalBandwidth.estimated_bytes += src.bandwidth.estimated_bytes || 0;
+                }
+            }
+
+            // Combine time buckets for sub-day views
+            const timeBucketMap = new Map();
+            for (const src of allDataSources) {
+                if (!src?.timeBuckets) continue;
+                for (const b of src.timeBuckets) {
+                    const existing = timeBucketMap.get(b.bucket) || { bucket: b.bucket, pageviews: 0, api_calls: 0, unique_visitors: 0, bot_hits: 0, errors: 0 };
+                    existing.pageviews += b.pageviews || 0;
+                    existing.api_calls += b.api_calls || 0;
+                    existing.unique_visitors += b.unique_visitors || 0;
+                    existing.bot_hits += b.bot_hits || 0;
+                    existing.errors += b.errors || 0;
+                    timeBucketMap.set(b.bucket, existing);
+                }
+            }
+            const timeBuckets = Array.from(timeBucketMap.values()).sort((a, b) => a.bucket.localeCompare(b.bucket));
+
             res.json({
                 ok: true,
                 overview: {
                     period_days: days,
+                    period_hours: hours,
                     totals,
                     services,
                     dailyTrend,
+                    timeBuckets,
                     realtime: realtimeTotal,
+                    bandwidth: totalBandwidth,
+                    sessionCount: totalSessions,
                 },
             });
         } catch (err) {
@@ -153,14 +189,15 @@ module.exports = function createAnalyticsRoutes(analytics, requireAuth, config) 
         try {
             const { name } = req.params;
             const days = Math.min(parseInt(req.query.days) || 30, 365);
+            const hours = req.query.hours ? Math.min(parseInt(req.query.hours), 8760) : null;
             let data = null;
 
             if (name === 'hobo-tools') {
-                data = analytics.getStats({ days });
+                data = analytics.getStats({ days, hours });
             } else {
                 const svc = REMOTE_SERVICES.find(s => s.name === name);
                 if (svc) {
-                    const remote = await fetchRemoteAnalytics(svc, '', req.token, days);
+                    const remote = await fetchRemoteAnalytics(svc, '', req.token, days, hours);
                     data = remote?.analytics || null;
                 }
             }
