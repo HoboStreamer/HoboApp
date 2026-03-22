@@ -18,7 +18,7 @@ const config = require('./config');
 const { initDb } = require('./db/database');
 const { BRAND } = require('hobo-shared/brand');
 const { NotificationService } = require('./notifications/notification-service');
-const { SESService } = require('./notifications/ses-service');
+const { EmailService } = require('./notifications/email-service');
 const createNotificationRoutes = require('./notifications/routes');
 const createAdminRoutes = require('./admin/routes');
 const { AnalyticsTracker } = require('hobo-shared/analytics');
@@ -164,9 +164,9 @@ app.locals.config = config;
 
 // ── Initialize Services ──────────────────────────────────────
 const notificationService = new NotificationService(db);
-const sesService = new SESService(db);
+const emailService = new EmailService(db);
 app.locals.notificationService = notificationService;
-app.locals.sesService = sesService;
+app.locals.emailService = emailService;
 
 // requireAuth helper (needed by route factories)
 const authRoutes = require('./auth/routes');
@@ -222,7 +222,7 @@ app.use('/api/themes', require('./themes/routes'));
 app.use('/api/notifications', createNotificationRoutes(db, notificationService, requireAuth));
 
 // Admin panel API
-app.use('/api/admin', createAdminRoutes(db, notificationService, sesService, requireAuth));
+app.use('/api/admin', createAdminRoutes(db, notificationService, emailService, requireAuth));
 
 // Analytics admin API
 const createAnalyticsRoutes = require('./admin/analytics-routes');
@@ -365,8 +365,8 @@ app.listen(config.port, config.host, () => {
     // Clean expired notifications every hour
     setInterval(() => notificationService.maintenance(), 60 * 60 * 1000);
 
-    // Process SES email queue every 2 minutes
-    setInterval(() => sesService.processQueue(notificationService), 2 * 60 * 1000);
+    // Process email queue every 2 minutes
+    setInterval(() => emailService.processQueue(notificationService), 2 * 60 * 1000);
 
     // Clean expired sessions daily
     setInterval(() => {

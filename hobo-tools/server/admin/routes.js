@@ -3,14 +3,14 @@
 // ═══════════════════════════════════════════════════════════════
 // Admin Panel — API Routes
 // Mounted at /api/admin. Requires admin role.
-// Manages SES config, site settings, user management, bulk
+// Manages email config, site settings, user management, bulk
 // notifications, and system health.
 // ═══════════════════════════════════════════════════════════════
 
 const express = require('express');
 const router = express.Router();
 
-module.exports = function createAdminRoutes(db, notificationService, sesService, requireAuth) {
+module.exports = function createAdminRoutes(db, notificationService, emailService, requireAuth) {
 
     function getEmailMetrics() {
         const summary = {
@@ -56,49 +56,47 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
     router.use(requireAuth, requireAdmin);
 
     // ═══════════════════════════════════════════════════════
-    // SES Configuration
+    // Email Configuration (Resend)
     // ═══════════════════════════════════════════════════════
 
-    // GET /api/admin/ses — get current SES config
+    // GET /api/admin/ses — get current email config
     router.get('/ses', (req, res) => {
         try {
-            const status = sesService.getStatus();
+            const status = emailService.getStatus();
             res.json({ ok: true, ses: status, metrics: getEmailMetrics() });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }
     });
 
-    // PUT /api/admin/ses — update SES config
+    // PUT /api/admin/ses — update email config
     router.put('/ses', (req, res) => {
         try {
-            const { enabled, region, access_key_id, secret_access_key, from_email, from_name,
+            const { enabled, api_key, from_email, from_name,
                     from_email_hobostreamer, from_email_hoboquest, from_email_hobotools } = req.body;
             const setSetting = db.prepare('INSERT OR REPLACE INTO site_settings (key, value, type) VALUES (?, ?, ?)');
 
             const tx = db.transaction(() => {
-                if (enabled !== undefined) setSetting.run('ses_enabled', String(enabled), 'boolean');
-                if (region) setSetting.run('ses_region', region, 'string');
-                // Only update credentials if they're not masked placeholder values
-                if (access_key_id && !/\u2022/.test(access_key_id)) setSetting.run('ses_access_key_id', access_key_id, 'string');
-                if (secret_access_key && !/\u2022/.test(secret_access_key)) setSetting.run('ses_secret_access_key', secret_access_key, 'string');
-                if (from_email) setSetting.run('ses_from_email', from_email, 'string');
-                if (from_name !== undefined) setSetting.run('ses_from_name', from_name || 'Hobo Network', 'string');
+                if (enabled !== undefined) setSetting.run('email_enabled', String(enabled), 'boolean');
+                // Only update API key if it's not a masked placeholder
+                if (api_key && !/\u2022/.test(api_key)) setSetting.run('resend_api_key', api_key, 'string');
+                if (from_email) setSetting.run('email_from_address', from_email, 'string');
+                if (from_name !== undefined) setSetting.run('email_from_name', from_name || 'Hobo Network', 'string');
                 // Per-service from addresses
-                if (from_email_hobostreamer !== undefined) setSetting.run('ses_from_email_hobostreamer', from_email_hobostreamer, 'string');
-                if (from_email_hoboquest !== undefined) setSetting.run('ses_from_email_hoboquest', from_email_hoboquest, 'string');
-                if (from_email_hobotools !== undefined) setSetting.run('ses_from_email_hobotools', from_email_hobotools, 'string');
+                if (from_email_hobostreamer !== undefined) setSetting.run('email_from_hobostreamer', from_email_hobostreamer, 'string');
+                if (from_email_hoboquest !== undefined) setSetting.run('email_from_hoboquest', from_email_hoboquest, 'string');
+                if (from_email_hobotools !== undefined) setSetting.run('email_from_hobotools', from_email_hobotools, 'string');
             });
             tx();
 
-            sesService.reload();
+            emailService.reload();
 
             // Audit
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
-                req.user.id, 'ses_config_update', JSON.stringify({ region, from_email })
+                req.user.id, 'email_config_update', JSON.stringify({ from_email })
             );
 
-            res.json({ ok: true, ses: sesService.getStatus() });
+            res.json({ ok: true, ses: emailService.getStatus() });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }
@@ -109,7 +107,7 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
         try {
             const { email } = req.body;
             if (!email) return res.status(400).json({ ok: false, error: 'Email required' });
-            await sesService.sendTestEmail(email);
+            await emailService.sendTestEmail(email);
             res.json({ ok: true, sent: true });
         } catch (err) {
             // sendTestEmail throws with descriptive errors — surface them
@@ -130,6 +128,8 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
                 'ses_enabled', 'ses_region', 'ses_access_key_id', 'ses_secret_access_key',
                 'ses_from_email', 'ses_from_name',
                 'ses_from_email_hobostreamer', 'ses_from_email_hoboquest', 'ses_from_email_hobotools',
+                'email_enabled', 'resend_api_key', 'email_from_address', 'email_from_name',
+                'email_from_hobostreamer', 'email_from_hoboquest', 'email_from_hobotools',
             ]);
             for (const r of rows) {
                 if (SES_MANAGED_KEYS.has(r.key)) continue;
@@ -276,7 +276,7 @@ module.exports = function createAdminRoutes(db, notificationService, sesService,
             const unreadCount = db.prepare('SELECT COUNT(*) as cnt FROM notifications WHERE is_read = 0').get().cnt;
             const anonCount = db.prepare('SELECT COUNT(*) as cnt FROM anon_users').get().cnt;
             const sessionCount = db.prepare('SELECT COUNT(*) as cnt FROM user_sessions WHERE is_active = 1').get().cnt;
-            const ses = sesService.getStatus();
+            const ses = emailService.getStatus();
 
             res.json({
                 ok: true,

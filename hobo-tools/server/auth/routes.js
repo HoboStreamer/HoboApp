@@ -202,7 +202,7 @@ router.post('/login', (req, res) => {
 // ── Forgot Password ─────────────────────────────────────────
 router.post('/forgot-password', async (req, res) => {
     const db = getDb(req);
-    const sesService = req.app.locals.sesService;
+    const emailService = req.app.locals.emailService;
     const genericResponse = {
         ok: true,
         message: 'If that email exists, a reset link has been sent.',
@@ -215,7 +215,7 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = db.prepare('SELECT id, username, display_name, email FROM users WHERE LOWER(email) = LOWER(?)').get(email);
 
-    if (!user || !user.email || !sesService?.isEnabled) {
+    if (!user || !user.email || !emailService?.isEnabled) {
         return res.json(genericResponse);
     }
 
@@ -228,7 +228,7 @@ router.post('/forgot-password', async (req, res) => {
     `).run(user.id, hashResetToken(rawToken), expiresAt, req.ip || null, req.headers['user-agent'] || null);
 
     const resetUrl = `${buildToolsBaseUrl(req)}/reset-password?token=${encodeURIComponent(rawToken)}`;
-    await sesService.sendPasswordResetEmail({
+    await emailService.sendPasswordResetEmail({
         to: user.email,
         username: user.display_name || user.username,
         resetUrl,
