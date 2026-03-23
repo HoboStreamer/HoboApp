@@ -1,0 +1,20 @@
+[Unit]
+Description=HoboDocs — Unified Document & PDF Processing Tools
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/hobo-docs
+Environment=NODE_ENV=production
+ExecStart=/home/ubuntu/.nvm/versions/node/v20.20.1/bin/node /opt/hobo-docs/server/index.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/opt/hobo-docs
+
+[Install]
+WantedBy=multi-user.target

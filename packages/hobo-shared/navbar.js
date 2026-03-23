@@ -130,6 +130,7 @@
         hobotools: 'HoboTools', hobomaps: 'HoboMaps',
         hobofood: 'HoboFood', hoboimg: 'HoboImg', hoboyt: 'HoboYT',
         hoboaudio: 'HoboAudio', hobotext: 'HoboText', hobologo: 'HoboLogo',
+        hobodocs: 'HoboDocs',
     };
 
     const SERVICE_ICONS = {
@@ -137,6 +138,7 @@
         hobotools: 'fa-screwdriver-wrench', hobomaps: 'fa-map-location-dot',
         hobofood: 'fa-utensils', hoboimg: 'fa-images', hoboyt: 'fa-circle-play',
         hoboaudio: 'fa-headphones', hobotext: 'fa-pen-fancy', hobologo: 'fa-wand-magic-sparkles',
+        hobodocs: 'fa-file-pdf',
     };
 
     // Subdomain → brand override for multi-subdomain services (HoboImg)
@@ -243,6 +245,22 @@
         'channelart.hobo.tools': { name: 'HoboChannelArt', icon: 'fa-panorama' },
         'watermark.hobo.tools':  { name: 'HoboWatermark',  icon: 'fa-droplet' },
         'neon.hobo.tools':       { name: 'HoboNeon',       icon: 'fa-lightbulb' },
+        // Document / PDF subdomains
+        'docs.hobo.tools':       { name: 'HoboDocs',      icon: 'fa-file-pdf' },
+        'pdf.hobo.tools':        { name: 'HoboPDF',       icon: 'fa-file-pdf' },
+        'mergepdf.hobo.tools':   { name: 'MergePDF',      icon: 'fa-object-group' },
+        'splitpdf.hobo.tools':   { name: 'SplitPDF',      icon: 'fa-scissors' },
+        'compresspdf.hobo.tools':{ name: 'CompressPDF',   icon: 'fa-compress' },
+        'rotatepdf.hobo.tools':  { name: 'RotatePDF',     icon: 'fa-rotate' },
+        'reorderpdf.hobo.tools': { name: 'ReorderPDF',    icon: 'fa-sort' },
+        'watermarkpdf.hobo.tools':{ name: 'WatermarkPDF', icon: 'fa-stamp' },
+        'protectpdf.hobo.tools': { name: 'ProtectPDF',    icon: 'fa-lock' },
+        'unlockpdf.hobo.tools':  { name: 'UnlockPDF',     icon: 'fa-lock-open' },
+        'image2pdf.hobo.tools':  { name: 'Image2PDF',     icon: 'fa-file-image' },
+        'jpg2pdf.hobo.tools':    { name: 'JPG2PDF',       icon: 'fa-file-image' },
+        'png2pdf.hobo.tools':    { name: 'PNG2PDF',       icon: 'fa-file-image' },
+        'pdf2jpg.hobo.tools':    { name: 'PDF2JPG',       icon: 'fa-image' },
+        'pdf2png.hobo.tools':    { name: 'PDF2PNG',       icon: 'fa-image' },
     };
 
     const SERVICE_LINKS = {
@@ -295,6 +313,12 @@
             { label: 'Wordmark', href: 'https://wordmark.hobo.tools' },
             { label: 'Badge', href: 'https://badge.hobo.tools' },
             { label: 'Thumbnail', href: 'https://thumbnail.hobo.tools' },
+        ],
+        hobodocs: [
+            { label: 'Merge', href: 'https://mergepdf.hobo.tools' },
+            { label: 'Split', href: 'https://splitpdf.hobo.tools' },
+            { label: 'Compress', href: 'https://compresspdf.hobo.tools' },
+            { label: 'Images→PDF', href: 'https://image2pdf.hobo.tools' },
         ],
     };
 
