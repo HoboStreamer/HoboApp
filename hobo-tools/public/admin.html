@@ -235,7 +235,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
     <div class="section" id="sec-chat-logs">
         <div class="input-row">
             <input type="text" id="chat-search-q" placeholder="Search messages..." onkeydown="if(event.key==='Enter')searchChatLogs()">
-            <input type="text" id="chat-search-uid" placeholder="User ID (optional)" style="max-width:140px" onkeydown="if(event.key==='Enter')searchChatLogs()">
+            <input type="text" id="chat-search-uid" placeholder="User ID or anon123" style="max-width:160px" onkeydown="if(event.key==='Enter')searchChatLogs()">
             <button class="btn btn-primary" onclick="searchChatLogs()"><i class="fa-solid fa-search"></i> Search</button>
         </div>
         <div id="chat-logs-content"><p class="muted">Enter a search query or user ID</p></div>
@@ -904,7 +904,7 @@ async function fetchChatLogs() {
                 <tbody>${msgs.map(m => `
                     <tr>
                         <td style="white-space:nowrap;font-size:11px">${m.timestamp ? timeAgo(m.timestamp) : '-'}</td>
-                        <td style="white-space:nowrap;color:${esc(m.profile_color || '#999')}">${esc(m.display_name || m.username || 'anon')}</td>
+                        <td style="white-space:nowrap;color:${esc(m.profile_color || (m.anon_id ? '#6b7280' : '#999'))}">${esc(m.display_name || m.username || m.anon_id || 'anon')}</td>
                         <td style="word-break:break-word">${esc(m.message)}</td>
                         <td style="font-size:11px">${m.stream_id || '-'}</td>
                     </tr>
