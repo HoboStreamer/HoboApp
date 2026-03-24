@@ -393,5 +393,51 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
         }
     });
 
+    // ═══════════════════════════════════════════════════════
+    // HoboNet — Network Tools Config
+    // ═══════════════════════════════════════════════════════
+
+    const NET_SETTING_KEYS = [
+        'net.ipinfo_token',          // ipinfo.io API token (optional, 50k/month free)
+        'net.globalping_token',      // Globalping API token (optional, 100 credits/hr free)
+    ];
+
+    router.get('/net-config', (req, res) => {
+        try {
+            const config = {};
+            for (const key of NET_SETTING_KEYS) {
+                const row = db.prepare('SELECT value FROM site_settings WHERE key = ?').get(key);
+                config[key] = row ? row.value : '';
+            }
+            // Mask tokens for display
+            for (const key of NET_SETTING_KEYS) {
+                if (config[key] && config[key].length > 4) {
+                    config[key] = '••••' + config[key].slice(-4);
+                }
+            }
+            res.json({ ok: true, config, keys: NET_SETTING_KEYS });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    router.put('/net-config', (req, res) => {
+        try {
+            const { key, value } = req.body;
+            if (!key || !NET_SETTING_KEYS.includes(key)) {
+                return res.status(400).json({ ok: false, error: 'Invalid setting key' });
+            }
+            // Skip if masked
+            if (value?.startsWith('••••')) return res.json({ ok: true, skipped: true });
+            db.prepare('INSERT OR REPLACE INTO site_settings (key, value, type) VALUES (?, ?, ?)').run(key, String(value), 'secret');
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id, 'net_config_update', JSON.stringify({ key })
+            );
+            res.json({ ok: true });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
     return router;
 };

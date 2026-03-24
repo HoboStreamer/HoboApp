@@ -20,6 +20,8 @@ const BRAND = Object.freeze({
         audio:    'https://audio.hobo.tools',
         text:     'https://text.hobo.tools',
         logo:     'https://logo.hobo.tools',
+        net:      'https://net.hobo.tools',
+        dev:      'https://dev.hobo.tools',
         streamer: 'https://hobostreamer.com',
         quest:    'https://hobo.quest',
         discord:  'https://discord.gg/M6MuRUaeJj',
@@ -52,8 +54,8 @@ const BRAND = Object.freeze({
         { id: 'hoboyt',       name: 'HoboYT',        url: 'https://yt.hobo.tools',     description: 'YouTube Downloader' },
         { id: 'hoboaudio',    name: 'HoboAudio',     url: 'https://audio.hobo.tools',  description: 'Audio Converter & Effects' },
         { id: 'hobotext',     name: 'HoboText',      url: 'https://text.hobo.tools',   description: 'Text Generation & Unicode' },
-        { id: 'hobologo',     name: 'HoboLogo',      url: 'https://logo.hobo.tools',   description: 'Logo & Title Card Maker' },
-    ]),
+        { id: 'hobologo',     name: 'HoboLogo',      url: 'https://logo.hobo.tools',   description: 'Logo & Title Card Maker' },        { id: 'hobonet',      name: 'HoboNet',      url: 'https://net.hobo.tools',    description: 'Network & Internet Diagnostics' },
+        { id: 'hobodev',      name: 'HoboDev',      url: 'https://dev.hobo.tools',    description: 'Developer & SEO Tools' },    ]),
 });
 
 module.exports = { BRAND };

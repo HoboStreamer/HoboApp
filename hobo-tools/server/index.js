@@ -22,6 +22,10 @@ const { EmailService } = require('./notifications/email-service');
 const createNotificationRoutes = require('./notifications/routes');
 const createAdminRoutes = require('./admin/routes');
 const { AnalyticsTracker } = require('hobo-shared/analytics');
+const createNetRoutes = require('./net/routes');
+const { NET_TOOL_MAP, NET_ALIASES } = require('./net/config');
+const createDevRoutes = require('./dev/routes');
+const { DEV_TOOL_MAP, DEV_ALIASES } = require('./dev/config');
 
 const app = express();
 
@@ -278,8 +282,52 @@ app.use('/api/admin/streamer-pastes', requireAuth, (req, res, next) => {
     return proxyJsonRequest(req, res, `${HOBOSTREAMER_INTERNAL}/api/pastes${req.url}`, 'Pastes proxy error');
 });
 
+// ── HoboNet — Network Tools API ──────────────────────────────
+app.use('/api/net', rateLimit({ windowMs: 60_000, max: 60 }), createNetRoutes(db, requireAuth));
+
+// ── HoboDev — Developer & SEO Tools API ──────────────────────
+app.use('/api/dev', rateLimit({ windowMs: 60_000, max: 60 }), createDevRoutes(db, requireAuth));
+
 // Internal API (server-to-server, localhost only)
 app.use('/internal', require('./internal/routes'));
+
+// ── HoboNet Subdomain Routing ─────────────────────────────────
+// Serves net.html for any subdomain that matches a net tool
+function isNetHost(req) {
+    const h = getRequestHost(req);
+    const sub = h.replace(/\.hobo\.tools$/, '');
+    return NET_TOOL_MAP.has(sub) || NET_ALIASES[sub];
+}
+
+function sendNetApp(res) {
+    return res.sendFile(path.join(__dirname, '..', 'public', 'net.html'));
+}
+
+// Intercept all net-tool subdomains and serve the SPA
+app.use((req, res, next) => {
+    if (!isNetHost(req)) return next();
+    if (req.path.startsWith('/api/') || req.path.startsWith('/internal/') || req.path.startsWith('/shared/')) return next();
+    if (/\.(js|css|ico|png|svg|jpg|woff2?)$/.test(req.path)) return next();
+    return sendNetApp(res);
+});
+
+// ── HoboDev Subdomain Routing ─────────────────────────────────
+function isDevHost(req) {
+    const h = getRequestHost(req);
+    const sub = h.replace(/\.hobo\.tools$/, '');
+    return DEV_TOOL_MAP.has(sub) || DEV_ALIASES[sub];
+}
+
+function sendDevApp(res) {
+    return res.sendFile(path.join(__dirname, '..', 'public', 'dev.html'));
+}
+
+app.use((req, res, next) => {
+    if (!isDevHost(req)) return next();
+    if (req.path.startsWith('/api/') || req.path.startsWith('/internal/') || req.path.startsWith('/shared/')) return next();
+    if (/\.(js|css|ico|png|svg|jpg|woff2?)$/.test(req.path)) return next();
+    return sendDevApp(res);
+});
 
 // ── Static Files ─────────────────────────────────────────────
 app.get(['/login.html', '/admin.html'], (req, res) => {
