@@ -31,8 +31,16 @@ module.exports = function createNetRoutes(db, requireAuth) {
         try {
             if (/^https?:\/\//.test(t)) { t = new URL(t).hostname; }
         } catch {}
-        // Strip trailing dots, slashes, ports
-        t = t.replace(/[\/:].*$/, '').replace(/\.+$/, '').toLowerCase();
+        // Strip trailing dots, slashes
+        t = t.replace(/\/.*$/, '').replace(/\.+$/, '').toLowerCase();
+        // Strip port only if it looks like IPv4:port (not IPv6 which has multiple colons)
+        if (!t.includes('::') && !t.includes(':')) {
+            // IPv4 or domain without port
+            t = t.replace(/:\d+$/, '');
+        } else if (t.includes(':') && !/:.*:/.test(t)) {
+            // Single colon: might be IPv4:port, strip digits after colon
+            t = t.replace(/:\d+$/, '');
+        }
         // Validate: must be an IP or a domain-like string
         if (/^[a-z0-9._:-]+$/.test(t) && t.length <= 253) return t;
         return null;
