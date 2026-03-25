@@ -597,8 +597,13 @@
             });
         }
 
-        // Insert into page
-        document.body.prepend(nav);
+        // Insert into page — use navbar-mount placeholder if available, otherwise prepend to body
+        const mount = document.getElementById('navbar-mount');
+        if (mount) {
+            mount.appendChild(nav);
+        } else {
+            document.body.prepend(nav);
+        }
         _navEl = nav;
         attachAvatarFallbacks(nav);
         return nav;
