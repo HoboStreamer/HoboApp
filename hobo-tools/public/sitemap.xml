@@ -358,6 +358,18 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://ipv4.hobo.tools/</loc>
+    <lastmod>2024-12-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://ipv6.hobo.tools/</loc>
+    <lastmod>2024-12-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://dns.hobo.tools/</loc>
     <lastmod>2024-12-01</lastmod>
     <changefreq>monthly</changefreq>
@@ -368,5 +380,19 @@
     <lastmod>2024-12-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
+  </url>
+
+  <!-- HoboNet Tools - IPv4/IPv6 Specific Pages -->
+  <url>
+    <loc>https://net.hobo.tools/?tool=ipv4</loc>
+    <lastmod>2024-12-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://net.hobo.tools/?tool=ipv6</loc>
+    <lastmod>2024-12-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
   </url>
 </urlset>
