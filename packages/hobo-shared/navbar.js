@@ -473,7 +473,14 @@
 
         // Resolve brand name + icon: config override > subdomain lookup > service defaults
         const host = (typeof location !== 'undefined' && location.hostname) || '';
-        const subBrand = SUBDOMAIN_BRANDS[host];
+        // Exact match first (e.g., hostname.hobo.tools), then fallback to service name
+        let subBrand = SUBDOMAIN_BRANDS[host];
+        if (!subBrand && host && host.includes('.hobo.tools')) {
+            // Try matching against service names
+            const parts = host.split('.');
+            const potential = parts[0]; // e.g., 'json' from 'json.hobo.tools'
+            subBrand = SUBDOMAIN_BRANDS[`${potential}.hobo.tools`];
+        }
         const svcName = _config.brandName || (subBrand && subBrand.name) || SERVICE_NAMES[svc] || 'Hobo';
         const svcIcon = _config.brandIcon || (subBrand && subBrand.icon) || SERVICE_ICONS[svc] || 'fa-campground';
 
