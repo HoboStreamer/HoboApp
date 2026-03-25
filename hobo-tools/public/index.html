@@ -788,6 +788,90 @@
         }
         .dir-empty i { font-size: 1.5rem; display: block; margin-bottom: 8px; color: var(--text-muted); }
 
+        /* ─── Floating Showcase Cards (Signed-In) ─── */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .signed-showcase-section { display: none; padding: 40px 0; position: relative; }
+        .signed-showcase-section.visible { display: block; }
+        .signed-showcase-section::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 600px; height: 600px;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(192,150,92,0.06), transparent 70%);
+            pointer-events: none;
+        }
+        .showcase-hero { text-align: center; margin-bottom: 48px; position: relative; }
+        .showcase-hero h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+        .showcase-hero p { color: var(--text-secondary); font-size: 1rem; max-width: 500px; margin: 0 auto; }
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+            margin: 40px 0; max-width: 800px; margin-left: auto; margin-right: auto;
+        }
+        .showcase-card {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; border-radius: 16px; background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            cursor: pointer; transition: all .3s ease;
+            gap: 10px; animation: float ease-in-out infinite;
+        }
+        .showcase-card:nth-child(1) { animation-delay: 0s; animation-duration: 3s; }
+        .showcase-card:nth-child(2) { animation-delay: 0.15s; animation-duration: 3.3s; }
+        .showcase-card:nth-child(3) { animation-delay: 0.3s; animation-duration: 3.6s; }
+        .showcase-card:nth-child(4) { animation-delay: 0.45s; animation-duration: 3.2s; }
+        .showcase-card:nth-child(5) { animation-delay: 0.6s; animation-duration: 3.4s; }
+        .showcase-card:nth-child(6) { animation-delay: 0.75s; animation-duration: 3.1s; }
+        .showcase-card:nth-child(7) { animation-delay: 0.9s; animation-duration: 3.5s; }
+        .showcase-card:nth-child(8) { animation-delay: 1.05s; animation-duration: 3.3s; }
+        .showcase-card:hover {
+            transform: translateY(-4px); border-color: rgba(192,150,92,0.5);
+            box-shadow: 0 16px 36px rgba(192,150,92,0.2);
+        }
+        .showcase-card-icon { font-size: 1.8rem; color: var(--accent-light); }
+        .showcase-card-label { font-size: 0.8rem; font-weight: 700; text-align: center; color: var(--text-secondary); }
+        .signed-showcase-quick {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            margin: 32px 0; max-width: 800px; margin-left: auto; margin-right: auto;
+        }
+        .quick-link {
+            padding: 12px 16px; border-radius: 12px; background: var(--bg-card);
+            border: 1px solid var(--border); text-align: center; text-decoration: none; color: var(--text-secondary);
+            font-size: 0.8rem; font-weight: 700; transition: all .25s ease;
+            animation: fadeInScale 0.5s ease both;
+        }
+        .quick-link:nth-child(1) { animation-delay: 0.1s; }
+        .quick-link:nth-child(2) { animation-delay: 0.2s; }
+        .quick-link:nth-child(3) { animation-delay: 0.3s; }
+        .quick-link:nth-child(4) { animation-delay: 0.4s; }
+        .quick-link:hover {
+            border-color: rgba(192,150,92,0.4); color: var(--accent-light);
+            background: rgba(192,150,92,0.08);
+        }
+        .signed-showcase-stats {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            margin-top: 32px; max-width: 600px; margin-left: auto; margin-right: auto;
+        }
+        .stat-card {
+            padding: 16px; border-radius: 12px; background: var(--bg-card);
+            border: 1px solid var(--border); text-align: center;
+            animation: fadeInScale 0.6s ease both;
+        }
+        .stat-card:nth-child(1) { animation-delay: 0.2s; }
+        .stat-card:nth-child(2) { animation-delay: 0.3s; }
+        .stat-card:nth-child(3) { animation-delay: 0.4s; }
+        .stat-card:nth-child(4) { animation-delay: 0.5s; }
+        .stat-card-value { font-size: 1.3rem; font-weight: 900; color: var(--accent-light); }
+        .stat-card-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+
         /* ─── Responsive ─── */
         @media (max-width: 920px) {
             .bento-featured, .bento-side, .bento-third, .bento-half {
@@ -816,6 +900,9 @@
             .dir-overlay { padding: 16px 8px 40px; }
             .dir-header, .dir-search-bar, .dir-filters, .dir-body { padding-left: 16px; padding-right: 16px; }
             .dir-tools { grid-template-columns: 1fr; }
+            .showcase-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+            .signed-showcase-quick { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .signed-showcase-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
     </style>
 </head>
@@ -1121,6 +1208,17 @@
                     </div>
                 </div>
 
+                <!-- Featured Tools Showcase -->
+                <div class="signed-showcase-section" id="signed-showcase">
+                    <div class="showcase-hero">
+                        <h2>Your Favorite Tools</h2>
+                        <p>Quick access to the most popular services across the network</p>
+                    </div>
+                    <div class="showcase-grid" id="signed-showcase-grid"></div>
+                    <div class="signed-showcase-quick" id="signed-quick-links"></div>
+                    <div class="signed-showcase-stats" id="signed-stats"></div>
+                </div>
+
                 <div class="quick-grid">
                     <a class="quick-card" href="https://my.hobo.tools">
                         <div class="quick-icon"><i class="fa-solid fa-user-gear"></i></div>
@@ -1265,6 +1363,44 @@
         function setVisibility(isSignedIn) {
             document.getElementById('guest-home').style.display = isSignedIn ? 'none' : 'block';
             document.getElementById('signed-home').style.display = isSignedIn ? 'block' : 'none';
+            if (isSignedIn) buildSignedShowcase();
+        }
+
+        function buildSignedShowcase() {
+            const grid = document.getElementById('signed-showcase-grid');
+            const quick = document.getElementById('signed-quick-links');
+            const stats = document.getElementById('signed-stats');
+            if (!grid || !quick || !stats) return;
+            const popular = [
+                { id: 'hobostreamer', name: 'Stream', icon: 'fa-tower-broadcast', url: 'https://hobostreamer.com' },
+                { id: 'hoboquest', name: 'Quest', icon: 'fa-hat-wizard', url: 'https://hobo.quest' },
+                { id: 'hobomaps', name: 'Maps', icon: 'fa-map-location-dot', url: 'https://maps.hobo.tools' },
+                { id: 'hobofood', name: 'Food', icon: 'fa-utensils', url: 'https://food.hobo.tools' },
+                { id: 'hoboimg', name: 'Images', icon: 'fa-images', url: 'https://img.hobo.tools' },
+                { id: 'hoboaudio', name: 'Audio', icon: 'fa-headphones', url: 'https://audio.hobo.tools' },
+                { id: 'net', name: 'Network', icon: 'fa-network-wired', url: 'https://net.hobo.tools' },
+                { id: 'docs', name: 'Documents', icon: 'fa-file-pdf', url: 'https://docs.hobo.tools' },
+            ];
+            grid.innerHTML = popular.map(t => `<a href="${t.url}" class="showcase-card" title="${t.name}" target="_blank" rel="noopener"><i class="fa-solid ${t.icon} showcase-card-icon"></i><span class="showcase-card-label">${t.name}</span></a>`).join('');
+            const quick_links = [
+                { label: 'Account', icon: 'fa-user-gear', url: 'https://my.hobo.tools' },
+                { label: 'Themes', icon: 'fa-palette', url: 'https://my.hobo.tools#themes' },
+                { label: 'Browse', icon: 'fa-grip', url: '#', onclick: 'openDirectory' },
+                { label: 'Settings', icon: 'fa-sliders', url: 'https://my.hobo.tools#settings' },
+            ];
+            quick.innerHTML = quick_links.map(l => {
+                const onclick = l.onclick ? ` onclick="${l.onclick}()"` : '';
+                return `<a href="${l.onclick ? '#' : l.url}" class="quick-link"${onclick}${l.onclick ? ' style="cursor:pointer"' : ' target="_blank" rel="noopener"'}><i class="fa-solid ${l.icon}"></i><br>${l.label}</a>`;
+            }).join('');
+            const stat_items = [
+                { label: 'Services', value: '14' },
+                { label: 'Tools', value: '200+' },
+                { label: 'Themes', value: '34' },
+                { label: 'Cost', value: 'Free' },
+            ];
+            stats.innerHTML = stat_items.map(s => `<div class="stat-card"><div class="stat-card-value">${s.value}</div><div class="stat-card-label">${s.label}</div></div>`).join('');
+            const showcase = document.getElementById('signed-showcase');
+            if (showcase) showcase.classList.add('visible');
         }
 
         function initNavbar(user) {
