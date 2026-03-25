@@ -95,11 +95,14 @@ module.exports = function createNetRoutes(db, requireAuth) {
             const target = parseTarget(req.params.target || req.query.target);
             if (!target) return fail(res, 'Please provide a valid domain or IP');
 
-            // Resolve domain → IP if needed
+            // Resolve domain → IP if needed (try IPv4 first, then IPv6)
             let ip = target;
             let hostname = null;
             if (!isIP(target)) {
-                const addrs = await dns.resolve4(target).catch(() => []);
+                let addrs = await dns.resolve4(target).catch(() => []);
+                if (!addrs.length) {
+                    addrs = await dns.resolve6(target).catch(() => []);
+                }
                 if (!addrs.length) return fail(res, `Cannot resolve ${target}`);
                 ip = addrs[0];
                 hostname = target;
@@ -137,6 +140,125 @@ module.exports = function createNetRoutes(db, requireAuth) {
             });
         } catch (err) {
             fail(res, err.message || 'IP lookup failed', 500);
+        }
+    });
+
+    // IPv4 Lookup — IPv4-specific info
+    router.get('/ipv4/:target?', async (req, res) => {
+        try {
+            const target = parseTarget(req.params.target || req.query.target);
+            if (!target) return fail(res, 'Please provide a valid IPv4 address or domain');
+
+            let ip = target;
+            let hostname = null;
+            if (!isIP(target)) {
+                const addrs = await dns.resolve4(target).catch(() => []);
+                if (!addrs.length) return fail(res, `Cannot resolve ${target} to IPv4`);
+                ip = addrs[0];
+                hostname = target;
+            }
+
+            // Validate it's IPv4
+            if (net.isIP(ip) !== 4) return fail(res, `${ip} is not a valid IPv4 address`);
+
+            // Determine IP class
+            const parts = ip.split('.').map(Number);
+            let ipClass, range;
+            if (parts[0] < 128) { ipClass = 'A'; range = '1.0.0.0 - 126.255.255.255'; }
+            else if (parts[0] < 192) { ipClass = 'B'; range = '128.0.0.0 - 191.255.255.255'; }
+            else if (parts[0] < 224) { ipClass = 'C'; range = '192.0.0.0 - 223.255.255.255'; }
+            else if (parts[0] < 240) { ipClass = 'D'; range = '224.0.0.0 - 239.255.255.255'; }
+            else { ipClass = 'E'; range = '240.0.0.0 - 255.255.255.255'; }
+
+            // Check if private
+            const isPrivate = /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(ip);
+            const isLoopback = ip.startsWith('127.');
+            const isLinkLocal = ip.startsWith('169.254.');
+
+            // GeoIP via ip-api.com
+            const c = cfg();
+            const ipUrl = `${c.ipapi.baseUrl}/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,reverse,query`;
+            const r = await timedFetch(ipUrl);
+            const data = await r.json();
+
+            if (data.status === 'fail') return fail(res, data.message || 'Lookup failed');
+
+            ok(res, {
+                ip: data.query || ip,
+                hostname: hostname || data.reverse || null,
+                ipv4: {
+                    class: ipClass,
+                    range: range,
+                    isPrivate: isPrivate,
+                    isLoopback: isLoopback,
+                    isLinkLocal: isLinkLocal,
+                },
+                geo: {
+                    country: data.country,
+                    countryCode: data.countryCode,
+                    region: data.regionName,
+                    regionCode: data.region,
+                    city: data.city,
+                    zip: data.zip,
+                    lat: data.lat,
+                    lon: data.lon,
+                    timezone: data.timezone,
+                },
+                network: {
+                    isp: data.isp,
+                    org: data.org,
+                    as: data.as,
+                    asname: data.asname,
+                },
+                reverse: data.reverse || null,
+            });
+        } catch (err) {
+            fail(res, err.message || 'IPv4 lookup failed', 500);
+        }
+    });
+
+    // IPv6 Lookup — IPv6-specific info
+    router.get('/ipv6/:target?', async (req, res) => {
+        try {
+            const target = parseTarget(req.params.target || req.query.target);
+            if (!target) return fail(res, 'Please provide a valid IPv6 address or domain');
+
+            let ip = target;
+            let hostname = null;
+            if (!isIP(target)) {
+                const addrs = await dns.resolve6(target).catch(() => []);
+                if (!addrs.length) return fail(res, `Cannot resolve ${target} to IPv6`);
+                ip = addrs[0];
+                hostname = target;
+            }
+
+            // Validate it's IPv6
+            if (net.isIP(ip) !== 6) return fail(res, `${ip} is not a valid IPv6 address`);
+
+            // Determine IPv6 type
+            let ipv6Type = 'Global Unicast';
+            if (ip.startsWith('::1')) ipv6Type = 'Loopback';
+            else if (ip.startsWith('::')) ipv6Type = 'Loopback/Unspecified';
+            else if (ip.startsWith('fe80:')) ipv6Type = 'Link-Local';
+            else if (ip.startsWith('ff')) ipv6Type = 'Multicast';
+            else if (ip.startsWith('fc') || ip.startsWith('fd')) ipv6Type = 'Unique Local (Private)';
+            else if (ip.startsWith('2001:db8:')) ipv6Type = 'Documentation';
+
+            // Reverse DNS lookup
+            const hostnames = await dns.reverse(ip).catch(() => []);
+
+            ok(res, {
+                ip: ip,
+                hostname: hostname || hostnames[0] || null,
+                ipv6: {
+                    type: ipv6Type,
+                    compressed: ip,
+                    ptr: hostnames[0] || null,
+                },
+                note: 'Most public IPv6 addresses do not have geolocation data available through standard APIs.',
+            });
+        } catch (err) {
+            fail(res, err.message || 'IPv6 lookup failed', 500);
         }
     });
 
@@ -211,11 +333,16 @@ module.exports = function createNetRoutes(db, requireAuth) {
 
             let ip = target;
             if (!isIP(target)) {
-                const addrs = await dns.resolve4(target).catch(() => []);
+                // Try both A (IPv4) and AAAA (IPv6) records
+                let addrs = await dns.resolve4(target).catch(() => []);
+                if (!addrs.length) {
+                    addrs = await dns.resolve6(target).catch(() => []);
+                }
                 if (!addrs.length) return fail(res, `Cannot resolve ${target}`);
                 ip = addrs[0];
             }
 
+            // dns.reverse() works for both IPv4 and IPv6
             const hostnames = await dns.reverse(ip).catch(() => []);
             ok(res, { ip, hostnames, ptr: hostnames[0] || null });
         } catch (err) {

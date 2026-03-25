@@ -274,6 +274,8 @@
         'hostname.hobo.tools':   { name: 'HoboHostname',  icon: 'fa-server' },
         'isp.hobo.tools':        { name: 'HoboISP',       icon: 'fa-building' },
         'asn.hobo.tools':        { name: 'HoboASN',       icon: 'fa-diagram-project' },
+        'ipv4.hobo.tools':       { name: 'HoboIPv4',      icon: 'fa-hashtag' },
+        'ipv6.hobo.tools':       { name: 'HoboIPv6',      icon: 'fa-code' },
         'rdns.hobo.tools':       { name: 'HoboReverseDNS',icon: 'fa-rotate-left' },
         'whois.hobo.tools':      { name: 'HoboWhois',     icon: 'fa-address-book' },
         'rdap.hobo.tools':       { name: 'HoboRDAP',      icon: 'fa-id-card' },

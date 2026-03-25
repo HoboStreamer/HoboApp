@@ -77,12 +77,14 @@ const NET_TOOLS = [
     { id: 'lookup',           subdomain: 'lookup',           name: 'HoboLookup',        icon: 'fa-magnifying-glass',  desc: 'All-in-one domain/IP lookup supertool' },
     // IP / Identity
     { id: 'myip',             subdomain: 'myip',             name: 'HoboMyIP',          icon: 'fa-location-crosshairs', desc: 'Your public IP, ISP, location & reverse DNS' },
-    { id: 'ip',               subdomain: 'ip',               name: 'HoboIP',            icon: 'fa-at',                desc: 'IP address lookup & details' },
+    { id: 'ip',               subdomain: 'ip',               name: 'HoboIP',            icon: 'fa-at',                desc: 'IP address lookup & details (IPv4 & IPv6)' },
+    { id: 'ipv4',             subdomain: 'ipv4',             name: 'HoboIPv4',          icon: 'fa-hashtag',           desc: 'IPv4 address lookup, class, CIDR calculator' },
+    { id: 'ipv6',             subdomain: 'ipv6',             name: 'HoboIPv6',          icon: 'fa-code',              desc: 'IPv6 address lookup, expansion, type detection' },
     { id: 'geoip',            subdomain: 'geoip',            name: 'HoboGeoIP',         icon: 'fa-earth-americas',    desc: 'IP geolocation — country, city, timezone, map' },
     { id: 'hostname',         subdomain: 'hostname',         name: 'HoboHostname',      icon: 'fa-server',            desc: 'Hostname & reverse DNS lookup' },
     { id: 'isp',              subdomain: 'isp',              name: 'HoboISP',           icon: 'fa-building',          desc: 'ISP & organization info from IP' },
     { id: 'asn',              subdomain: 'asn',              name: 'HoboASN',           icon: 'fa-diagram-project',   desc: 'Autonomous System Number lookup' },
-    { id: 'rdns',             subdomain: 'rdns',             name: 'HoboReverseDNS',    icon: 'fa-rotate-left',       desc: 'Reverse DNS (PTR) lookup' },
+    { id: 'rdns',             subdomain: 'rdns',             name: 'HoboReverseDNS',    icon: 'fa-rotate-left',       desc: 'Reverse DNS (PTR) lookup for IPv4 & IPv6' },
     { id: 'whois',            subdomain: 'whois',            name: 'HoboWhois',         icon: 'fa-address-book',      desc: 'Whois domain registration lookup' },
     { id: 'rdap',             subdomain: 'rdap',             name: 'HoboRDAP',          icon: 'fa-id-card',           desc: 'RDAP — modern registration data lookup' },
     // DNS
@@ -124,6 +126,8 @@ const NET_ALIASES = {
     'network': 'net',
     'ptr':     'rdns',
     'tls':     'ssl',
+    'ipv4lookup': 'ipv4',
+    'ipv6lookup': 'ipv6',
 };
 
 module.exports = { getSetting, getNetConfig, NET_TOOLS, NET_TOOL_MAP, NET_ALIASES };
