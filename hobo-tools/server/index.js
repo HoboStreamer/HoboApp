@@ -83,6 +83,24 @@ async function proxyJsonRequest(req, res, targetUrl, errorLabel) {
 
 // ── Security ─────────────────────────────────────────────────
 app.set('trust proxy', 2); // Cloudflare → Nginx → Node
+
+// Add CORS headers before helmet for better compatibility
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    // Allow any *.hobo.tools subdomain + main domains
+    if (!origin || 
+        origin === 'https://hobo.tools' ||
+        origin === 'https://hobostreamer.com' ||
+        origin === 'https://hobo.quest' ||
+        /^https:\/\/[a-z0-9-]+\.hobo\.tools$/.test(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    }
+    next();
+});
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -91,7 +109,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"],
             fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "blob:", "image.tmdb.org"],
-            connectSrc: ["'self'", "https://*.hobo.tools", "https://hobostreamer.com", "https://hobo.quest"],
+            connectSrc: ["'self'", "https://hobo.tools", "https://login.hobo.tools", "https://maps.hobo.tools", "https://text.hobo.tools", "https://img.hobo.tools", "https://audio.hobo.tools", "https://net.hobo.tools", "https://dev.hobo.tools", "https://hobostreamer.com", "https://hobo.quest"],
             frameSrc: ["'none'"],
             scriptSrcAttr: ["'unsafe-inline'"],
         },
