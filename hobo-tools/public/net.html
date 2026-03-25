@@ -301,6 +301,181 @@
         .toast.info { border-color: rgba(6,182,212,0.3); }
         .toast.error { border-color: rgba(239,68,68,0.3); color: var(--red); }
         @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } }
+
+        /* ─── Floating Animation for Showcase ─── */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) scale(1); opacity: 1; }
+            50% { transform: translateY(-8px) scale(1.02); opacity: 1; }
+        }
+
+        /* ─── Showcase Grid ─── */
+        .showcase-section {
+            padding: 32px 0;
+            text-align: center;
+        }
+
+        .showcase-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .showcase-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .showcase-tool {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px 12px;
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .showcase-tool:nth-child(1) { animation-delay: 0s; }
+        .showcase-tool:nth-child(2) { animation-delay: 0.15s; }
+        .showcase-tool:nth-child(3) { animation-delay: 0.3s; }
+        .showcase-tool:nth-child(4) { animation-delay: 0.45s; }
+        .showcase-tool:nth-child(5) { animation-delay: 0.6s; }
+        .showcase-tool:nth-child(6) { animation-delay: 0.75s; }
+        .showcase-tool:nth-child(7) { animation-delay: 0.9s; }
+        .showcase-tool:nth-child(8) { animation-delay: 1.05s; }
+
+        .showcase-tool:hover {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.4);
+            transform: translateY(-12px) scale(1.05);
+            box-shadow: 0 12px 24px rgba(6, 182, 212, 0.2);
+        }
+
+        .showcase-tool-icon {
+            font-size: 24px;
+            color: var(--cyan);
+            transition: transform 0.3s ease;
+        }
+
+        .showcase-tool:hover .showcase-tool-icon {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        .showcase-tool-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        /* ─── Quick Examples ─── */
+        .quick-examples {
+            margin-top: 32px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+        }
+
+        .examples-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .example-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--cyan);
+            transform: translateY(-2px);
+        }
+
+        /* ─── Stat Cards ─── */
+        .stats-section {
+            padding: 24px 0;
+            margin-top: 32px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(192, 150, 92, 0.05));
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 16px 12px;
+            text-align: center;
+            animation: fadeInScale 0.6s ease-out backwards;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0s; }
+        .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+        .stat-card:nth-child(4) { animation-delay: 0.3s; }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--cyan);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
     <script type="application/ld+json">
     {
@@ -361,6 +536,44 @@
                 <button class="btn-go" id="btn-go" onclick="runTool()"><i class="fa-solid fa-magnifying-glass"></i> Lookup</button>
             </div>
 
+            <!-- Showcase Section (hub only) -->
+            <div id="showcase-section" style="display:none" class="showcase-section">
+                <div class="showcase-title">Popular Network Tools</div>
+                <div class="showcase-subtitle">Try one of our most-used tools</div>
+                <div class="showcase-grid" id="showcase-grid"></div>
+
+                <div class="quick-examples">
+                    <div class="examples-title">Quick Examples</div>
+                    <div class="examples-grid">
+                        <button class="example-btn" onclick="quickTry('8.8.8.8', 'geoip')"><i class="fa-solid fa-earth-americas"></i> Google DNS</button>
+                        <button class="example-btn" onclick="quickTry('1.1.1.1', 'ip')"><i class="fa-solid fa-at"></i> Cloudflare IP</button>
+                        <button class="example-btn" onclick="quickTry('google.com', 'ssl')"><i class="fa-solid fa-lock"></i> Google SSL</button>
+                        <button class="example-btn" onclick="quickTry('github.com', 'dns')"><i class="fa-solid fa-sitemap"></i> GitHub DNS</button>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">40+</div>
+                            <div class="stat-label">Tools</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">0%</div>
+                            <div class="stat-label">Login Required</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">∞</div>
+                            <div class="stat-label">Free Queries</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">⚡</div>
+                            <div class="stat-label">Instant Results</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tool selector (shown on individual pages) / Tool chips (shown on hub) -->
             <div id="tool-chips-area"></div>
             <div id="options-area"></div>
@@ -391,6 +604,34 @@
     <script src="https://hobo.tools/shared/theme-loader.js"></script>
     <script>
     'use strict';
+
+    // ─── Showcase interaction functions ───────────────────
+    function quickTry(input, tool) {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.value = input;
+            setTool(tool);
+        }
+    }
+
+    function setTool(toolId) {
+        if (TOOLS[toolId]) {
+            goTool(toolId);
+        }
+    }
+
+    function buildShowcaseGrid() {
+        const showcase = document.getElementById('showcase-grid');
+        if (!showcase) return;
+        const popular = ['myip', 'dns', 'ssl', 'ping', 'geoip', 'ip', 'rdns', 'headers'];
+        showcase.innerHTML = popular.map(id => {
+            const t = TOOLS[id];
+            return `<div class="showcase-tool" onclick="setTool('${id}')" title="${t.name}">
+                <div class="showcase-tool-icon"><i class="fa-solid ${t.icon}"></i></div>
+                <div class="showcase-tool-label">${t.name.replace('Hobo', '')}</div>
+            </div>`;
+        }).join('');
+    }
 
     // ═══════════════════════════════════════════════════════════
     // HoboNet — Client-Side App
@@ -473,6 +714,12 @@
         } catch {}
 
         setupUI();
+
+        // Show showcase on hub
+        if (isHub) {
+            document.getElementById('showcase-section').style.display = '';
+            buildShowcaseGrid();
+        }
 
         // If tool auto-runs (myip), do it immediately
         if (tool.auto) runTool();
