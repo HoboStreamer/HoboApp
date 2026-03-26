@@ -738,7 +738,11 @@ async function loadUser() {
             // Init navbar
             HoboNavbar.init({ service: 'hobotools', token: authToken, user: currentUser });
             const bellMount = HoboNavbar.getBellMount();
-            if (bellMount) HoboNotifications.init({ token: authToken, apiBase: API }).then(() => bellMount.appendChild(HoboNotifications.createBell()));
+            if (bellMount && window.HoboNotifications && authToken) {
+                HoboNotifications.init({ token: authToken, apiBase: API });
+                const bell = HoboNotifications.createBell();
+                bellMount.replaceChildren(bell);
+            }
         }
     } catch (err) {
         console.error(err);
