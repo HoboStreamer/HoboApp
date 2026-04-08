@@ -109,7 +109,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"],
             fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "blob:", "image.tmdb.org"],
-            connectSrc: ["'self'", "https://hobo.tools", "https://login.hobo.tools", "https://maps.hobo.tools", "https://text.hobo.tools", "https://img.hobo.tools", "https://audio.hobo.tools", "https://net.hobo.tools", "https://dev.hobo.tools", "https://hobostreamer.com", "https://hobo.quest"],
+            connectSrc: ["'self'", "https://hobo.tools", "https://login.hobo.tools", "https://maps.hobo.tools", "https://text.hobo.tools", "https://img.hobo.tools", "https://audio.hobo.tools", "https://net.hobo.tools", "https://dev.hobo.tools", "https://pastes.hobo.tools", "https://hobostreamer.com", "https://hobo.quest"],
             frameSrc: ["'none'"],
             scriptSrcAttr: ["'unsafe-inline'"],
         },
@@ -161,6 +161,14 @@ const db = initDb(config.db.path);
 const analytics = new AnalyticsTracker(db, 'hobo-tools');
 app.locals.analytics = analytics;
 app.use(analytics.middleware());
+
+// ── Extract bearer token (available as req.token for optional-auth proxies) ─
+app.use((req, _res, next) => {
+    const ah = req.headers.authorization;
+    req.token = ah?.startsWith('Bearer ') ? ah.slice(7) : req.cookies?.hobo_token || null;
+    next();
+});
+
 // ── Load RSA Keys ────────────────────────────────────────────
 let privateKey, publicKey;
 try {
@@ -300,6 +308,30 @@ app.use('/api/admin/streamer-pastes', requireAuth, (req, res, next) => {
     return proxyJsonRequest(req, res, `${HOBOSTREAMER_INTERNAL}/api/pastes${req.url}`, 'Pastes proxy error');
 });
 
+// ── Public Paste Proxy (pastes.hobo.tools) ───────────────────
+// Proxies /api/pastes/* → hobostreamer /api/pastes/* (optionalAuth)
+app.use('/api/pastes', rateLimit({ windowMs: 60_000, max: 120 }), async (req, res) => {
+    try {
+        const fetchOpts = {
+            method: req.method,
+            headers: { 'Content-Type': 'application/json' },
+        };
+        if (req.token) fetchOpts.headers['Authorization'] = `Bearer ${req.token}`;
+        if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+            fetchOpts.body = JSON.stringify(req.body);
+        }
+        const upstream = await fetch(`${HOBOSTREAMER_INTERNAL}/api/pastes${req.url}`, fetchOpts);
+        const ct = upstream.headers.get('content-type') || '';
+        const raw = await upstream.text();
+        res.status(upstream.status);
+        if (ct.includes('application/json')) return res.json(raw ? JSON.parse(raw) : {});
+        return res.send(raw);
+    } catch (err) {
+        console.error('[PasteProxy]', err.message);
+        return res.status(502).json({ error: 'Could not reach paste service' });
+    }
+});
+
 // ── HoboNet — Network Tools API ──────────────────────────────
 app.use('/api/net', rateLimit({ windowMs: 60_000, max: 60 }), createNetRoutes(db, requireAuth));
 
@@ -327,6 +359,14 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/internal/') || req.path.startsWith('/shared/')) return next();
     if (/\.(js|css|ico|png|svg|jpg|woff2?)$/.test(req.path)) return next();
     return sendNetApp(res);
+});
+
+// ── Pastes Subdomain Routing ──────────────────────────────────
+app.use((req, res, next) => {
+    if (getRequestHost(req) !== 'pastes.hobo.tools') return next();
+    if (req.path.startsWith('/api/') || req.path.startsWith('/shared/')) return next();
+    if (/\.(js|css|ico|png|svg|jpg|woff2?)$/.test(req.path)) return next();
+    return res.sendFile(path.join(__dirname, '..', 'public', 'paste.html'));
 });
 
 // ── HoboDev Subdomain Routing ─────────────────────────────────
