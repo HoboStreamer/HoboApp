@@ -11,11 +11,12 @@ try {
 
 /**
  * Initialize VAPID keys. Generates a new keypair on first run and stores in site_settings.
- * @param {object} db - better-sqlite3 Database instance with getSetting/setSetting
+ * @param {object} db - better-sqlite3 Database instance
  */
 function initVapid(db) {
     _db = db;
     if (!webpush) return;
+    const upsert = db.prepare('INSERT OR REPLACE INTO site_settings (key, value, type) VALUES (?, ?, ?)');
     let publicKey = db.getSetting('vapid_public_key');
     let privateKey = db.getSetting('vapid_private_key');
 
@@ -23,8 +24,8 @@ function initVapid(db) {
         const keys = webpush.generateVAPIDKeys();
         publicKey = keys.publicKey;
         privateKey = keys.privateKey;
-        db.setSetting('vapid_public_key', publicKey);
-        db.setSetting('vapid_private_key', privateKey);
+        upsert.run('vapid_public_key', publicKey, 'secret');
+        upsert.run('vapid_private_key', privateKey, 'secret');
         console.log('[push] Generated new VAPID keypair');
     }
 
