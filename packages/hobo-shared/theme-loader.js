@@ -60,10 +60,12 @@
         const maxAge = days * 24 * 60 * 60;
         const encoded = encodeURIComponent(value);
         const host = (typeof location !== 'undefined' && location.hostname) || '';
-        // Always set on .hobo.tools for cross-subdomain sync
-        document.cookie = `${name}=${encoded};path=/;max-age=${maxAge};domain=.hobo.tools;SameSite=Lax;Secure`;
-        // If we're on a non-hobo.tools domain (e.g. hobostreamer.com), also set on that domain
-        if (host && !host.endsWith('.hobo.tools') && host !== 'hobo.tools') {
+        // Set on .hobo.tools only when actually on a hobo.tools subdomain
+        if (host && (host.endsWith('.hobo.tools') || host === 'hobo.tools')) {
+            document.cookie = `${name}=${encoded};path=/;max-age=${maxAge};domain=.hobo.tools;SameSite=Lax;Secure`;
+        }
+        // Always set on the current domain for local access
+        if (host) {
             const domainParts = host.split('.');
             const rootDomain = domainParts.length >= 2
                 ? '.' + domainParts.slice(-2).join('.')

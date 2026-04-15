@@ -251,6 +251,11 @@ app.use('/api/themes', require('./themes/routes'));
 // Notification API (authenticated users)
 app.use('/api/notifications', createNotificationRoutes(db, notificationService, requireAuth));
 
+// Push Notifications API
+const pushService = require('./push/push-service');
+pushService.initVapid(db);
+app.use('/api/push', requireAuth, require('./push/routes'));
+
 // Admin panel API
 app.use('/api/admin', createAdminRoutes(db, notificationService, emailService, requireAuth));
 

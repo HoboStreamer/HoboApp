@@ -103,9 +103,13 @@ router.post('/register', (req, res) => {
         return res.status(403).json({ error: 'Registration is currently closed' });
     }
 
-    const { username, password, email, verification_key } = req.body;
+    const username = String(req.body.username || '').trim();
+    const password = String(req.body.password || '');
+    const email = req.body.email ? String(req.body.email).trim() : undefined;
+    const verification_key = req.body.verification_key ? String(req.body.verification_key).trim() : undefined;
+
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-    if (typeof username !== 'string' || username.length < 3 || username.length > 24) {
+    if (username.length < 3 || username.length > 24) {
         return res.status(400).json({ error: 'Username must be 3-24 characters' });
     }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {

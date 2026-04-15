@@ -61,6 +61,8 @@ class NotificationService {
         this._markRead = db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?');
         this._markAllRead = db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0');
         this._markReadByCategory = db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND category = ? AND is_read = 0');
+        this._markReadByType = db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = ? AND is_read = 0');
+        this._markReadByTypeAndUrl = db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = ? AND url LIKE ? AND is_read = 0');
         this._dismiss = db.prepare('UPDATE notifications SET is_dismissed = 1 WHERE id = ? AND user_id = ?');
         this._dismissAll = db.prepare('UPDATE notifications SET is_dismissed = 1 WHERE user_id = ?');
         this._markEmailed = db.prepare('UPDATE notifications SET is_emailed = 1 WHERE id = ?');
@@ -121,6 +123,18 @@ class NotificationService {
             data.service || null, data.url || null, richContent,
             data.expires_at || null,
         );
+
+        // Fire browser push notification (async, non-blocking)
+        try {
+            const pushService = require('../push/push-service');
+            pushService.sendPush(data.user_id, {
+                title,
+                message: data.message,
+                icon,
+                url: data.url,
+                type: data.type,
+            }).catch(() => {});
+        } catch (_) { /* push module not available */ }
 
         return { id, user_id: data.user_id, type: data.type, category, priority, title, message: data.message, icon, service: data.service, url: data.url, rich_content: data.rich_content, is_read: 0, created_at: new Date().toISOString() };
     }
@@ -194,6 +208,11 @@ class NotificationService {
 
     dismissAll(userId) {
         return this._dismissAll.run(userId).changes;
+    }
+
+    markReadByType(userId, type, urlPattern = null) {
+        if (urlPattern) return this._markReadByTypeAndUrl.run(userId, type, urlPattern).changes;
+        return this._markReadByType.run(userId, type).changes;
     }
 
     markEmailed(id) {

@@ -210,6 +210,25 @@ router.get('/notifications/unread/:userId', (req, res) => {
     }
 });
 
+// ── Mark Notifications Read by Type ──────────────────────────
+// POST /internal/notifications/mark-read
+// Body: { user_id, type, url_pattern? }
+router.post('/notifications/mark-read', (req, res) => {
+    const notifService = req.app.locals.notificationService;
+    if (!notifService) return res.status(503).json({ error: 'Notification service unavailable' });
+
+    const { user_id, type, url_pattern } = req.body;
+    if (!user_id || !type) return res.status(400).json({ error: 'user_id and type required' });
+
+    try {
+        const changes = notifService.markReadByType(parseInt(user_id), type, url_pattern || null);
+        res.json({ ok: true, marked: changes });
+    } catch (err) {
+        console.error('[Internal] Mark read by type error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ── Resolve User for Notification Context ────────────────────
 // POST /internal/notifications/resolve-users
 // Body: { usernames: [] }  → returns user IDs + display info
