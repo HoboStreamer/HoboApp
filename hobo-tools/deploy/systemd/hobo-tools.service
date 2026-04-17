@@ -4,10 +4,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=deck
+User=ubuntu
 WorkingDirectory=/opt/hobo-tools
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node /opt/hobo-tools/server/index.js
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env node /opt/hobo-tools/server/index.js
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
