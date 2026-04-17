@@ -13,6 +13,8 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/hobo}"
 SERVICE="${SERVICE:-hobo-tools}"
+SERVICE_UNIT_SOURCE="${SERVICE_UNIT_SOURCE:-}"
+SERVICE_UNIT_DEST="${SERVICE_UNIT_DEST:-/etc/systemd/system/${SERVICE}.service}"
 SITE_URL="${SITE_URL:-https://hobo.tools}"
 API_URL="${API_URL:-http://127.0.0.1:3100}"
 HOBOSTREAMER_API_URL="${HOBOSTREAMER_API_URL:-http://127.0.0.1:3000}"
@@ -49,14 +51,45 @@ if [ "$OLD_HASH" = "$NEW_HASH" ]; then
     exit 0
 fi
 
-# 4. Get commit log between old and new
+# 4. Update systemd service config if the repo includes one
+if [ -z "${SERVICE_UNIT_SOURCE:-}" ]; then
+    if [ -f "$REPO_DIR/deploy/systemd/${SERVICE}.service" ]; then
+        SERVICE_UNIT_SOURCE="$REPO_DIR/deploy/systemd/${SERVICE}.service"
+    elif [ -f "$REPO_DIR/${SERVICE}/deploy/systemd/${SERVICE}.service" ]; then
+        SERVICE_UNIT_SOURCE="$REPO_DIR/${SERVICE}/deploy/systemd/${SERVICE}.service"
+    elif [ -f "$REPO_DIR/hobo-tools/deploy/systemd/${SERVICE}.service" ]; then
+        SERVICE_UNIT_SOURCE="$REPO_DIR/hobo-tools/deploy/systemd/${SERVICE}.service"
+    fi
+fi
+
+UNIT_UPDATED=false
+if [ -n "${SERVICE_UNIT_SOURCE:-}" ] && [ -f "$SERVICE_UNIT_SOURCE" ]; then
+    echo "[Deploy] Found service unit source: ${SERVICE_UNIT_SOURCE}"
+    if [ ! -f "$SERVICE_UNIT_DEST" ] || ! cmp -s "$SERVICE_UNIT_SOURCE" "$SERVICE_UNIT_DEST"; then
+        echo "[Deploy] Installing updated service unit to ${SERVICE_UNIT_DEST}"
+        sudo cp "$SERVICE_UNIT_SOURCE" "$SERVICE_UNIT_DEST"
+        sudo chmod 644 "$SERVICE_UNIT_DEST"
+        UNIT_UPDATED=true
+    else
+        echo "[Deploy] Service unit is already up to date."
+    fi
+    if [ "$UNIT_UPDATED" = true ]; then
+        echo "[Deploy] Reloading systemd daemon..."
+        sudo systemctl daemon-reload
+        sudo systemctl enable "$SERVICE" >/dev/null 2>&1 || true
+    fi
+else
+    echo "[Deploy] No service unit file found for ${SERVICE}, skipping systemd update."
+fi
+
+# 5. Get commit log between old and new
 COMMIT_LOG=$(git --no-pager log --oneline "${OLD_HASH}..${NEW_HASH}" 2>/dev/null || echo "Update deployed")
 COMMIT_COUNT=$(echo "$COMMIT_LOG" | wc -l | tr -d ' ')
 echo "[Deploy] ${COMMIT_COUNT} new commit(s):"
 echo "$COMMIT_LOG"
 echo ""
 
-# 5. Build a summary for the chat notification (first 3 lines max)
+# 6. Build a summary for the chat notification (first 3 lines max)
 SUMMARY_LINES=$(echo "$COMMIT_LOG" | head -3)
 if [ "$COMMIT_COUNT" -gt 3 ]; then
     SUMMARY="${SUMMARY_LINES}
@@ -73,7 +106,7 @@ else
     CHAT_SUMMARY="${COMMIT_COUNT} updates deployed — ${FIRST_LINE}"
 fi
 
-# 6. Send update notification to HoboStreamer chat if available (before restart)
+# 7. Send update notification to HoboStreamer chat if available (before restart)
 echo "[Deploy] Looking for HoboStreamer chat..."
 UPDATES_URL="${SITE_URL}${UPDATES_PATH}"
 HOBOSTREAMER_HEALTH_URL="${HOBOSTREAMER_API_URL}${HEALTH_PATH}"
@@ -92,11 +125,11 @@ else
     echo "[Deploy] HoboStreamer not available, skipping chat notification."
 fi
 
-# 7. Restart the service (this triggers graceful shutdown)
+# 8. Restart the service (this triggers graceful shutdown)
 echo "[Deploy] Restarting ${SERVICE}..."
 sudo systemctl restart "$SERVICE"
 
-# 8. Wait for service to come back up
+# 9. Wait for service to come back up
 echo -n "[Deploy] Waiting for server..."
 for i in $(seq 1 "${DEPLOY_TIMEOUT}"); do
     sleep 1
