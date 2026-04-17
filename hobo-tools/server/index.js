@@ -26,6 +26,8 @@ const createNetRoutes = require('./net/routes');
 const { NET_TOOL_MAP, NET_ALIASES } = require('./net/config');
 const createDevRoutes = require('./dev/routes');
 const { DEV_TOOL_MAP, DEV_ALIASES } = require('./dev/config');
+const { DiscordService } = require('./discord/discord-service');
+const createDiscordRoutes = require('./discord/routes');
 
 const app = express();
 
@@ -198,6 +200,11 @@ const emailService = new EmailService(db);
 app.locals.notificationService = notificationService;
 app.locals.emailService = emailService;
 
+// Discord bot service
+const discordService = new DiscordService(db);
+app.locals.discordService = discordService;
+discordService.init().catch(err => console.error('[Discord] Init error:', err.message));
+
 // requireAuth helper (needed by route factories)
 const authRoutes = require('./auth/routes');
 // Extract requireAuth from auth module (it's defined inline — we re-export it for route factories)
@@ -242,6 +249,9 @@ app.get('/api/brand', (_req, res) => res.json(BRAND));
 // Auth routes (SSO provider)
 app.use('/api/auth', authRoutes);
 
+// Discord account linking (OAuth2 flow)
+app.use('/api/auth/discord', requireAuth, require('./auth/discord-link'));
+
 // OAuth2 authorization endpoints
 app.use('/oauth', require('./auth/oauth-routes'));
 
@@ -255,6 +265,15 @@ app.use('/api/notifications', createNotificationRoutes(db, notificationService, 
 const pushService = require('./push/push-service');
 pushService.initVapid(db);
 app.use('/api/push', requireAuth, require('./push/routes'));
+
+// Discord bot admin API
+function requireAdmin(req, res, next) {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+}
+app.use('/api/admin/discord', createDiscordRoutes(db, discordService, requireAuth, requireAdmin));
 
 // Admin panel API
 app.use('/api/admin', createAdminRoutes(db, notificationService, emailService, requireAuth));

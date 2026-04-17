@@ -147,6 +147,87 @@ router.get('/stats', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// Stream-Live Event Handler
+// HoboStreamer calls this when a stream goes live.
+// Handles: Discord alerts (via bot), push notifications to
+// followers + "all streamer" subscribers.
+// ═══════════════════════════════════════════════════════════════
+
+router.post('/events/stream-live', async (req, res) => {
+    const { streamer, stream } = req.body;
+    if (!streamer?.username || !stream?.id) {
+        return res.status(400).json({ error: 'streamer and stream objects required' });
+    }
+
+    const results = { discord: null, notifications: null };
+
+    // ── Discord Alert ────────────────────────────────────────
+    const discordService = req.app.locals.discordService;
+    if (discordService) {
+        try {
+            results.discord = await discordService.sendLiveAlert(streamer, stream);
+        } catch (err) {
+            results.discord = { sent: false, reason: 'error', error: err.message };
+        }
+    }
+
+    // ── Push Notifications to Followers ──────────────────────
+    const notifService = req.app.locals.notificationService;
+    if (notifService) {
+        const db = getDb(req);
+        const displayName = streamer.display_name || streamer.username;
+        const notifData = {
+            type: 'STREAM_LIVE',
+            title: `${displayName} is live!`,
+            message: stream.title || 'Started streaming',
+            icon: '🔴',
+            sender_id: streamer.id || null,
+            sender_name: displayName,
+            sender_avatar: streamer.avatar_url || null,
+            service: 'hobostreamer',
+            url: `https://hobostreamer.com/${streamer.username}`,
+            rich_content: {
+                thumbnail: streamer.avatar_url || null,
+                context: {
+                    stream_id: stream.id,
+                    username: streamer.username,
+                    title: stream.title || 'Started streaming',
+                    protocol: stream.protocol || null,
+                },
+            },
+        };
+
+        // Find followers of this streamer in hobo.tools
+        const followerRows = db.prepare(
+            'SELECT follower_id FROM follows WHERE followed_id = ?'
+        ).all(streamer.id);
+        const followerIds = followerRows.map(r => r.follower_id);
+
+        // Find users who opted into "all live" notifications
+        const allLiveRows = db.prepare(
+            "SELECT user_id FROM notification_preferences WHERE category = 'stream_live_all' AND enabled = 1"
+        ).all();
+        const allLiveUserIds = allLiveRows.map(r => r.user_id);
+
+        // Merge and deduplicate
+        const targetIds = [...new Set([...followerIds, ...allLiveUserIds])];
+
+        if (targetIds.length > 0) {
+            try {
+                const created = notifService.createBulk(targetIds, notifData);
+                results.notifications = { sent: created.length, total: targetIds.length };
+            } catch (err) {
+                results.notifications = { error: err.message };
+            }
+        } else {
+            results.notifications = { sent: 0, total: 0 };
+        }
+    }
+
+    res.json({ ok: true, ...results });
+});
+
+// ═══════════════════════════════════════════════════════════════
 // Cross-Service Notification Push
 // Services call these to create notifications for users without
 // needing direct DB access.

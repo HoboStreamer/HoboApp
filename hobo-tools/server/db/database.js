@@ -516,6 +516,22 @@ function initDb(dbPath) {
         for (const [k, v, t] of defaults) insertSetting.run(k, v, t);
     }
 
+    // ── Always-Seed Discord + Integration Settings (idempotent) ──
+    {
+        const alwaysSeed = [
+            ['discord_bot_token', '', 'secret'],
+            ['discord_guild_id', '', 'string'],
+            ['discord_alerts_channel_id', '', 'string'],
+            ['discord_system_channel_id', '', 'string'],
+            ['discord_dedupe_minutes', '15', 'number'],
+            ['discord_alert_message', '', 'string'],
+            ['discord_oauth_client_id', '', 'string'],
+            ['discord_oauth_client_secret', '', 'secret'],
+        ];
+        const insertSeed = db.prepare('INSERT OR IGNORE INTO site_settings (key, value, type) VALUES (?, ?, ?)');
+        for (const [k, v, t] of alwaysSeed) insertSeed.run(k, v, t);
+    }
+
     // ── Sync Built-in Themes ─────────────────────────────────
     {
         const { BUILTIN_THEMES } = require('hobo-shared/theme-sync');

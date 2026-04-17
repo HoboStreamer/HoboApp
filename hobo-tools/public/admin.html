@@ -235,7 +235,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
     <div class="section" id="sec-chat-logs">
         <div class="input-row">
             <input type="text" id="chat-search-q" placeholder="Search messages..." onkeydown="if(event.key==='Enter')searchChatLogs()">
-            <input type="text" id="chat-search-uid" placeholder="User ID or anon123" style="max-width:160px" onkeydown="if(event.key==='Enter')searchChatLogs()">
+            <input type="text" id="chat-search-uid" placeholder="Username, user ID, or anon123" style="max-width:200px" onkeydown="if(event.key==='Enter')searchChatLogs()">
             <button class="btn btn-primary" onclick="searchChatLogs()"><i class="fa-solid fa-search"></i> Search</button>
         </div>
         <div id="chat-logs-content"><p class="muted">Enter a search query or user ID</p></div>
@@ -257,10 +257,12 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
             <button class="active" onclick="showSettingsSub('tools',this)">Hobo.Tools</button>
             <button onclick="showSettingsSub('streamer',this)">HoboStreamer</button>
             <button onclick="showSettingsSub('media',this)">Media Tools</button>
+            <button onclick="showSettingsSub('discord',this)">Discord</button>
         </div>
         <div id="settings-tools" class="settings-sub active"></div>
         <div id="settings-streamer" class="settings-sub" style="display:none"></div>
         <div id="settings-media" class="settings-sub" style="display:none"></div>
+        <div id="settings-discord" class="settings-sub" style="display:none"></div>
     </div>
 
     <!-- TTS -->
@@ -979,8 +981,10 @@ function showSettingsSub(sub, btn) {
     document.getElementById('settings-tools').style.display = sub === 'tools' ? 'block' : 'none';
     document.getElementById('settings-streamer').style.display = sub === 'streamer' ? 'block' : 'none';
     document.getElementById('settings-media').style.display = sub === 'media' ? 'block' : 'none';
+    document.getElementById('settings-discord').style.display = sub === 'discord' ? 'block' : 'none';
     if (sub === 'tools') loadToolsSettings();
     else if (sub === 'streamer') loadStreamerSettings();
+    else if (sub === 'discord') loadDiscordSettings();
     else loadStreamerMediaTools();
 }
 
@@ -2457,6 +2461,108 @@ async function loadAudit() {
             <button class="btn btn-sm btn-outline" ${!hasMore?'disabled':''} onclick="auditOffset+=50;loadAudit()"><i class="fa-solid fa-chevron-right"></i></button>
         `;
     } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; pager.innerHTML = ''; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Discord Bot Settings
+// ═══════════════════════════════════════════════════════════════
+async function loadDiscordSettings() {
+    const c = document.getElementById('settings-discord');
+    c.innerHTML = '<p class="muted">Loading Discord settings...</p>';
+    try {
+        const data = await api('/api/admin/discord');
+        const s = data.settings || {};
+        const st = data.status || {};
+        const statusBadge = st.connected
+            ? `<span class="badge" style="background:var(--success-bg,#166534);color:var(--success-text,#4ade80)">● Connected as ${esc(st.botTag || '?')}</span>`
+            : `<span class="badge" style="background:var(--danger-bg,#7f1d1d);color:var(--danger-text,#f87171)">● Disconnected</span>`;
+
+        c.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+                <h3 style="margin:0"><i class="fa-brands fa-discord"></i> Discord Bot</h3>
+                ${statusBadge}
+            </div>
+            <form id="discord-settings-form">
+                <div class="setting-row">
+                    <label>Bot Token</label>
+                    <input type="password" data-key="discord_bot_token" value="${esc(s.discord_bot_token || '')}" placeholder="Bot token from Discord Developer Portal" style="width:100%;max-width:500px">
+                </div>
+                <div class="setting-row">
+                    <label>Guild / Server ID</label>
+                    <input type="text" data-key="discord_guild_id" value="${esc(s.discord_guild_id || '')}" placeholder="Right-click server → Copy Server ID" style="width:240px">
+                </div>
+                <div class="setting-row">
+                    <label>Live Alerts Channel ID</label>
+                    <input type="text" data-key="discord_alerts_channel_id" value="${esc(s.discord_alerts_channel_id || '')}" placeholder="Channel for go-live alerts" style="width:240px">
+                </div>
+                <div class="setting-row">
+                    <label>System Alerts Channel ID</label>
+                    <input type="text" data-key="discord_system_channel_id" value="${esc(s.discord_system_channel_id || '')}" placeholder="Channel for system/admin alerts (optional)" style="width:240px">
+                </div>
+                <div class="setting-row">
+                    <label>Dedupe Cooldown (minutes)</label>
+                    <input type="number" data-key="discord_dedupe_minutes" value="${esc(s.discord_dedupe_minutes || '15')}" min="1" max="1440" style="width:100px">
+                    <span class="muted" style="margin-left:8px">Prevent spam if a streamer flaps live/offline</span>
+                </div>
+                <div class="setting-row">
+                    <label>Custom Alert Message (optional)</label>
+                    <input type="text" data-key="discord_alert_message" value="${esc(s.discord_alert_message || '')}" placeholder="{display_name} went live: {title}" style="width:100%;max-width:500px">
+                    <div class="muted" style="font-size:12px;margin-top:4px">Placeholders: {username}, {display_name}, {title}, {url}</div>
+                </div>
+                <h4 style="margin-top:24px"><i class="fa-brands fa-discord"></i> Account Linking (OAuth2)</h4>
+                <div class="setting-row">
+                    <label>OAuth2 Client ID</label>
+                    <input type="text" data-key="discord_oauth_client_id" value="${esc(s.discord_oauth_client_id || '')}" placeholder="Discord application client ID" style="width:300px">
+                </div>
+                <div class="setting-row">
+                    <label>OAuth2 Client Secret</label>
+                    <input type="password" data-key="discord_oauth_client_secret" value="${esc(s.discord_oauth_client_secret || '')}" placeholder="Discord application client secret" style="width:300px">
+                </div>
+                <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="btn btn-primary" onclick="saveDiscordSettings()"><i class="fa-solid fa-save"></i> Save Settings</button>
+                    <button type="button" class="btn btn-outline" onclick="testDiscordAlert()"><i class="fa-solid fa-bell"></i> Test System Alert</button>
+                    <button type="button" class="btn btn-outline" onclick="testDiscordLiveAlert()"><i class="fa-solid fa-broadcast-tower"></i> Test Live Alert</button>
+                    <button type="button" class="btn btn-outline" onclick="reinitDiscordBot()"><i class="fa-solid fa-rotate"></i> Reconnect Bot</button>
+                </div>
+            </form>`;
+    } catch (e) {
+        c.innerHTML = `<p class="muted">Error loading Discord settings: ${esc(e.message)}</p>`;
+    }
+}
+
+async function saveDiscordSettings() {
+    try {
+        const form = document.getElementById('discord-settings-form');
+        const settings = {};
+        form.querySelectorAll('[data-key]').forEach(el => {
+            settings[el.dataset.key] = el.value;
+        });
+        await api('/api/admin/discord', { method: 'PUT', body: JSON.stringify({ settings }) });
+        toast('Discord settings saved');
+        loadDiscordSettings();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function testDiscordAlert() {
+    try {
+        const data = await api('/api/admin/discord/test', { method: 'POST' });
+        toast(data.sent ? 'Test alert sent!' : `Alert not sent: ${data.reason || 'unknown'}`, data.sent ? 'success' : 'error');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function testDiscordLiveAlert() {
+    try {
+        const data = await api('/api/admin/discord/test-live', { method: 'POST' });
+        toast(data.sent ? 'Test live alert sent!' : `Alert not sent: ${data.reason || 'unknown'}`, data.sent ? 'success' : 'error');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function reinitDiscordBot() {
+    try {
+        const data = await api('/api/admin/discord/reinit', { method: 'POST' });
+        toast(data.status?.connected ? `Bot reconnected as ${data.status.botTag}` : 'Bot reconnected (not logged in)', data.status?.connected ? 'success' : 'warning');
+        loadDiscordSettings();
+    } catch (e) { toast(e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════════════════════
