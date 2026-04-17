@@ -9,6 +9,7 @@
 
 const express = require('express');
 const router = express.Router();
+const urlRegistry = require('../url-registry');
 
 module.exports = function createAdminRoutes(db, notificationService, emailService, requireAuth) {
 
@@ -156,6 +157,48 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
             res.json({ ok: true });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // URL Registry
+
+    router.get('/url-registry', (req, res) => {
+        try {
+            const entries = urlRegistry.getAllRegistryEntries(db);
+            res.json({ ok: true, entries });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    router.put('/url-registry/:key', (req, res) => {
+        try {
+            const { key } = req.params;
+            const { value } = req.body;
+            if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
+            if (value === undefined || value === null) return res.status(400).json({ ok: false, error: 'Value required' });
+            const entry = urlRegistry.setRegistryEntry(db, key, value, req.user.id);
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id, 'url_registry_update', JSON.stringify({ key, value })
+            );
+            res.json({ ok: true, entry });
+        } catch (err) {
+            res.status(400).json({ ok: false, error: err.message });
+        }
+    });
+
+    router.post('/url-registry/:key/reset', (req, res) => {
+        try {
+            const { key } = req.params;
+            if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
+            urlRegistry.resetRegistryEntry(db, key);
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id, 'url_registry_reset', JSON.stringify({ key })
+            );
+            res.json({ ok: true, key });
+        } catch (err) {
+            res.status(400).json({ ok: false, error: err.message });
         }
     });
 

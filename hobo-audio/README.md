@@ -37,7 +37,7 @@ Same pattern as HoboImg: domain → context → SPA adapts.
 ## Deploy
 
 ```bash
-# On production server (40.160.240.222)
+# On production server (SSH)
 sudo cp deploy/systemd/hobo-audio.service /etc/systemd/system/
 sudo cp deploy/nginx/audio.hobo.tools.conf /etc/nginx/sites-enabled/
 sudo systemctl daemon-reload

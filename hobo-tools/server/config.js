@@ -6,7 +6,9 @@ module.exports = {
     port: parseInt(process.env.PORT, 10) || 3100,
     host: process.env.HOST || '0.0.0.0',
     baseUrl: process.env.BASE_URL || 'https://hobo.tools',
-    loginUrl: process.env.LOGIN_URL || '',
+    hoboToolsUrl: process.env.HOBO_TOOLS_URL || process.env.BASE_URL || 'https://hobo.tools',
+    loginUrl: process.env.LOGIN_URL || process.env.BASE_URL || 'https://hobo.tools',
+    internalUrl: process.env.INTERNAL_URL || process.env.HOBO_TOOLS_INTERNAL_URL || 'http://127.0.0.1:3100',
 
     jwt: {
         // RS256 keypair — generate with:

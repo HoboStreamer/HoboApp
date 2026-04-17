@@ -16,6 +16,7 @@ const fs = require('fs');
 
 const config = require('./config');
 const { initDb } = require('./db/database');
+const urlRegistry = require('./url-registry');
 const { BRAND } = require('hobo-shared/brand');
 const { NotificationService } = require('./notifications/notification-service');
 const { EmailService } = require('./notifications/email-service');
@@ -159,6 +160,25 @@ app.use('/api/auth/', rateLimit({ windowMs: 15 * 60_000, max: 30, skipSuccessful
 
 // ── Database ─────────────────────────────────────────────────
 const db = initDb(config.db.path);
+urlRegistry.initializeUrlRegistry(db);
+const resolvedRegistry = urlRegistry.getResolvedRegistry(db, process.env);
+if (resolvedRegistry.BASE_URL?.value) config.baseUrl = resolvedRegistry.BASE_URL.value;
+if (resolvedRegistry.HOBO_TOOLS_URL?.value) {
+    config.hoboToolsUrl = resolvedRegistry.HOBO_TOOLS_URL.value;
+    if (!process.env.BASE_URL) config.baseUrl = resolvedRegistry.HOBO_TOOLS_URL.value;
+}
+if (resolvedRegistry.WEBRTC_PUBLIC_URL?.value) config.webrtcPublicUrl = resolvedRegistry.WEBRTC_PUBLIC_URL.value;
+if (resolvedRegistry.WHIP_PUBLIC_URL?.value) config.whipPublicUrl = resolvedRegistry.WHIP_PUBLIC_URL.value;
+if (resolvedRegistry.MEDIASOUP_ANNOUNCED_IP?.value) {
+    config.mediasoup = config.mediasoup || {};
+    config.mediasoup.announcedIp = resolvedRegistry.MEDIASOUP_ANNOUNCED_IP.value;
+}
+if (resolvedRegistry.RTMP_HOST?.value) config.rtmpHost = resolvedRegistry.RTMP_HOST.value;
+if (resolvedRegistry.TURN_URL?.value) config.turnUrl = resolvedRegistry.TURN_URL.value;
+if (resolvedRegistry.HOBO_TOOLS_INTERNAL_URL?.value) config.internalUrl = resolvedRegistry.HOBO_TOOLS_INTERNAL_URL.value;
+
+// Expose a canonical registry payload for admin/internal consumers
+app.locals.urlRegistry = resolvedRegistry;
 // ── Analytics Tracking ────────────────────────────────────────
 const analytics = new AnalyticsTracker(db, 'hobo-tools');
 app.locals.analytics = analytics;

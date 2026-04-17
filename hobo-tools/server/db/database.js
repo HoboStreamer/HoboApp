@@ -241,6 +241,20 @@ function initDb(dbPath) {
             type TEXT DEFAULT 'string'
         );
 
+        -- URL registry for admin-managed first-party and protocol URLs
+        CREATE TABLE IF NOT EXISTS url_registry (
+            key TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            category TEXT NOT NULL,
+            service TEXT NOT NULL,
+            scope TEXT NOT NULL,
+            type TEXT NOT NULL,
+            value TEXT,
+            description TEXT,
+            updated_by INTEGER,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- ═══════════════════════════════════════════════════════
         -- Notifications
         -- ═══════════════════════════════════════════════════════

@@ -257,11 +257,13 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
             <button class="active" onclick="showSettingsSub('tools',this)">Hobo.Tools</button>
             <button onclick="showSettingsSub('streamer',this)">HoboStreamer</button>
             <button onclick="showSettingsSub('media',this)">Media Tools</button>
+            <button onclick="showSettingsSub('urls',this)">Network URLs</button>
             <button onclick="showSettingsSub('discord',this)">Discord</button>
         </div>
         <div id="settings-tools" class="settings-sub active"></div>
         <div id="settings-streamer" class="settings-sub" style="display:none"></div>
         <div id="settings-media" class="settings-sub" style="display:none"></div>
+        <div id="settings-urls" class="settings-sub" style="display:none"></div>
         <div id="settings-discord" class="settings-sub" style="display:none"></div>
     </div>
 
@@ -981,11 +983,13 @@ function showSettingsSub(sub, btn) {
     document.getElementById('settings-tools').style.display = sub === 'tools' ? 'block' : 'none';
     document.getElementById('settings-streamer').style.display = sub === 'streamer' ? 'block' : 'none';
     document.getElementById('settings-media').style.display = sub === 'media' ? 'block' : 'none';
+    document.getElementById('settings-urls').style.display = sub === 'urls' ? 'block' : 'none';
     document.getElementById('settings-discord').style.display = sub === 'discord' ? 'block' : 'none';
     if (sub === 'tools') loadToolsSettings();
     else if (sub === 'streamer') loadStreamerSettings();
+    else if (sub === 'media') loadStreamerMediaTools();
+    else if (sub === 'urls') loadUrlRegistry();
     else if (sub === 'discord') loadDiscordSettings();
-    else loadStreamerMediaTools();
 }
 
 async function loadSettings() {
@@ -1033,6 +1037,63 @@ async function saveToolsSettings() {
             await api('/api/admin/settings', { method: 'PUT', body: { key, value, type: input.dataset.type } });
         }
         toast('Hobo.Tools settings saved', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadUrlRegistry() {
+    const c = document.getElementById('settings-urls');
+    c.innerHTML = '<div class="loading">Loading URL registry...</div>';
+    try {
+        const data = await api('/api/admin/url-registry');
+        const entries = data.entries || [];
+        if (!entries.length) {
+            c.innerHTML = '<p class="muted">No URL registry overrides configured.</p>';
+            return;
+        }
+        c.innerHTML = `
+            <div style="max-width:900px;display:grid;gap:16px">
+                ${entries.map(entry => `
+                    <div class="card" style="padding:16px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                            <div>
+                                <div style="font-weight:700">${esc(entry.key)}</div>
+                                <div class="muted" style="font-size:13px">${esc(entry.label)} — ${esc(entry.type)}</div>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-sm btn-outline" onclick="resetUrlRegistryEntry('${esc(entry.key)}')"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                                <button class="btn btn-sm btn-primary" onclick="saveUrlRegistryEntry('${esc(entry.key)}')"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+                            </div>
+                        </div>
+                        <div class="form-field" style="margin-top:12px">
+                            <label for="url-registry-${esc(entry.key)}">Value</label>
+                            <input type="text" id="url-registry-${esc(entry.key)}" value="${esc(entry.value || '')}" placeholder="${esc(entry.placeholder || '')}">
+                            <div class="muted" style="margin-top:4px">Source: ${esc(entry.source)}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>`;
+    } catch (e) {
+        c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`;
+    }
+}
+
+async function saveUrlRegistryEntry(key) {
+    const input = document.getElementById(`url-registry-${key}`);
+    if (!input) return toast('Missing registry field', 'error');
+    const value = input.value.trim();
+    try {
+        await api('/api/admin/url-registry', { method: 'PUT', body: { key, value } });
+        toast('URL registry entry saved', 'success');
+        loadUrlRegistry();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function resetUrlRegistryEntry(key) {
+    if (!confirm('Reset this URL registry entry to its default?')) return;
+    try {
+        await api(`/api/admin/url-registry/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        toast('URL registry entry reset', 'success');
+        loadUrlRegistry();
     } catch (e) { toast(e.message, 'error'); }
 }
 

@@ -9,6 +9,7 @@
 
 const express = require('express');
 const router = express.Router();
+const urlRegistry = require('../url-registry');
 
 function getDb(req) { return req.app.locals.db; }
 function getConfig(req) { return req.app.locals.config; }
@@ -146,7 +147,17 @@ router.get('/stats', (req, res) => {
     res.json({ users: userCount, themes: themeCount, linked_accounts: linkedCount, notifications: notifCount });
 });
 
-// ═══════════════════════════════════════════════════════════════
+router.get('/url-registry/resolved', (req, res) => {
+    try {
+        const db = getDb(req);
+        const resolved = urlRegistry.getResolvedRegistry(db, process.env);
+        res.json({ ok: true, registry: resolved });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════
 // Stream-Live Event Handler
 // HoboStreamer calls this when a stream goes live.
 // Handles: Discord alerts (via bot), push notifications to

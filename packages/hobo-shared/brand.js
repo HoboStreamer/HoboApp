@@ -5,28 +5,37 @@
 // Shared across all Hobo services for consistent branding.
 // ═══════════════════════════════════════════════════════════════
 
+const DEFAULT_URLS = Object.freeze({
+    tools:    'https://hobo.tools',
+    login:    'https://hobo.tools',
+    maps:     'https://maps.hobo.tools',
+    dl:       'https://dl.hobo.tools',
+    img:      'https://img.hobo.tools',
+    yt:       'https://yt.hobo.tools',
+    audio:    'https://audio.hobo.tools',
+    text:     'https://text.hobo.tools',
+    logo:     'https://logo.hobo.tools',
+    net:      'https://net.hobo.tools',
+    dev:      'https://dev.hobo.tools',
+    streamer: 'https://hobostreamer.com',
+    quest:    'https://hobo.quest',
+    discord:  'https://discord.gg/M6MuRUaeJj',
+    github:   'https://github.com/HoboStreamer',
+});
+
+function resolveBrandUrls(overrides = {}) {
+    return Object.freeze({
+        ...DEFAULT_URLS,
+        ...overrides,
+    });
+}
+
 const BRAND = Object.freeze({
     name: 'Hobo Network',
     tagline: 'One Account. All of Hobo.',
     campTagline: 'Live Streaming for Camp Culture',
 
-    urls: Object.freeze({
-        tools:    'https://hobo.tools',
-        login:    'https://hobo.tools',
-        maps:     'https://maps.hobo.tools',
-        dl:       'https://dl.hobo.tools',
-        img:      'https://img.hobo.tools',
-        yt:       'https://yt.hobo.tools',
-        audio:    'https://audio.hobo.tools',
-        text:     'https://text.hobo.tools',
-        logo:     'https://logo.hobo.tools',
-        net:      'https://net.hobo.tools',
-        dev:      'https://dev.hobo.tools',
-        streamer: 'https://hobostreamer.com',
-        quest:    'https://hobo.quest',
-        discord:  'https://discord.gg/M6MuRUaeJj',
-        github:   'https://github.com/HoboStreamer',
-    }),
+    urls: resolveBrandUrls(),
 
     colors: Object.freeze({
         accent:     '#c0965c',
@@ -58,4 +67,4 @@ const BRAND = Object.freeze({
         { id: 'hobodev',      name: 'HoboDev',      url: 'https://dev.hobo.tools',    description: 'Developer & SEO Tools' },    ]),
 });
 
-module.exports = { BRAND };
+module.exports = { BRAND, resolveBrandUrls };
