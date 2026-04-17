@@ -54,7 +54,7 @@ function getAllRegistryEntries(db) {
 }
 
 function loadOverrides(db) {
-    const rows = db.prepare('SELECT key, value FROM url_registry WHERE value IS NOT NULL AND value != ""').all();
+    const rows = db.prepare("SELECT key, value FROM url_registry WHERE value IS NOT NULL AND value != ''").all();
     return rows.reduce((map, row) => {
         map[row.key] = row.value;
         return map;
