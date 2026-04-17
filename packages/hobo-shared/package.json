@@ -10,7 +10,8 @@
     "./theme-sync": "./theme-sync.js",
     "./brand": "./brand.js",
     "./middleware": "./middleware.js",
-    "./notifications": "./notifications.js"
+    "./notifications": "./notifications.js",
+    "./url-resolver": "./url-resolver.js"
   },
   "license": "MIT",
   "dependencies": {

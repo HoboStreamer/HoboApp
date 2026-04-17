@@ -12,7 +12,7 @@
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/hobo}"
-SERVICE="${SERVICE:-hobotools}"
+SERVICE="${SERVICE:-hobo-tools}"
 SITE_URL="${SITE_URL:-https://hobo.tools}"
 API_URL="${API_URL:-http://127.0.0.1:3100}"
 HOBOSTREAMER_API_URL="${HOBOSTREAMER_API_URL:-http://127.0.0.1:3000}"
