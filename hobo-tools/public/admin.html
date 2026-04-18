@@ -1254,9 +1254,21 @@ async function refreshAllUrlRegistry() {
         const data = await api('/api/admin/url-registry/refresh-all', { method: 'POST' });
         if (!data.ok) throw new Error(data.error || 'Refresh failed');
         const results = data.refreshResults || [];
-        statusEl.innerHTML = results.map(service => `
-            <div><strong>${esc(service.service)}</strong>: ${service.results.map(r => r.ok ? `<span class="badge badge-success">OK</span>` : `<span class="badge badge-danger">FAIL</span>`).join(' ')}</div>
-        `).join('');
+        statusEl.innerHTML = results.map(service => {
+            const result = (service.results && service.results[0]) || {};
+            const mode = result.mode || (result.ok ? 'success' : 'failed');
+            const badge = result.mode === 'local'
+                ? '<span class="badge badge-info">Local</span>'
+                : result.mode === 'not_configured'
+                    ? '<span class="badge badge-warning">Not configured</span>'
+                    : result.mode === 'unsupported'
+                        ? '<span class="badge badge-warning">Unsupported</span>'
+                        : result.ok
+                            ? '<span class="badge badge-success">Success</span>'
+                            : '<span class="badge badge-danger">Failed</span>';
+            const message = result.error ? ` <span class="muted">${esc(result.error)}</span>` : (result.message ? ` <span class="muted">${esc(result.message)}</span>` : '');
+            return `<div><strong>${esc(service.service)}</strong>: ${badge}${message}</div>`;
+        }).join('');
         toast('Refresh command sent to services', 'success');
     } catch (e) {
         statusEl.textContent = `Refresh failed: ${esc(e.message)}`;

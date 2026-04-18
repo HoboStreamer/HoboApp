@@ -12,7 +12,157 @@ const router = express.Router();
 const urlRegistry = require('../url-registry');
 const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
 
-module.exports = function createAdminRoutes(db, notificationService, emailService, requireAuth) {
+const LOCAL_REFRESH_SERVICES = new Set(['hobotools']);
+
+function getServiceRefreshInfo(req, serviceName) {
+    const servicesCfg = req.app.locals.config?.services || {};
+    const serviceCfg = servicesCfg[serviceName];
+
+    if (serviceName === 'hobotools') {
+        return {
+            service: serviceName,
+            configured: true,
+            mode: 'local',
+            target: null,
+            description: 'Local Hobo.Tools registry refresh',
+        };
+    }
+
+    if (!serviceCfg || !serviceCfg.internalUrl) {
+        return {
+            service: serviceName,
+            configured: false,
+            mode: 'not_configured',
+            target: null,
+            description: 'Service is not configured for refresh',
+        };
+    }
+
+    return {
+        service: serviceName,
+        configured: true,
+        mode: 'remote',
+        target: serviceCfg.internalUrl.replace(/\/?$/, '') + '/internal/url-registry/refresh',
+        description: `Remote refresh target for ${serviceName}`,
+    };
+}
+
+function applyResolvedRegistryToConfig(config, resolved) {
+    if (!resolved || typeof resolved !== 'object') return;
+    if (resolved.HOBO_TOOLS_URL?.value) {
+        config.hoboToolsUrl = resolved.HOBO_TOOLS_URL.value;
+        config.jwt.issuer = resolved.HOBO_TOOLS_URL.value;
+        if (!process.env.BASE_URL) config.baseUrl = resolved.HOBO_TOOLS_URL.value;
+    }
+    if (resolved.HOBO_TOOLS_LOGIN_URL?.value) {
+        config.loginUrl = resolved.HOBO_TOOLS_LOGIN_URL.value;
+    }
+    if (resolved.HOBO_TOOLS_INTERNAL_URL?.value) {
+        config.internalUrl = resolved.HOBO_TOOLS_INTERNAL_URL.value;
+    }
+    if (resolved.HOBOSTREAMER_INTERNAL_URL?.value) config.services.hobostreamer.internalUrl = resolved.HOBOSTREAMER_INTERNAL_URL.value;
+    if (resolved.HOBOQUEST_INTERNAL_URL?.value) config.services.hoboquest.internalUrl = resolved.HOBOQUEST_INTERNAL_URL.value;
+    if (resolved.HOBOMAPS_INTERNAL_URL?.value) config.services.hobomaps.internalUrl = resolved.HOBOMAPS_INTERNAL_URL.value;
+    if (resolved.HOBOFOOD_INTERNAL_URL?.value) config.services.hobofood.internalUrl = resolved.HOBOFOOD_INTERNAL_URL.value;
+    if (resolved.HOBOIMG_INTERNAL_URL?.value) config.services.hoboimg.internalUrl = resolved.HOBOIMG_INTERNAL_URL.value;
+    if (resolved.HOBOYT_INTERNAL_URL?.value) config.services.hoboyt.internalUrl = resolved.HOBOYT_INTERNAL_URL.value;
+    if (resolved.HOBOAUDIO_INTERNAL_URL?.value) config.services.hoboaudio.internalUrl = resolved.HOBOAUDIO_INTERNAL_URL.value;
+    if (resolved.HOBOTEXT_INTERNAL_URL?.value) config.services.hobotext.internalUrl = resolved.HOBOTEXT_INTERNAL_URL.value;
+}
+
+async function refreshService(req, serviceName) {
+    const info = getServiceRefreshInfo(req, serviceName);
+    if (info.mode === 'local') {
+        try {
+            const db = req.app.locals.db;
+            const config = req.app.locals.config;
+            const resolved = urlRegistry.getResolvedRegistry(db, process.env);
+            req.app.locals.urlRegistry = resolved;
+            applyResolvedRegistryToConfig(config, resolved);
+            return {
+                ok: true,
+                service: serviceName,
+                mode: 'local',
+                status: 200,
+                target: null,
+                message: 'Local registry refresh completed',
+            };
+        } catch (err) {
+            return {
+                ok: false,
+                service: serviceName,
+                mode: 'local',
+                status: 500,
+                target: null,
+                error: err.message,
+            };
+        }
+    }
+
+    if (info.mode === 'not_configured') {
+        return {
+            ok: false,
+            service: serviceName,
+            mode: 'not_configured',
+            status: null,
+            target: null,
+            error: 'Service is not configured for refresh',
+        };
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+        const r = await fetch(info.target, {
+            method: 'POST',
+            headers: { 'X-Internal-Key': req.app.locals.config?.internalKey || '' },
+            signal: controller.signal,
+        });
+        const baseResult = {
+            ok: r.ok,
+            service: serviceName,
+            mode: 'remote',
+            status: r.status,
+            target: info.target,
+        };
+        if (r.ok) return baseResult;
+        if (r.status === 404) {
+            return {
+                ...baseResult,
+                ok: false,
+                mode: 'unsupported',
+                error: 'Refresh endpoint not supported',
+            };
+        }
+        return {
+            ...baseResult,
+            ok: false,
+            error: `Refresh failed with status ${r.status}`,
+        };
+    } catch (err) {
+        return {
+            ok: false,
+            service: serviceName,
+            mode: 'failed',
+            status: null,
+            target: info.target,
+            error: err.message,
+        };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function refreshServiceByKey(req, key) {
+    const def = URL_DEFINITIONS[key];
+    const serviceName = def?.service;
+    if (!serviceName) {
+        return { ok: false, service: null, mode: 'unknown', error: `No service defined for key ${key}` };
+    }
+    return refreshService(req, serviceName);
+}
+
+function createAdminRoutes(db, notificationService, emailService, requireAuth) {
 
     function getEmailMetrics() {
         const summary = {
@@ -56,25 +206,7 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
     }
 
     async function notifyServiceRefresh(req, key) {
-        const def = URL_DEFINITIONS[key];
-        const svcName = def?.service;
-        const servicesCfg = req.app.locals.config?.services || {};
-        const svcCfg = svcName ? servicesCfg[svcName] : null;
-        const internalKey = req.app.locals.config?.internalKey;
-        if (!svcCfg || !svcCfg.internalUrl || !internalKey) {
-            return { ok: false, service: svcName || null, error: 'Target service not configured for refresh' };
-        }
-        const target = svcCfg.internalUrl.replace(/\/?$/, '') + '/internal/url-registry/refresh';
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3000);
-        try {
-            const r = await fetch(target, { method: 'POST', headers: { 'X-Internal-Key': internalKey }, signal: controller.signal });
-            return { ok: r.ok, service: svcName, status: r.status, target };
-        } catch (err) {
-            return { ok: false, service: svcName, error: err.message, target };
-        } finally {
-            clearTimeout(timer);
-        }
+        return refreshServiceByKey(req, key);
     }
 
     router.use(requireAuth, requireAdmin);
@@ -252,23 +384,14 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
 
     router.post('/url-registry/refresh-all', async (req, res) => {
         try {
-            const servicesCfg = req.app.locals.config?.services || {};
-            const uniqueServices = new Map();
-            for (const def of Object.values(URL_DEFINITIONS)) {
-                if (!def.service) continue;
-                uniqueServices.set(def.service, def.service);
-            }
+            const uniqueServices = new Set(Object.values(URL_DEFINITIONS)
+                .filter(def => !!def.service)
+                .map(def => def.service)
+            );
             const refreshResults = [];
-            for (const serviceName of uniqueServices.keys()) {
-                const serviceKeys = Object.values(URL_DEFINITIONS)
-                    .filter(def => def.service === serviceName)
-                    .map(def => def.key);
-                const serviceResult = { service: serviceName, results: [] };
-                for (const key of serviceKeys) {
-                    const result = await notifyServiceRefresh(req, key);
-                    if (result.service === serviceName) serviceResult.results.push(result);
-                }
-                refreshResults.push(serviceResult);
+            for (const serviceName of uniqueServices) {
+                const result = await refreshService(req, serviceName);
+                refreshResults.push({ service: serviceName, results: [result] });
             }
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'url_registry_refresh_all', JSON.stringify(refreshResults)
@@ -575,3 +698,8 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
 
     return router;
 };
+
+module.exports = createAdminRoutes;
+module.exports._getServiceRefreshInfo = getServiceRefreshInfo;
+module.exports._refreshService = refreshService;
+module.exports._refreshServiceByKey = refreshServiceByKey;
