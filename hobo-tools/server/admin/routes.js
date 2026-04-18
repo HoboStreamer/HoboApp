@@ -10,6 +10,7 @@
 const express = require('express');
 const router = express.Router();
 const urlRegistry = require('../url-registry');
+const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
 
 module.exports = function createAdminRoutes(db, notificationService, emailService, requireAuth) {
 
@@ -172,7 +173,7 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
         }
     });
 
-    router.put('/url-registry', (req, res) => {
+    router.put('/url-registry', async (req, res) => {
         try {
             const { key, value } = req.body;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
@@ -181,13 +182,38 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'url_registry_update', JSON.stringify({ key, value })
             );
+
+            // Notify the owning service (if configured) to refresh its registry
+            try {
+                const def = URL_DEFINITIONS[key];
+                const svcName = def?.service;
+                const servicesCfg = req.app.locals.config?.services || {};
+                const svcCfg = svcName ? servicesCfg[svcName] : null;
+                const internalKey = req.app.locals.config?.internalKey;
+                if (svcCfg && svcCfg.internalUrl && internalKey) {
+                    const target = svcCfg.internalUrl.replace(/\/$/, '') + '/internal/url-registry/refresh';
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 3000);
+                    try {
+                        const r = await fetch(target, { method: 'POST', headers: { 'X-Internal-Key': internalKey }, signal: controller.signal });
+                        if (!r.ok) console.warn(`[Admin] Failed to notify ${svcName} (${target}) of registry change: ${r.status}`);
+                    } catch (err) {
+                        console.warn(`[Admin] Error notifying ${svcName} of registry change:`, err.message);
+                    } finally {
+                        clearTimeout(timer);
+                    }
+                }
+            } catch (err) {
+                console.warn('[Admin] registry notification error:', err.message);
+            }
+
             res.json({ ok: true, entry });
         } catch (err) {
             res.status(400).json({ ok: false, error: err.message });
         }
     });
 
-    router.put('/url-registry/:key', (req, res) => {
+    router.put('/url-registry/:key', async (req, res) => {
         try {
             const { key } = req.params;
             const { value } = req.body;
@@ -197,6 +223,31 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'url_registry_update', JSON.stringify({ key, value })
             );
+
+            // Notify owning service to refresh registry
+            try {
+                const def = URL_DEFINITIONS[key];
+                const svcName = def?.service;
+                const servicesCfg = req.app.locals.config?.services || {};
+                const svcCfg = svcName ? servicesCfg[svcName] : null;
+                const internalKey = req.app.locals.config?.internalKey;
+                if (svcCfg && svcCfg.internalUrl && internalKey) {
+                    const target = svcCfg.internalUrl.replace(/\/$/, '') + '/internal/url-registry/refresh';
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 3000);
+                    try {
+                        const r = await fetch(target, { method: 'POST', headers: { 'X-Internal-Key': internalKey }, signal: controller.signal });
+                        if (!r.ok) console.warn(`[Admin] Failed to notify ${svcName} (${target}) of registry change: ${r.status}`);
+                    } catch (err) {
+                        console.warn(`[Admin] Error notifying ${svcName} of registry change:`, err.message);
+                    } finally {
+                        clearTimeout(timer);
+                    }
+                }
+            } catch (err) {
+                console.warn('[Admin] registry notification error:', err.message);
+            }
+
             res.json({ ok: true, entry });
         } catch (err) {
             res.status(400).json({ ok: false, error: err.message });
