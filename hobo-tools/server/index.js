@@ -107,23 +107,6 @@ async function proxyJsonRequest(req, res, targetUrl, errorLabel) {
 // ── Security ─────────────────────────────────────────────────
 app.set('trust proxy', 2); // Cloudflare → Nginx → Node
 
-// Add CORS headers before helmet for better compatibility
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    // Allow any *.hobo.tools subdomain + main domains
-    if (!origin || 
-        origin === 'https://hobo.tools' ||
-        origin === 'https://hobostreamer.com' ||
-        origin === 'https://hobo.quest' ||
-        /^https:\/\/[a-z0-9-]+\.hobo\.tools$/.test(origin)) {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-    }
-    next();
-});
-
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -144,42 +127,115 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── CORS ─────────────────────────────────────────────────────
-// Allow all Hobo Network domains + subdomains
-const ALLOWED_ORIGINS = new Set([
-    'https://hobo.tools',
-    'https://login.hobo.tools',
-    'https://maps.hobo.tools',
-    'https://dl.hobo.tools',
-    'https://hobostreamer.com',
-    'https://www.hobostreamer.com',
-    'https://hobo.quest',
-    'https://www.hobo.quest',
-]);
+// Origins are derived dynamically from the URL registry at request time.
+// Hobo defaults are seeded values — white-label installs override via admin.
+//
+// A request origin is allowed when ANY of the following is true:
+//  1. It exactly matches a configured first-party URL (tools, streamer, quest, etc.)
+//  2. It matches a wildcard subdomain of TOOLS_SUBDOMAIN_BASE (e.g. *.hobo.tools)
+//  3. It is listed in ALLOWED_EXTRA_ORIGINS (admin-configurable JSON array)
+//  4. It is a localhost/127.0.0.1 origin in non-production environments
 
-if (process.env.NODE_ENV === 'development') {
-    ALLOWED_ORIGINS.add('http://localhost:3000');
-    ALLOWED_ORIGINS.add('http://localhost:3100');
-    ALLOWED_ORIGINS.add('http://localhost:3200');
-    ALLOWED_ORIGINS.add('http://127.0.0.1:3100');
+function normalizeOriginForCors(origin) {
+    if (!origin || typeof origin !== 'string') return null;
+    try {
+        const url = new URL(origin.trim());
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+        return `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}`;
+    } catch {
+        return null;
+    }
 }
 
-function getAllowedOrigins() {
-    const origins = new Set(ALLOWED_ORIGINS);
-    const registry = app.locals.urlRegistry;
-    if (registry?.HOBO_TOOLS_URL?.value) origins.add(registry.HOBO_TOOLS_URL.value);
-    if (registry?.HOBO_TOOLS_LOGIN_URL?.value) origins.add(registry.HOBO_TOOLS_LOGIN_URL.value);
-    if (registry?.BASE_URL?.value) origins.add(registry.BASE_URL.value);
-    if (registry?.WEBRTC_PUBLIC_URL?.value) origins.add(registry.WEBRTC_PUBLIC_URL.value);
-    if (registry?.JSMPEG_PUBLIC_URL?.value) origins.add(registry.JSMPEG_PUBLIC_URL.value);
+function buildAllowedOriginsSet() {
+    const registry = app.locals.urlRegistry || {};
+    const origins = new Set();
+
+    // All configured public first-party URLs are always allowed
+    const publicUrlKeys = [
+        'HOBO_TOOLS_URL', 'HOBO_TOOLS_LOGIN_URL',
+        'BASE_URL', 'WEBRTC_PUBLIC_URL', 'JSMPEG_PUBLIC_URL', 'WHIP_PUBLIC_URL',
+    ];
+    for (const key of publicUrlKeys) {
+        const v = registry[key]?.value;
+        if (!v) continue;
+        const norm = normalizeOriginForCors(v);
+        if (!norm) continue;
+        origins.add(norm);
+        // Auto-add www/non-www variant
+        try {
+            const u = new URL(norm);
+            if (u.hostname.startsWith('www.')) {
+                origins.add(`${u.protocol}//${u.hostname.slice(4)}${u.port ? ':' + u.port : ''}`);
+            } else {
+                origins.add(`${u.protocol}//www.${u.hostname}${u.port ? ':' + u.port : ''}`);
+            }
+        } catch { /* ignore */ }
+    }
+
+    // Extra origins from admin-configurable list
+    const extra = registry.ALLOWED_EXTRA_ORIGINS?.value;
+    if (Array.isArray(extra)) {
+        for (const o of extra) {
+            const norm = normalizeOriginForCors(o);
+            if (norm) origins.add(norm);
+        }
+    }
+
+    // Hard-coded Hobo Network defaults as baseline (survive registry reset/failure)
+    // These match the seeded HOBO_TOOLS_URL, BASE_URL, etc. defaults
+    for (const o of [
+        'https://hobo.tools', 'https://login.hobo.tools', 'https://maps.hobo.tools',
+        'https://dl.hobo.tools', 'https://hobostreamer.com', 'https://www.hobostreamer.com',
+        'https://hobo.quest', 'https://www.hobo.quest',
+    ]) {
+        origins.add(o);
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+        for (const o of [
+            'http://localhost:3000', 'http://localhost:3100',
+            'http://localhost:3200', 'http://127.0.0.1:3100',
+        ]) {
+            origins.add(o);
+        }
+    }
+
     return origins;
+}
+
+function getToolsSubdomainBase() {
+    const registry = app.locals.urlRegistry || {};
+    // Use registry value if explicitly set by admin; fall back to Hobo default
+    return registry.TOOLS_SUBDOMAIN_BASE?.value || 'hobo.tools';
+}
+
+function isAllowedOrigin(origin) {
+    if (!origin) return true; // non-browser requests (curl, server-to-server)
+    const norm = normalizeOriginForCors(origin);
+    if (!norm) return false;
+    if (buildAllowedOriginsSet().has(norm)) return true;
+
+    // Wildcard subdomain match for TOOLS_SUBDOMAIN_BASE
+    const subdomainBase = getToolsSubdomainBase();
+    if (subdomainBase) {
+        try {
+            const u = new URL(norm);
+            // Only trust https:// subdomains in production
+            if (u.protocol === 'https:' && u.hostname.endsWith('.' + subdomainBase)) return true;
+            // In dev, allow http as well
+            if (process.env.NODE_ENV !== 'production' && u.hostname.endsWith('.' + subdomainBase)) return true;
+        } catch { /* ignore */ }
+    }
+
+    return false;
 }
 
 app.use(cors({
     origin(origin, callback) {
-        if (!origin) return callback(null, true); // non-browser
-        const allowedOrigins = getAllowedOrigins();
-        if (allowedOrigins.has(origin)) return callback(null, true);
-        if (/^https:\/\/[a-z0-9-]+\.hobo\.tools$/.test(origin)) return callback(null, true);
+        if (!origin) return callback(null, true); // non-browser / server-to-server
+        if (isAllowedOrigin(origin)) return callback(null, true);
+        console.warn(`[CORS] Rejected origin: "${origin}" | allowed set: ${[...buildAllowedOriginsSet()].join(', ')} | subdomainBase: ${getToolsSubdomainBase()}`);
         return callback(new Error('Origin not allowed by CORS'));
     },
     credentials: true,
@@ -222,6 +278,8 @@ if (resolvedRegistry.HOBOTEXT_INTERNAL_URL?.value) config.services.hobotext.inte
 
 // Expose a canonical registry payload for admin/internal consumers
 app.locals.urlRegistry = resolvedRegistry;
+// Make registry accessible to signToken via config._registry
+config._registry = resolvedRegistry;
 // ── Analytics Tracking ────────────────────────────────────────
 const analytics = new AnalyticsTracker(db, 'hobo-tools');
 app.locals.analytics = analytics;

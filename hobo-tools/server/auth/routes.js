@@ -41,6 +41,35 @@ function findValidResetToken(db, token) {
 
 function signToken(user, privateKey, config) {
     const algorithm = privateKey.includes('BEGIN') ? 'RS256' : 'HS256';
+    // Build audience from configured service domains.
+    // The issuer is the canonical tools public URL (set from registry).
+    // For white-label installs, the issuer changes — so derive audience from it.
+    const issuerUrl = config.jwt.issuer;
+    let audience;
+    try {
+        const issuerHost = new URL(issuerUrl).hostname;
+        // Include both the issuer host and the configured streamer/quest hosts.
+        // Fall back to Hobo defaults so existing tokens continue working.
+        const registry = config._registry || {};
+        const streamerUrl = registry.BASE_URL?.value;
+        const questUrl = registry.HOBOQUEST_URL?.value;
+        const audienceSet = new Set([issuerHost]);
+        if (streamerUrl) {
+            try { audienceSet.add(new URL(streamerUrl).hostname); } catch { /* ignore */ }
+        } else {
+            audienceSet.add('hobostreamer.com'); // Hobo default
+        }
+        if (questUrl) {
+            try { audienceSet.add(new URL(questUrl).hostname); } catch { /* ignore */ }
+        } else {
+            audienceSet.add('hobo.quest'); // Hobo default
+        }
+        audience = [...audienceSet];
+    } catch {
+        // If issuer URL is malformed, fall back to Hobo defaults
+        audience = ['hobostreamer.com', 'hobo.quest', 'hobo.tools'];
+    }
+
     return jwt.sign(
         {
             sub: user.id,
@@ -55,7 +84,7 @@ function signToken(user, privateKey, config) {
         {
             algorithm,
             issuer: config.jwt.issuer,
-            audience: ['hobostreamer.com', 'hobo.quest', 'hobo.tools'],
+            audience,
             expiresIn: config.jwt.accessTokenExpiry,
         }
     );

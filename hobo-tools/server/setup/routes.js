@@ -115,6 +115,101 @@ function createSetupRoutes(db, config) {
         }
     });
 
+    // ── Brand identity setup ─────────────────────────────────
+    // POST /api/setup/identity — configure network/service names and subdomain base.
+    // These drive white-label installs: CORS wildcard patterns, brand display names, etc.
+    // Accepted fields (all optional, only provided fields are written):
+    //   network_name       → NETWORK_NAME       (e.g. "Hobo Network")
+    //   tools_service_name → TOOLS_SERVICE_NAME (e.g. "HoboTools")
+    //   streamer_service_name → STREAMER_SERVICE_NAME (e.g. "HoboStreamer")
+    //   tools_subdomain_base  → TOOLS_SUBDOMAIN_BASE (e.g. "hobo.tools")
+    //   extra_origins      → ALLOWED_EXTRA_ORIGINS (array of additional CORS origins)
+    const IDENTITY_FIELD_MAP = {
+        network_name: 'NETWORK_NAME',
+        tools_service_name: 'TOOLS_SERVICE_NAME',
+        streamer_service_name: 'STREAMER_SERVICE_NAME',
+        tools_subdomain_base: 'TOOLS_SUBDOMAIN_BASE',
+        extra_origins: 'ALLOWED_EXTRA_ORIGINS',
+    };
+    router.post('/identity', requireSetupMode, (req, res) => {
+        try {
+            const upsert = db.prepare(
+                `INSERT INTO url_registry (key, value, source, updated_at)
+                 VALUES (?, ?, 'admin', datetime('now'))
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, source = 'admin', updated_at = excluded.updated_at`
+            );
+            const updated = {};
+            for (const [bodyKey, registryKey] of Object.entries(IDENTITY_FIELD_MAP)) {
+                if (!(bodyKey in req.body)) continue;
+                const raw = req.body[bodyKey];
+                let value;
+                if (registryKey === 'ALLOWED_EXTRA_ORIGINS') {
+                    // Accept either an array or a comma-separated string
+                    const origins = Array.isArray(raw)
+                        ? raw
+                        : String(raw).split(',').map(s => s.trim()).filter(Boolean);
+                    // Validate each origin is a valid https:// URL
+                    for (const o of origins) {
+                        try { new URL(o); } catch {
+                            return res.status(400).json({ ok: false, error: `Invalid origin URL: ${o}` });
+                        }
+                    }
+                    value = JSON.stringify(origins);
+                } else {
+                    value = String(raw).trim();
+                    if (!value) continue;
+                    if (registryKey === 'TOOLS_SUBDOMAIN_BASE') {
+                        // Must be a valid hostname (no protocol, no path)
+                        if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(value)) {
+                            return res.status(400).json({ ok: false, error: `Invalid subdomain base: ${value}. Expected a bare hostname like "hobo.tools"` });
+                        }
+                    }
+                }
+                upsert.run(registryKey, value);
+                updated[registryKey] = value;
+            }
+            return res.json({ ok: true, updated, message: 'Identity config saved' });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    // ── URL config setup ─────────────────────────────────────
+    // POST /api/setup/urls — configure network URLs during first-time setup.
+    // Writes the provided values into the url_registry with source='admin'.
+    // Only keys that exist in URL_DEFINITIONS are accepted.
+    router.post('/urls', requireSetupMode, (req, res) => {
+        try {
+            const allowedKeys = new Set(Object.keys(URL_DEFINITIONS));
+            const upsert = db.prepare(
+                `INSERT INTO url_registry (key, value, source, updated_at)
+                 VALUES (?, ?, 'admin', datetime('now'))
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, source = 'admin', updated_at = excluded.updated_at`
+            );
+            const updated = {};
+            const rejected = {};
+            for (const [key, value] of Object.entries(req.body)) {
+                if (!allowedKeys.has(key)) {
+                    rejected[key] = 'unknown registry key';
+                    continue;
+                }
+                const def = URL_DEFINITIONS[key];
+                if (def.type === 'url') {
+                    try { new URL(String(value)); } catch {
+                        rejected[key] = `invalid URL: ${value}`;
+                        continue;
+                    }
+                }
+                upsert.run(key, String(value).trim());
+                updated[key] = String(value).trim();
+            }
+            const status = buildSetupStatus();
+            return res.json({ ok: true, updated, rejected, status });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
     return router;
 }
 

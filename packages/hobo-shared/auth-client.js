@@ -106,9 +106,11 @@ class HoboAuthClient {
      */
     verifyToken(token) {
         try {
+            // issuer is the tools/SSO public URL — derive from authBase to support white-label
+            const issuer = this.authBase || this.issuer;
             return jwt.verify(token, this.publicKey, {
                 algorithms: ['RS256'],
-                issuer: 'https://hobo.tools',
+                issuer,
             });
         } catch {
             return null;

@@ -20,7 +20,8 @@ module.exports = {
         publicKeyPath:  process.env.JWT_PUBLIC_KEY  || 'data/keys/public.pem',
         accessTokenExpiry:  '24h',
         refreshTokenExpiry: '30d',
-        issuer: 'https://hobo.tools',
+        // issuer is the canonical public tools URL — updated at runtime from registry
+        issuer: process.env.HOBO_TOOLS_URL || process.env.BASE_URL || 'https://hobo.tools',
     },
 
     // Internal API key for server-to-server calls

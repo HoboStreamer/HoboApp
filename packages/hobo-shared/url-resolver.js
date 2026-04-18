@@ -191,6 +191,67 @@ const URL_DEFINITIONS = Object.freeze({
         default: 'http://127.0.0.1:3400',
         description: 'Internal URL used by Hobo.Tools to reach HoboDocs.',
     },
+
+    // ── Brand / Site Identity ─────────────────────────────────────────────────
+    // Configurable during first-time setup and editable in admin.
+    // These values drive display names, JWT metadata, email copy, and CORS policy.
+    // Defaults match the Hobo Network — change for white-label installs.
+
+    NETWORK_NAME: {
+        key: 'NETWORK_NAME',
+        label: 'Network / Organization Name',
+        category: 'brand_identity',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: 'Hobo Network',
+        description: 'Human-readable name for the overall platform (e.g. "Hobo Network" or your custom brand).',
+    },
+    TOOLS_SERVICE_NAME: {
+        key: 'TOOLS_SERVICE_NAME',
+        label: 'Tools Service Name',
+        category: 'brand_identity',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: 'HoboTools',
+        description: 'Display name for the SSO/tools service (e.g. "HoboTools" or "CoolTools").',
+    },
+    STREAMER_SERVICE_NAME: {
+        key: 'STREAMER_SERVICE_NAME',
+        label: 'Streamer Service Name',
+        category: 'brand_identity',
+        service: 'hobostreamer',
+        scope: 'global',
+        type: 'string',
+        default: 'HoboStreamer',
+        description: 'Display name for the streaming service (e.g. "HoboStreamer" or "PoopStreamer").',
+    },
+
+    // ── CORS / Origin Policy ──────────────────────────────────────────────────
+    // Controls which additional origins are allowed cross-origin access.
+    // The public service URLs above are always auto-allowed.
+
+    TOOLS_SUBDOMAIN_BASE: {
+        key: 'TOOLS_SUBDOMAIN_BASE',
+        label: 'Tools Subdomain Base Domain',
+        category: 'cors_policy',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: 'hobo.tools',
+        description: 'Base domain for which all https://*.{domain} subdomains are trusted first-party origins (e.g. "hobo.tools"). Leave empty to disable subdomain wildcarding.',
+    },
+    ALLOWED_EXTRA_ORIGINS: {
+        key: 'ALLOWED_EXTRA_ORIGINS',
+        label: 'Extra Allowed Origins (JSON array)',
+        category: 'cors_policy',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'json_array',
+        default: '[]',
+        description: 'JSON array of additional origins allowed by CORS across all services (e.g. ["https://my-cdn.com"]). Auto-includes all configured service public URLs.',
+    },
 });
 
 function normalizeOrigin(value) {
