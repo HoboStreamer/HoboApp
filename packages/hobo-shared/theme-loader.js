@@ -10,7 +10,10 @@
 
     const COOKIE_NAME = 'hobo_theme_id';
     const STORAGE_KEY = 'hobo_theme';
-    const API_BASE = 'https://hobo.tools';
+    const DEFAULT_API_BASE = (typeof location !== 'undefined' && location.hostname && location.hostname !== 'hobo.tools' && !location.hostname.endsWith('.hobo.tools'))
+        ? location.origin
+        : 'https://hobo.tools';
+    let _config = { apiBase: DEFAULT_API_BASE };
 
     // ── Condensed built-in theme variable maps ───────────────
     // Kept in sync with packages/hobo-shared/builtin-themes.js
@@ -174,7 +177,7 @@
             const token = getCookie('hobo_token') ||
                 (typeof localStorage !== 'undefined' && (localStorage.getItem('hobo_token') || localStorage.getItem('token')));
             if (!token) return;
-            fetch(API_BASE + '/api/themes/me/active', {
+            fetch(_config.apiBase + '/api/themes/me/active', {
                 headers: { 'Authorization': 'Bearer ' + token },
             }).then(function (r) { return r.ok ? r.json() : null; })
               .then(function (data) {
@@ -197,6 +200,12 @@
         save: save,
         getCurrent: getCurrent,
         resolveAndApply: resolveAndApply,
+        init: function (opts) {
+            if (opts && typeof opts.apiBase === 'string' && opts.apiBase.trim()) {
+                _config.apiBase = opts.apiBase.trim();
+            }
+            return HoboThemeLoader;
+        },
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = HoboThemeLoader;
