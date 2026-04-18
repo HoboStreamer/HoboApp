@@ -4,6 +4,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const urlRegistry = require('../url-registry');
 const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
+const certManager = require('../deploy/cert-manager');
 
 function createSetupRoutes(db, config) {
     const router = express.Router();
@@ -191,6 +192,119 @@ function createSetupRoutes(db, config) {
             }
             const status = buildSetupStatus();
             return res.json({ ok: true, updated, rejected, status });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    // ── Deploy / Infrastructure Setup ────────────────────────
+    // POST /api/setup/deploy — configure TLS, domain, and reverse-proxy settings.
+    // Captures the deploy-level infrastructure state needed to provision
+    // certificates and generate Nginx configs without manual SSH.
+    //
+    // Accepted fields:
+    //   acme_email        → DEPLOY_ACME_EMAIL
+    //   cert_mode         → DEPLOY_CERT_MODE ("cloudflare" | "manual" | "none")
+    //   cloudflare_token  → DEPLOY_CLOUDFLARE_TOKEN
+    //   domains           → DEPLOY_DOMAINS (array of domain objects)
+    //   nginx_mode        → DEPLOY_NGINX_MODE ("preview" | "apply" | "disabled")
+    //   service_map       → DEPLOY_SERVICE_MAP (override port/domain mappings)
+
+    const DEPLOY_FIELD_MAP = {
+        acme_email: 'DEPLOY_ACME_EMAIL',
+        cert_mode: 'DEPLOY_CERT_MODE',
+        cloudflare_token: 'DEPLOY_CLOUDFLARE_TOKEN',
+        domains: 'DEPLOY_DOMAINS',
+        nginx_mode: 'DEPLOY_NGINX_MODE',
+        service_map: 'DEPLOY_SERVICE_MAP',
+    };
+
+    router.post('/deploy', requireSetupMode, (req, res) => {
+        try {
+            const updated = {};
+            const errors = {};
+
+            for (const [bodyKey, registryKey] of Object.entries(DEPLOY_FIELD_MAP)) {
+                if (!(bodyKey in req.body)) continue;
+                const value = req.body[bodyKey];
+
+                // Validate cert_mode
+                if (registryKey === 'DEPLOY_CERT_MODE' && !['cloudflare', 'manual', 'none'].includes(value)) {
+                    errors[bodyKey] = 'Must be "cloudflare", "manual", or "none"';
+                    continue;
+                }
+
+                // Validate nginx_mode
+                if (registryKey === 'DEPLOY_NGINX_MODE' && !['preview', 'apply', 'disabled'].includes(value)) {
+                    errors[bodyKey] = 'Must be "preview", "apply", or "disabled"';
+                    continue;
+                }
+
+                // Validate domains array
+                if (registryKey === 'DEPLOY_DOMAINS') {
+                    if (!Array.isArray(value)) {
+                        errors[bodyKey] = 'Must be an array of domain objects';
+                        continue;
+                    }
+                    for (const d of value) {
+                        if (!d.domain || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(d.domain)) {
+                            errors[bodyKey] = `Invalid domain: ${d.domain}`;
+                            break;
+                        }
+                    }
+                    if (errors[bodyKey]) continue;
+                }
+
+                // Validate ACME email
+                if (registryKey === 'DEPLOY_ACME_EMAIL' && value) {
+                    if (typeof value !== 'string' || !value.includes('@')) {
+                        errors[bodyKey] = 'Must be a valid email address';
+                        continue;
+                    }
+                }
+
+                if (value === undefined || value === null) continue;
+
+                try {
+                    const entry = urlRegistry.setRegistryEntry(db, registryKey, value, null);
+                    updated[registryKey] = registryKey === 'DEPLOY_CLOUDFLARE_TOKEN' ? '(saved)' : entry.value;
+                } catch (err) {
+                    errors[bodyKey] = err.message;
+                }
+            }
+
+            // Return prerequisites check alongside the config save
+            const prereqs = certManager.checkPrerequisites();
+
+            return res.json({
+                ok: Object.keys(errors).length === 0,
+                updated,
+                errors: Object.keys(errors).length > 0 ? errors : undefined,
+                prerequisites: prereqs,
+                message: 'Deploy config saved',
+            });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    // GET /api/setup/deploy-status — check deploy prerequisites and current config
+    router.get('/deploy-status', (req, res) => {
+        try {
+            const resolved = urlRegistry.getResolvedRegistry(db, process.env);
+            const prereqs = certManager.checkPrerequisites();
+
+            res.json({
+                ok: true,
+                prerequisites: prereqs,
+                config: {
+                    acmeEmail: resolved.DEPLOY_ACME_EMAIL?.value || '',
+                    certMode: resolved.DEPLOY_CERT_MODE?.value || 'manual',
+                    hasCloudflareToken: !!(resolved.DEPLOY_CLOUDFLARE_TOKEN?.value),
+                    domains: resolved.DEPLOY_DOMAINS?.value || [],
+                    nginxMode: resolved.DEPLOY_NGINX_MODE?.value || 'preview',
+                },
+            });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }

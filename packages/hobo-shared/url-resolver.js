@@ -262,6 +262,91 @@ const URL_DEFINITIONS = Object.freeze({
         default: '[]',
         description: 'JSON array of additional origins allowed by CORS across all services (e.g. ["https://my-cdn.com"]). Auto-includes all configured service public URLs.',
     },
+
+    // ── Deploy Infrastructure ─────────────────────────────────────────────────
+    // Certificate, DNS, and reverse-proxy management config.
+    // These drive the automated TLS issuance and Nginx generation system.
+
+    DEPLOY_ACME_EMAIL: {
+        key: 'DEPLOY_ACME_EMAIL',
+        label: 'ACME / Let\'s Encrypt Email',
+        category: 'deploy_tls',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: '',
+        description: 'Email address used for Let\'s Encrypt certificate registration and expiry notifications.',
+    },
+    DEPLOY_CERT_MODE: {
+        key: 'DEPLOY_CERT_MODE',
+        label: 'Certificate Mode',
+        category: 'deploy_tls',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: 'manual',
+        description: 'Certificate provisioning mode: "cloudflare" for automated DNS-01 via Cloudflare API, "manual" for manual DNS challenge, or "none" to skip.',
+    },
+    DEPLOY_CLOUDFLARE_TOKEN: {
+        key: 'DEPLOY_CLOUDFLARE_TOKEN',
+        label: 'Cloudflare API Token (DNS Edit)',
+        category: 'deploy_tls',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'secret',
+        default: '',
+        description: 'Cloudflare API token with Zone:DNS:Edit permissions. Used for automated DNS-01 wildcard certificate challenges.',
+    },
+    DEPLOY_DOMAINS: {
+        key: 'DEPLOY_DOMAINS',
+        label: 'Managed Domains (JSON)',
+        category: 'deploy_tls',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'json_array',
+        default: '[]',
+        description: 'JSON array of domain objects managed by the deploy system. Each entry: {"domain":"hobo.tools","wildcard":true,"certName":"hobo.tools","services":["hobotools"]}.',
+    },
+    DEPLOY_NGINX_MODE: {
+        key: 'DEPLOY_NGINX_MODE',
+        label: 'Nginx Management Mode',
+        category: 'deploy_nginx',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: 'preview',
+        description: 'Nginx config management mode: "preview" (generate only), "apply" (write + validate + reload), or "disabled".',
+    },
+    DEPLOY_NGINX_SITES_PATH: {
+        key: 'DEPLOY_NGINX_SITES_PATH',
+        label: 'Nginx sites-enabled Path',
+        category: 'deploy_nginx',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: '/etc/nginx/sites-enabled',
+        description: 'Directory where Nginx site configs are written. Defaults to /etc/nginx/sites-enabled.',
+    },
+    DEPLOY_NGINX_BACKUP_PATH: {
+        key: 'DEPLOY_NGINX_BACKUP_PATH',
+        label: 'Nginx Backup Path',
+        category: 'deploy_nginx',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'string',
+        default: '/etc/nginx/sites-backup',
+        description: 'Directory for Nginx config backups before apply. Created automatically.',
+    },
+    DEPLOY_SERVICE_MAP: {
+        key: 'DEPLOY_SERVICE_MAP',
+        label: 'Service → Port / Domain Map (JSON)',
+        category: 'deploy_nginx',
+        service: 'hobotools',
+        scope: 'global',
+        type: 'json_map',
+        default: '{}',
+        description: 'JSON map of service configurations for Nginx generation. Each key is a service ID, value has port, domains[], wildcardDomain, maxBodySize, etc.',
+    },
 });
 
 function normalizeOrigin(value) {
@@ -370,6 +455,7 @@ function normalizeValue(value, type) {
         case 'json_map': return normalizeJson(value, 'json_map');
         case 'json_array': return normalizeJson(value, 'json_array');
         case 'boolean': return normalizeBoolean(value);
+        case 'secret': return typeof value === 'string' ? value.trim() : String(value);
         case 'string': return typeof value === 'string' ? value.trim() : String(value);
         default: return typeof value === 'string' ? value.trim() : String(value);
     }

@@ -31,6 +31,7 @@ const createDevRoutes = require('./dev/routes');
 const { DEV_TOOL_MAP, DEV_ALIASES } = require('./dev/config');
 const { DiscordService } = require('./discord/discord-service');
 const createDiscordRoutes = require('./discord/routes');
+const createDeployRoutes = require('./deploy/routes');
 
 const app = express();
 
@@ -395,6 +396,9 @@ function requireAdmin(req, res, next) {
     next();
 }
 app.use('/api/admin/discord', createDiscordRoutes(db, discordService, requireAuth, requireAdmin));
+
+// Deploy (TLS / Nginx / Infrastructure) admin API
+app.use('/api/admin/deploy', createDeployRoutes(db, requireAuth));
 
 // Setup API for first-run bootstrapping and status checks
 app.use('/api/setup', createSetupRoutes(db, config));
