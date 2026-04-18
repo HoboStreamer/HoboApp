@@ -1078,6 +1078,7 @@ async function loadUrlRegistry() {
                             <label for="url-registry-${esc(entry.key)}">Value</label>
                             <input type="text" id="url-registry-${esc(entry.key)}" value="${esc(entry.value || '')}" placeholder="${esc(entry.placeholder || '')}">
                             <div class="muted" style="margin-top:4px">Source: ${esc(entry.source)}</div>
+                            ${entry.warning ? `<div class="badge badge-warning" style="margin-top:8px;display:inline-block">Warning</div><div class="muted" style="margin-top:4px">${esc(entry.warning)}</div>` : ''}
                         </div>
                     </div>
                 `).join('')}

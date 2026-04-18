@@ -35,6 +35,8 @@ function getAllRegistryEntries(db) {
         return map;
     }, {});
 
+    const warnings = getRegistryWarnings(db);
+
     return Object.values(URL_DEFINITIONS).map(def => {
         const row = rowMap[def.key];
         return {
@@ -50,8 +52,25 @@ function getAllRegistryEntries(db) {
             updated_at: row?.updated_at || null,
             source: row?.source || 'default',
             placeholder: def.default || '',
+            warning: warnings[def.key] || null,
         };
     });
+}
+
+function getRegistryWarnings(db, env = process.env) {
+    const warnings = {};
+    const resolved = getResolvedRegistry(db, env);
+    try {
+        const baseHost = resolved.BASE_URL.value ? new URL(resolved.BASE_URL.value).hostname : null;
+        const whipHost = resolved.WHIP_PUBLIC_URL.value ? new URL(resolved.WHIP_PUBLIC_URL.value).hostname : null;
+        if (baseHost && whipHost && baseHost !== whipHost) {
+            warnings.WHIP_PUBLIC_URL = 'Dedicated WHIP hostname differs from BASE_URL host. Ensure DNS, vhost, and TLS are configured for this host.';
+            warnings.MEDIASOUP_ANNOUNCED_IP = 'Mediasoup announced host is currently derived from BASE_URL by default. Set MEDIASOUP_ANNOUNCED_IP explicitly for a different ICE hostname.';
+        }
+    } catch {
+        // Ignore parse failures from incomplete values.
+    }
+    return warnings;
 }
 
 function loadRegistryValuesBySource(db, source) {
