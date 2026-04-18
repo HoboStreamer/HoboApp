@@ -31,6 +31,16 @@ const URL_DEFINITIONS = Object.freeze({
         default: 'http://localhost:3000',
         description: 'Canonical WHIP ingestion origin for OBS and other WHIP clients.',
     },
+    WHIP_PUBLIC_URL_ENABLED: {
+        key: 'WHIP_PUBLIC_URL_ENABLED',
+        label: 'Dedicated WHIP Host Enabled',
+        category: 'protocol_ingest_urls',
+        service: 'hobostreamer',
+        scope: 'global',
+        type: 'boolean',
+        default: false,
+        description: 'Enable use of the dedicated WHIP hostname configured by WHIP_PUBLIC_URL. If disabled, the app falls back to the safe public WebRTC origin.',
+    },
     JSMPEG_PUBLIC_URL: {
         key: 'JSMPEG_PUBLIC_URL',
         label: 'JSMPEG Public URL',
@@ -321,6 +331,16 @@ function normalizeTurnUrl(value) {
     }
 }
 
+function normalizeBoolean(value) {
+    if (value === true || value === 1 || value === '1' || value === 'true' || value === 'TRUE' || value === 'True') {
+        return true;
+    }
+    if (value === false || value === 0 || value === '0' || value === 'false' || value === 'FALSE' || value === 'False') {
+        return false;
+    }
+    return null;
+}
+
 function normalizeJson(value, type) {
     if (typeof value === 'string') {
         try {
@@ -349,6 +369,7 @@ function normalizeValue(value, type) {
         case 'turn_url': return normalizeTurnUrl(value);
         case 'json_map': return normalizeJson(value, 'json_map');
         case 'json_array': return normalizeJson(value, 'json_array');
+        case 'boolean': return normalizeBoolean(value);
         case 'string': return typeof value === 'string' ? value.trim() : String(value);
         default: return typeof value === 'string' ? value.trim() : String(value);
     }

@@ -1076,8 +1076,16 @@ async function loadUrlRegistry() {
                         </div>
                         <div class="form-field" style="margin-top:12px">
                             <label for="url-registry-${esc(entry.key)}">Value</label>
-                            <input type="text" id="url-registry-${esc(entry.key)}" value="${esc(entry.value || '')}" placeholder="${esc(entry.placeholder || '')}">
+                            ${entry.type === 'boolean' ? `
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <input type="checkbox" id="url-registry-${esc(entry.key)}" ${entry.value ? 'checked' : ''}>
+                                    <span>${esc(entry.label)}</span>
+                                </div>
+                            ` : `
+                                <input type="text" id="url-registry-${esc(entry.key)}" value="${esc(entry.value || '')}" placeholder="${esc(entry.placeholder || '')}">
+                            `}
                             <div class="muted" style="margin-top:4px">Source: ${esc(entry.source)}</div>
+                            ${entry.key === 'WHIP_PUBLIC_URL' ? `<div class="badge badge-warning" style="margin-top:8px;display:inline-block">Note</div><div class="muted" style="margin-top:4px">A dedicated WHIP hostname also requires explicit enablement via WHIP_PUBLIC_URL_ENABLED, plus DNS/vhost/TLS support.</div>` : ''}
                             ${entry.warning ? `<div class="badge badge-warning" style="margin-top:8px;display:inline-block">Warning</div><div class="muted" style="margin-top:4px">${esc(entry.warning)}</div>` : ''}
                         </div>
                     </div>
@@ -1091,7 +1099,7 @@ async function loadUrlRegistry() {
 async function saveUrlRegistryEntry(key) {
     const input = document.getElementById(`url-registry-${key}`);
     if (!input) return toast('Missing registry field', 'error');
-    const value = input.value.trim();
+    const value = input.type === 'checkbox' ? input.checked : input.value.trim();
     try {
         await api(`/api/admin/url-registry/${encodeURIComponent(key)}`, { method: 'PUT', body: { value } });
         toast('URL registry entry saved', 'success');
