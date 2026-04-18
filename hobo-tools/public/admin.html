@@ -1082,7 +1082,7 @@ async function saveUrlRegistryEntry(key) {
     if (!input) return toast('Missing registry field', 'error');
     const value = input.value.trim();
     try {
-        await api('/api/admin/url-registry', { method: 'PUT', body: { key, value } });
+        await api(`/api/admin/url-registry/${encodeURIComponent(key)}`, { method: 'PUT', body: { value } });
         toast('URL registry entry saved', 'success');
         loadUrlRegistry();
     } catch (e) { toast(e.message, 'error'); }
@@ -1091,7 +1091,7 @@ async function saveUrlRegistryEntry(key) {
 async function resetUrlRegistryEntry(key) {
     if (!confirm('Reset this URL registry entry to its default?')) return;
     try {
-        await api(`/api/admin/url-registry/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        await api(`/api/admin/url-registry/${encodeURIComponent(key)}/reset`, { method: 'POST' });
         toast('URL registry entry reset', 'success');
         loadUrlRegistry();
     } catch (e) { toast(e.message, 'error'); }
