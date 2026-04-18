@@ -28,6 +28,36 @@ function getRegistryRow(db, key) {
     return db.prepare('SELECT key, label, category, service, scope, type, value, description, source, updated_by, updated_at FROM url_registry WHERE key = ?').get(key);
 }
 
+function encodeRegistryValue(value, type) {
+    const normalized = normalizeValue(value, type);
+    if (normalized == null) return null;
+    switch (type) {
+        case 'json_array':
+        case 'json_map':
+            return JSON.stringify(normalized);
+        default:
+            return String(normalized);
+    }
+}
+
+function decodeRegistryValue(value, type) {
+    if (value == null) return null;
+    switch (type) {
+        case 'json_array':
+        case 'json_map':
+            if (typeof value === 'string') {
+                try {
+                    return normalizeValue(JSON.parse(value), type);
+                } catch {
+                    return null;
+                }
+            }
+            return normalizeValue(value, type);
+        default:
+            return normalizeValue(value, type);
+    }
+}
+
 function getAllRegistryEntries(db) {
     const rows = db.prepare('SELECT key, value, source, updated_by, updated_at FROM url_registry').all();
     const rowMap = rows.reduce((map, row) => {
@@ -39,6 +69,7 @@ function getAllRegistryEntries(db) {
 
     return Object.values(URL_DEFINITIONS).map(def => {
         const row = rowMap[def.key];
+        const rawValue = row?.value ?? null;
         return {
             key: def.key,
             label: def.label,
@@ -47,7 +78,7 @@ function getAllRegistryEntries(db) {
             scope: def.scope,
             type: def.type,
             description: def.description || '',
-            value: row?.value || null,
+            value: rawValue != null ? decodeRegistryValue(rawValue, def.type) : null,
             updated_by: row?.updated_by || null,
             updated_at: row?.updated_at || null,
             source: row?.source || 'default',
@@ -76,7 +107,8 @@ function getRegistryWarnings(db, env = process.env) {
 function loadRegistryValuesBySource(db, source) {
     const rows = db.prepare("SELECT key, value FROM url_registry WHERE source = ? AND value IS NOT NULL AND value != ''").all(source);
     return rows.reduce((map, row) => {
-        map[row.key] = row.value;
+        const def = URL_DEFINITIONS[row.key];
+        map[row.key] = def ? decodeRegistryValue(row.value, def.type) : row.value;
         return map;
     }, {});
 }
@@ -91,6 +123,7 @@ function loadBootstrapValues(db) {
 
 function formatEntry(row) {
     if (!row) return null;
+    const value = row.value != null ? decodeRegistryValue(row.value, row.type) : null;
     return {
         key: row.key,
         label: row.label,
@@ -99,7 +132,7 @@ function formatEntry(row) {
         scope: row.scope,
         type: row.type,
         description: row.description || '',
-        value: row.value || null,
+        value,
         source: row.source || 'admin',
         updated_by: row.updated_by || null,
         updated_at: row.updated_at || null,
@@ -116,11 +149,11 @@ function setRegistryEntry(db, key, value, updatedBy = null) {
     if (!URL_DEFINITIONS[key]) {
         throw new Error(`Unknown URL registry key: ${key}`);
     }
-    const normalized = normalizeValue(value, URL_DEFINITIONS[key].type);
-    if (normalized == null) {
+    const entry = URL_DEFINITIONS[key];
+    const encoded = encodeRegistryValue(value, entry.type);
+    if (encoded == null) {
         throw new Error(`Invalid value for ${key}`);
     }
-    const entry = URL_DEFINITIONS[key];
     db.prepare(`
         INSERT INTO url_registry (key, label, category, service, scope, type, value, description, source, updated_by, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'admin', ?, CURRENT_TIMESTAMP)
@@ -129,7 +162,7 @@ function setRegistryEntry(db, key, value, updatedBy = null) {
             source = 'admin',
             updated_by = excluded.updated_by,
             updated_at = excluded.updated_at
-    `).run(entry.key, entry.label, entry.category, entry.service, entry.scope, entry.type, normalized, entry.description, updatedBy);
+    `).run(entry.key, entry.label, entry.category, entry.service, entry.scope, entry.type, encoded, entry.description, updatedBy);
     return formatEntry(getRegistryRow(db, key));
 }
 
@@ -174,9 +207,9 @@ function seedBootstrapRegistry(db, env = process.env, profile = 'local-dev') {
     const tx = db.transaction(() => {
         for (const [key, def] of Object.entries(URL_DEFINITIONS)) {
             if (exists.get(def.key)) continue;
-            const value = normalizeValue(bootstrap[key], def.type);
-            if (value == null) continue;
-            insert.run(def.key, def.label, def.category, def.service, def.scope, def.type, value, def.description || '');
+            const encoded = encodeRegistryValue(bootstrap[key], def.type);
+            if (encoded == null) continue;
+            insert.run(def.key, def.label, def.category, def.service, def.scope, def.type, encoded, def.description || '');
         }
     });
     tx();

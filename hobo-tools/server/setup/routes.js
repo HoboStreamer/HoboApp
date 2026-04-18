@@ -133,40 +133,34 @@ function createSetupRoutes(db, config) {
     };
     router.post('/identity', requireSetupMode, (req, res) => {
         try {
-            const upsert = db.prepare(
-                `INSERT INTO url_registry (key, value, source, updated_at)
-                 VALUES (?, ?, 'admin', datetime('now'))
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, source = 'admin', updated_at = excluded.updated_at`
-            );
             const updated = {};
             for (const [bodyKey, registryKey] of Object.entries(IDENTITY_FIELD_MAP)) {
                 if (!(bodyKey in req.body)) continue;
                 const raw = req.body[bodyKey];
-                let value;
+                let value = raw;
                 if (registryKey === 'ALLOWED_EXTRA_ORIGINS') {
-                    // Accept either an array or a comma-separated string
                     const origins = Array.isArray(raw)
                         ? raw
                         : String(raw).split(',').map(s => s.trim()).filter(Boolean);
-                    // Validate each origin is a valid https:// URL
                     for (const o of origins) {
                         try { new URL(o); } catch {
                             return res.status(400).json({ ok: false, error: `Invalid origin URL: ${o}` });
                         }
                     }
-                    value = JSON.stringify(origins);
-                } else {
-                    value = String(raw).trim();
-                    if (!value) continue;
-                    if (registryKey === 'TOOLS_SUBDOMAIN_BASE') {
-                        // Must be a valid hostname (no protocol, no path)
-                        if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(value)) {
-                            return res.status(400).json({ ok: false, error: `Invalid subdomain base: ${value}. Expected a bare hostname like "hobo.tools"` });
-                        }
-                    }
+                    value = origins;
                 }
-                upsert.run(registryKey, value);
-                updated[registryKey] = value;
+                if (registryKey === 'TOOLS_SUBDOMAIN_BASE' && value != null) {
+                    const stringValue = String(value).trim();
+                    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(stringValue)) {
+                        return res.status(400).json({ ok: false, error: `Invalid subdomain base: ${stringValue}. Expected a bare hostname like "hobo.tools"` });
+                    }
+                    value = stringValue;
+                }
+                if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+                    continue;
+                }
+                const entry = urlRegistry.setRegistryEntry(db, registryKey, value, null);
+                updated[registryKey] = entry.value;
             }
             return res.json({ ok: true, updated, message: 'Identity config saved' });
         } catch (err) {
@@ -181,11 +175,6 @@ function createSetupRoutes(db, config) {
     router.post('/urls', requireSetupMode, (req, res) => {
         try {
             const allowedKeys = new Set(Object.keys(URL_DEFINITIONS));
-            const upsert = db.prepare(
-                `INSERT INTO url_registry (key, value, source, updated_at)
-                 VALUES (?, ?, 'admin', datetime('now'))
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, source = 'admin', updated_at = excluded.updated_at`
-            );
             const updated = {};
             const rejected = {};
             for (const [key, value] of Object.entries(req.body)) {
@@ -193,15 +182,12 @@ function createSetupRoutes(db, config) {
                     rejected[key] = 'unknown registry key';
                     continue;
                 }
-                const def = URL_DEFINITIONS[key];
-                if (def.type === 'url') {
-                    try { new URL(String(value)); } catch {
-                        rejected[key] = `invalid URL: ${value}`;
-                        continue;
-                    }
+                try {
+                    const entry = urlRegistry.setRegistryEntry(db, key, value, null);
+                    updated[key] = entry.value;
+                } catch (err) {
+                    rejected[key] = err.message;
                 }
-                upsert.run(key, String(value).trim());
-                updated[key] = String(value).trim();
             }
             const status = buildSetupStatus();
             return res.json({ ok: true, updated, rejected, status });

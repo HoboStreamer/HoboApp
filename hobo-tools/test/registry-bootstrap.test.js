@@ -15,4 +15,21 @@ assert.strictEqual(resolved.WHIP_PUBLIC_URL.source, 'bootstrap');
 assert.strictEqual(resolved.HOBOSTREAMER_INTERNAL_URL.value, 'http://127.0.0.1:3000');
 assert.strictEqual(resolved.HOBOSTREAMER_INTERNAL_URL.source, 'bootstrap');
 
+const storedExtra = db.prepare('SELECT key, value, type FROM url_registry WHERE key = ?').get('ALLOWED_EXTRA_ORIGINS');
+assert.strictEqual(storedExtra.type, 'json_array');
+assert.strictEqual(storedExtra.value, '[]');
+assert.deepStrictEqual(urlRegistry.getAllRegistryEntries(db).find(e => e.key === 'ALLOWED_EXTRA_ORIGINS').value, []);
+
+const updated = urlRegistry.setRegistryEntry(db, 'ALLOWED_EXTRA_ORIGINS', ['https://cdn.example.com'], null);
+assert.deepStrictEqual(updated.value, ['https://cdn.example.com']);
+assert.deepStrictEqual(urlRegistry.getAllRegistryEntries(db).find(e => e.key === 'ALLOWED_EXTRA_ORIGINS').value, ['https://cdn.example.com']);
+
+const scalarUpdated = urlRegistry.setRegistryEntry(db, 'NETWORK_NAME', 'CoolTools', null);
+assert.strictEqual(scalarUpdated.value, 'CoolTools');
+assert.strictEqual(urlRegistry.getAllRegistryEntries(db).find(e => e.key === 'NETWORK_NAME').value, 'CoolTools');
+
+const overrides = urlRegistry.loadOverrides(db);
+assert.deepStrictEqual(overrides.ALLOWED_EXTRA_ORIGINS, ['https://cdn.example.com']);
+assert.strictEqual(overrides.NETWORK_NAME, 'CoolTools');
+
 console.log('✅ hobo-tools registry bootstrap test passed');
