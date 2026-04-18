@@ -156,8 +156,13 @@ function normalizeHostname(value) {
 
 function normalizeTurnUrl(value) {
     if (!value || typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (!/^turns?:\/\//.test(trimmed)) return null;
+    let trimmed = value.trim();
+    // Accept shorthand forms like `turn:host:3478` or `turns:host:5349`
+    // by converting them to the canonical `turn://host:3478` form before parsing.
+    if (/^turns?:[^/]/i.test(trimmed)) {
+        trimmed = trimmed.replace(/^turns?:/i, (s) => s + '//');
+    }
+    if (!/^turns?:\/\//i.test(trimmed)) return null;
     try {
         const url = new URL(trimmed);
         if (!url.hostname) return null;
