@@ -5,27 +5,31 @@
 // Shared across all Hobo services for consistent branding.
 // ═══════════════════════════════════════════════════════════════
 
-const DEFAULT_URLS = Object.freeze({
-    tools:    'https://hobo.tools',
-    login:    'https://hobo.tools',
-    maps:     'https://maps.hobo.tools',
-    dl:       'https://dl.hobo.tools',
-    img:      'https://img.hobo.tools',
-    yt:       'https://yt.hobo.tools',
-    audio:    'https://audio.hobo.tools',
-    text:     'https://text.hobo.tools',
-    logo:     'https://logo.hobo.tools',
-    net:      'https://net.hobo.tools',
-    dev:      'https://dev.hobo.tools',
-    streamer: 'https://hobostreamer.com',
-    quest:    'https://hobo.quest',
-    discord:  'https://discord.gg/M6MuRUaeJj',
-    github:   'https://github.com/HoboStreamer',
-});
+function getDefaultBrandUrls(env = process.env) {
+    return {
+        tools:    env.HOBO_TOOLS_URL || 'https://hobo.tools',
+        login:    env.LOGIN_URL || env.HOBO_TOOLS_URL || 'https://hobo.tools',
+        maps:     env.HOBO_MAPS_URL || 'https://maps.hobo.tools',
+        dl:       env.HOBO_DL_URL || 'https://dl.hobo.tools',
+        img:      env.HOBO_IMG_URL || 'https://img.hobo.tools',
+        yt:       env.HOBO_YT_URL || 'https://yt.hobo.tools',
+        audio:    env.HOBO_AUDIO_URL || 'https://audio.hobo.tools',
+        text:     env.HOBO_TEXT_URL || 'https://text.hobo.tools',
+        logo:     env.HOBO_LOGO_URL || 'https://logo.hobo.tools',
+        net:      env.HOBO_NET_URL || 'https://net.hobo.tools',
+        dev:      env.HOBO_DEV_URL || 'https://dev.hobo.tools',
+        streamer: env.BASE_URL || env.HOBOSTREAMER_URL || 'https://hobostreamer.com',
+        quest:    env.HOBOQUEST_URL || 'https://hobo.quest',
+        discord:  'https://discord.gg/M6MuRUaeJj',
+        github:   'https://github.com/HoboStreamer',
+    };
+}
 
-function resolveBrandUrls(overrides = {}) {
+const DEFAULT_URLS = Object.freeze(getDefaultBrandUrls());
+
+function resolveBrandUrls(overrides = {}, env = process.env) {
     return Object.freeze({
-        ...DEFAULT_URLS,
+        ...getDefaultBrandUrls(env),
         ...overrides,
     });
 }

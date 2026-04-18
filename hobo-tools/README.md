@@ -67,10 +67,12 @@ openssl rsa -in data/keys/private.pem -pubout -out data/keys/public.pem
 
 # 3. Configure environment
 cp .env.example .env
-# Edit .env — set INTERNAL_API_KEY, ADMIN_PASSWORD, and optionally SES credentials
+# Edit .env — set INTERNAL_API_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, and optionally SETUP_TOKEN, BOOTSTRAP_PROFILE, and SES credentials
 
 # 4. Run
 npm start
+
+After the first run the service will seed the URL registry with safe defaults and create an admin account from environment values. Visit `/api/setup/status` for setup health and use `/api/setup/bootstrap` to apply registry profiles manually.
 ```
 
 The server auto-creates the SQLite database and seeds OAuth2 clients on first run. Client secrets are logged to console — copy them to `hobo-quest/.env` and `hobostreamer/.env`.

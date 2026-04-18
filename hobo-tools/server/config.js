@@ -7,8 +7,10 @@ module.exports = {
     host: process.env.HOST || '0.0.0.0',
     baseUrl: process.env.BASE_URL || 'https://hobo.tools',
     hoboToolsUrl: process.env.HOBO_TOOLS_URL || process.env.BASE_URL || 'https://hobo.tools',
-    loginUrl: process.env.LOGIN_URL || process.env.BASE_URL || 'https://hobo.tools',
+    loginUrl: process.env.LOGIN_URL || process.env.HOBO_TOOLS_URL || process.env.BASE_URL || 'https://hobo.tools',
     internalUrl: process.env.INTERNAL_URL || process.env.HOBO_TOOLS_INTERNAL_URL || 'http://127.0.0.1:3100',
+    setupToken: process.env.SETUP_TOKEN || '',
+    bootstrapProfile: process.env.BOOTSTRAP_PROFILE || 'local-dev',
 
     jwt: {
         // RS256 keypair — generate with:
@@ -45,30 +47,30 @@ module.exports = {
     // but we allow env-based overrides for the internal API URLs)
     services: {
         hobostreamer: {
-            internalUrl: process.env.HOBOSTREAMER_INTERNAL_URL || 'http://127.0.0.1:3000',
+            internalUrl: process.env.HOBOSTREAMER_INTERNAL_URL || process.env.HOBOSTREAMER_URL || 'http://127.0.0.1:3000',
             webhookSecret: process.env.HOBOSTREAMER_WEBHOOK_SECRET || '',
         },
         hoboquest: {
-            internalUrl: process.env.HOBOQUEST_INTERNAL_URL || 'http://127.0.0.1:3200',
+            internalUrl: process.env.HOBOQUEST_INTERNAL_URL || process.env.HOBOQUEST_URL || 'http://127.0.0.1:3200',
             webhookSecret: process.env.HOBOQUEST_WEBHOOK_SECRET || '',
         },
         hobomaps: {
-            internalUrl: process.env.HOBOMAPS_INTERNAL_URL || 'http://127.0.0.1:3300',
+            internalUrl: process.env.HOBOMAPS_INTERNAL_URL || process.env.HOBOMAPS_URL || 'http://127.0.0.1:3300',
         },
         hobofood: {
-            internalUrl: process.env.HOBOFOOD_INTERNAL_URL || 'http://127.0.0.1:3301',
+            internalUrl: process.env.HOBOFOOD_INTERNAL_URL || process.env.HOBOFOOD_URL || 'http://127.0.0.1:3301',
         },
         hoboimg: {
-            internalUrl: process.env.HOBOIMG_INTERNAL_URL || 'http://127.0.0.1:3400',
+            internalUrl: process.env.HOBOIMG_INTERNAL_URL || process.env.HOBOIMG_URL || 'http://127.0.0.1:3400',
         },
         hoboyt: {
-            internalUrl: process.env.HOBOYT_INTERNAL_URL || 'http://127.0.0.1:3401',
+            internalUrl: process.env.HOBOYT_INTERNAL_URL || process.env.HOBOYT_URL || 'http://127.0.0.1:3401',
         },
         hoboaudio: {
-            internalUrl: process.env.HOBOAUDIO_INTERNAL_URL || 'http://127.0.0.1:3500',
+            internalUrl: process.env.HOBOAUDIO_INTERNAL_URL || process.env.HOBOAUDIO_URL || 'http://127.0.0.1:3500',
         },
         hobotext: {
-            internalUrl: process.env.HOBOTEXT_INTERNAL_URL || 'http://127.0.0.1:3600',
+            internalUrl: process.env.HOBOTEXT_INTERNAL_URL || process.env.HOBOTEXT_URL || 'http://127.0.0.1:3600',
         },
     },
 };

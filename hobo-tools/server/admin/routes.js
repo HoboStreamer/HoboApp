@@ -55,6 +55,28 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
         next();
     }
 
+    async function notifyServiceRefresh(req, key) {
+        const def = URL_DEFINITIONS[key];
+        const svcName = def?.service;
+        const servicesCfg = req.app.locals.config?.services || {};
+        const svcCfg = svcName ? servicesCfg[svcName] : null;
+        const internalKey = req.app.locals.config?.internalKey;
+        if (!svcCfg || !svcCfg.internalUrl || !internalKey) {
+            return { ok: false, service: svcName || null, error: 'Target service not configured for refresh' };
+        }
+        const target = svcCfg.internalUrl.replace(/\/?$/, '') + '/internal/url-registry/refresh';
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        try {
+            const r = await fetch(target, { method: 'POST', headers: { 'X-Internal-Key': internalKey }, signal: controller.signal });
+            return { ok: r.ok, service: svcName, status: r.status, target };
+        } catch (err) {
+            return { ok: false, service: svcName, error: err.message, target };
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
     router.use(requireAuth, requireAdmin);
 
     // ═══════════════════════════════════════════════════════
@@ -183,31 +205,11 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
                 req.user.id, 'url_registry_update', JSON.stringify({ key, value })
             );
 
-            // Notify the owning service (if configured) to refresh its registry
-            try {
-                const def = URL_DEFINITIONS[key];
-                const svcName = def?.service;
-                const servicesCfg = req.app.locals.config?.services || {};
-                const svcCfg = svcName ? servicesCfg[svcName] : null;
-                const internalKey = req.app.locals.config?.internalKey;
-                if (svcCfg && svcCfg.internalUrl && internalKey) {
-                    const target = svcCfg.internalUrl.replace(/\/$/, '') + '/internal/url-registry/refresh';
-                    const controller = new AbortController();
-                    const timer = setTimeout(() => controller.abort(), 3000);
-                    try {
-                        const r = await fetch(target, { method: 'POST', headers: { 'X-Internal-Key': internalKey }, signal: controller.signal });
-                        if (!r.ok) console.warn(`[Admin] Failed to notify ${svcName} (${target}) of registry change: ${r.status}`);
-                    } catch (err) {
-                        console.warn(`[Admin] Error notifying ${svcName} of registry change:`, err.message);
-                    } finally {
-                        clearTimeout(timer);
-                    }
-                }
-            } catch (err) {
-                console.warn('[Admin] registry notification error:', err.message);
-            }
-
-            res.json({ ok: true, entry });
+            const refreshResult = await notifyServiceRefresh(req, key);
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id, 'url_registry_refresh_request', JSON.stringify(refreshResult)
+            );
+            res.json({ ok: true, entry, refresh: refreshResult });
         } catch (err) {
             res.status(400).json({ ok: false, error: err.message });
         }
@@ -224,31 +226,11 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
                 req.user.id, 'url_registry_update', JSON.stringify({ key, value })
             );
 
-            // Notify owning service to refresh registry
-            try {
-                const def = URL_DEFINITIONS[key];
-                const svcName = def?.service;
-                const servicesCfg = req.app.locals.config?.services || {};
-                const svcCfg = svcName ? servicesCfg[svcName] : null;
-                const internalKey = req.app.locals.config?.internalKey;
-                if (svcCfg && svcCfg.internalUrl && internalKey) {
-                    const target = svcCfg.internalUrl.replace(/\/$/, '') + '/internal/url-registry/refresh';
-                    const controller = new AbortController();
-                    const timer = setTimeout(() => controller.abort(), 3000);
-                    try {
-                        const r = await fetch(target, { method: 'POST', headers: { 'X-Internal-Key': internalKey }, signal: controller.signal });
-                        if (!r.ok) console.warn(`[Admin] Failed to notify ${svcName} (${target}) of registry change: ${r.status}`);
-                    } catch (err) {
-                        console.warn(`[Admin] Error notifying ${svcName} of registry change:`, err.message);
-                    } finally {
-                        clearTimeout(timer);
-                    }
-                }
-            } catch (err) {
-                console.warn('[Admin] registry notification error:', err.message);
-            }
-
-            res.json({ ok: true, entry });
+            const refreshResult = await notifyServiceRefresh(req, key);
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id, 'url_registry_refresh_request', JSON.stringify(refreshResult)
+            );
+            res.json({ ok: true, entry, refresh: refreshResult });
         } catch (err) {
             res.status(400).json({ ok: false, error: err.message });
         }
@@ -265,6 +247,35 @@ module.exports = function createAdminRoutes(db, notificationService, emailServic
             res.json({ ok: true, key });
         } catch (err) {
             res.status(400).json({ ok: false, error: err.message });
+        }
+    });
+
+    router.post('/url-registry/refresh-all', async (req, res) => {
+        try {
+            const servicesCfg = req.app.locals.config?.services || {};
+            const uniqueServices = new Map();
+            for (const def of Object.values(URL_DEFINITIONS)) {
+                if (!def.service) continue;
+                uniqueServices.set(def.service, def.service);
+            }
+            const refreshResults = [];
+            for (const serviceName of uniqueServices.keys()) {
+                const serviceKeys = Object.values(URL_DEFINITIONS)
+                    .filter(def => def.service === serviceName)
+                    .map(def => def.key);
+                const serviceResult = { service: serviceName, results: [] };
+                for (const key of serviceKeys) {
+                    const result = await notifyServiceRefresh(req, key);
+                    if (result.service === serviceName) serviceResult.results.push(result);
+                }
+                refreshResults.push(serviceResult);
+            }
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id, 'url_registry_refresh_all', JSON.stringify(refreshResults)
+            );
+            res.json({ ok: true, refreshResults });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
         }
     });
 

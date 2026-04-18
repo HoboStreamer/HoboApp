@@ -1052,6 +1052,16 @@ async function loadUrlRegistry() {
         }
         c.innerHTML = `
             <div style="max-width:900px;display:grid;gap:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div>
+                        <strong>Network registry</strong>
+                        <div class="muted" style="font-size:13px">Edit first-party networking values and push refresh to services.</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button class="btn btn-sm btn-primary" onclick="refreshAllUrlRegistry()"><i class="fa-solid fa-arrows-rotate"></i> Refresh all services</button>
+                    </div>
+                </div>
+                <div id="url-registry-refresh-status" class="muted" style="font-size:13px"></div>
                 ${entries.map(entry => `
                     <div class="card" style="padding:16px">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -1095,6 +1105,23 @@ async function resetUrlRegistryEntry(key) {
         toast('URL registry entry reset', 'success');
         loadUrlRegistry();
     } catch (e) { toast(e.message, 'error'); }
+}
+
+async function refreshAllUrlRegistry() {
+    const statusEl = document.getElementById('url-registry-refresh-status');
+    statusEl.textContent = 'Refreshing all services...';
+    try {
+        const data = await api('/api/admin/url-registry/refresh-all', { method: 'POST' });
+        if (!data.ok) throw new Error(data.error || 'Refresh failed');
+        const results = data.refreshResults || [];
+        statusEl.innerHTML = results.map(service => `
+            <div><strong>${esc(service.service)}</strong>: ${service.results.map(r => r.ok ? `<span class="badge badge-success">OK</span>` : `<span class="badge badge-danger">FAIL</span>`).join(' ')}</div>
+        `).join('');
+        toast('Refresh command sent to services', 'success');
+    } catch (e) {
+        statusEl.textContent = `Refresh failed: ${esc(e.message)}`;
+        toast(e.message, 'error');
+    }
 }
 
 async function loadStreamerSettings() {

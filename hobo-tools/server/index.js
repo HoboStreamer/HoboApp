@@ -13,6 +13,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 const config = require('./config');
 const { initDb } = require('./db/database');
@@ -22,6 +23,7 @@ const { NotificationService } = require('./notifications/notification-service');
 const { EmailService } = require('./notifications/email-service');
 const createNotificationRoutes = require('./notifications/routes');
 const createAdminRoutes = require('./admin/routes');
+const createSetupRoutes = require('./setup/routes');
 const { AnalyticsTracker } = require('hobo-shared/analytics');
 const createNetRoutes = require('./net/routes');
 const { NET_TOOL_MAP, NET_ALIASES } = require('./net/config');
@@ -34,6 +36,24 @@ const app = express();
 
 function getRequestHost(req) {
     return String(req.headers.host || '').split(':')[0].toLowerCase();
+}
+
+function ensureAdminUser(db, config) {
+    const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1").get();
+    if (adminExists) return;
+    const username = config.admin.username || (config.nodeEnv !== 'production' ? 'admin' : null);
+    const password = config.admin.password || (config.nodeEnv !== 'production' ? 'admin' : null);
+    if (!username || !password) {
+        console.warn('[Setup] No admin user exists and ADMIN_USERNAME/PASSWORD are not configured. Setup routes remain available to complete bootstrap.');
+        return;
+    }
+    const passwordHash = bcrypt.hashSync(password, 10);
+    db.prepare(`
+        INSERT INTO users (username, email, password_hash, display_name, role, profile_color)
+        VALUES (?, ?, ?, ?, 'admin', '#c0965c')
+        ON CONFLICT(username) DO UPDATE SET role = 'admin', password_hash = excluded.password_hash
+    `).run(username, null, passwordHash, username);
+    console.log(`[Setup] Admin user created or elevated: ${username}`);
 }
 
 function isMyToolsHost(req) {
@@ -143,11 +163,22 @@ if (process.env.NODE_ENV === 'development') {
     ALLOWED_ORIGINS.add('http://127.0.0.1:3100');
 }
 
+function getAllowedOrigins() {
+    const origins = new Set(ALLOWED_ORIGINS);
+    const registry = app.locals.urlRegistry;
+    if (registry?.HOBO_TOOLS_URL?.value) origins.add(registry.HOBO_TOOLS_URL.value);
+    if (registry?.HOBO_TOOLS_LOGIN_URL?.value) origins.add(registry.HOBO_TOOLS_LOGIN_URL.value);
+    if (registry?.BASE_URL?.value) origins.add(registry.BASE_URL.value);
+    if (registry?.WEBRTC_PUBLIC_URL?.value) origins.add(registry.WEBRTC_PUBLIC_URL.value);
+    if (registry?.JSMPEG_PUBLIC_URL?.value) origins.add(registry.JSMPEG_PUBLIC_URL.value);
+    return origins;
+}
+
 app.use(cors({
     origin(origin, callback) {
         if (!origin) return callback(null, true); // non-browser
-        if (ALLOWED_ORIGINS.has(origin)) return callback(null, true);
-        // Allow any *.hobo.tools subdomain
+        const allowedOrigins = getAllowedOrigins();
+        if (allowedOrigins.has(origin)) return callback(null, true);
         if (/^https:\/\/[a-z0-9-]+\.hobo\.tools$/.test(origin)) return callback(null, true);
         return callback(new Error('Origin not allowed by CORS'));
     },
@@ -161,21 +192,33 @@ app.use('/api/auth/', rateLimit({ windowMs: 15 * 60_000, max: 30, skipSuccessful
 // ── Database ─────────────────────────────────────────────────
 const db = initDb(config.db.path);
 urlRegistry.initializeUrlRegistry(db);
+urlRegistry.seedBootstrapRegistry(db, process.env, config.bootstrapProfile);
+ensureAdminUser(db, config);
 const resolvedRegistry = urlRegistry.getResolvedRegistry(db, process.env);
-if (resolvedRegistry.BASE_URL?.value) config.baseUrl = resolvedRegistry.BASE_URL.value;
+
+// Apply resolved network registry values to runtime config
+if (resolvedRegistry.BASE_URL?.value) {
+    config.baseUrl = resolvedRegistry.BASE_URL.value;
+}
 if (resolvedRegistry.HOBO_TOOLS_URL?.value) {
     config.hoboToolsUrl = resolvedRegistry.HOBO_TOOLS_URL.value;
+    config.jwt.issuer = resolvedRegistry.HOBO_TOOLS_URL.value;
     if (!process.env.BASE_URL) config.baseUrl = resolvedRegistry.HOBO_TOOLS_URL.value;
 }
-if (resolvedRegistry.WEBRTC_PUBLIC_URL?.value) config.webrtcPublicUrl = resolvedRegistry.WEBRTC_PUBLIC_URL.value;
-if (resolvedRegistry.WHIP_PUBLIC_URL?.value) config.whipPublicUrl = resolvedRegistry.WHIP_PUBLIC_URL.value;
-if (resolvedRegistry.MEDIASOUP_ANNOUNCED_IP?.value) {
-    config.mediasoup = config.mediasoup || {};
-    config.mediasoup.announcedIp = resolvedRegistry.MEDIASOUP_ANNOUNCED_IP.value;
+if (resolvedRegistry.HOBO_TOOLS_LOGIN_URL?.value) {
+    config.loginUrl = resolvedRegistry.HOBO_TOOLS_LOGIN_URL.value;
+} else {
+    config.loginUrl = config.loginUrl || config.hoboToolsUrl;
 }
-if (resolvedRegistry.RTMP_HOST?.value) config.rtmpHost = resolvedRegistry.RTMP_HOST.value;
-if (resolvedRegistry.TURN_URL?.value) config.turnUrl = resolvedRegistry.TURN_URL.value;
 if (resolvedRegistry.HOBO_TOOLS_INTERNAL_URL?.value) config.internalUrl = resolvedRegistry.HOBO_TOOLS_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOSTREAMER_INTERNAL_URL?.value) config.services.hobostreamer.internalUrl = resolvedRegistry.HOBOSTREAMER_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOQUEST_INTERNAL_URL?.value) config.services.hoboquest.internalUrl = resolvedRegistry.HOBOQUEST_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOMAPS_INTERNAL_URL?.value) config.services.hobomaps.internalUrl = resolvedRegistry.HOBOMAPS_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOFOOD_INTERNAL_URL?.value) config.services.hobofood.internalUrl = resolvedRegistry.HOBOFOOD_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOIMG_INTERNAL_URL?.value) config.services.hoboimg.internalUrl = resolvedRegistry.HOBOIMG_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOYT_INTERNAL_URL?.value) config.services.hoboyt.internalUrl = resolvedRegistry.HOBOYT_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOAUDIO_INTERNAL_URL?.value) config.services.hoboaudio.internalUrl = resolvedRegistry.HOBOAUDIO_INTERNAL_URL.value;
+if (resolvedRegistry.HOBOTEXT_INTERNAL_URL?.value) config.services.hobotext.internalUrl = resolvedRegistry.HOBOTEXT_INTERNAL_URL.value;
 
 // Expose a canonical registry payload for admin/internal consumers
 app.locals.urlRegistry = resolvedRegistry;
@@ -294,6 +337,9 @@ function requireAdmin(req, res, next) {
     next();
 }
 app.use('/api/admin/discord', createDiscordRoutes(db, discordService, requireAuth, requireAdmin));
+
+// Setup API for first-run bootstrapping and status checks
+app.use('/api/setup', createSetupRoutes(db, config));
 
 // Admin panel API
 app.use('/api/admin', createAdminRoutes(db, notificationService, emailService, requireAuth));
