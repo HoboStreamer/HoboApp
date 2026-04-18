@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { URL_DEFINITIONS, resolveRegistryValues } = require('../url-resolver');
+const { URL_DEFINITIONS, normalizeValue, resolveRegistryValues } = require('../url-resolver');
 
 const env = {
     BASE_URL: 'https://env.example.com',
@@ -26,5 +26,11 @@ assert.strictEqual(resolved.WEBRTC_PUBLIC_URL.source, 'env');
 assert.strictEqual(resolved.HOBO_TOOLS_URL.value, 'https://tools.env.example.com');
 assert.strictEqual(resolved.HOBO_TOOLS_URL.source, 'env');
 assert.strictEqual(resolved.JSMPEG_PUBLIC_URL.source, 'default');
+
+assert.strictEqual(normalizeValue('turn:turn.example.com:3478', 'turn_url'), 'turn:turn.example.com:3478');
+assert.strictEqual(normalizeValue('turn://turn.example.com:3478', 'turn_url'), 'turn:turn.example.com:3478');
+assert.strictEqual(normalizeValue('turns://turn.example.com:5349', 'turn_url'), 'turns:turn.example.com:5349');
+assert.strictEqual(normalizeValue('turn://user:pass@turn.example.com:3478', 'turn_url'), null);
+assert.strictEqual(normalizeValue('turn://invalid host', 'turn_url'), null);
 
 console.log('✅ hobo-shared url-resolver precedence test passed');

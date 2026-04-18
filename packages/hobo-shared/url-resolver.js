@@ -410,7 +410,10 @@ function normalizeTurnUrl(value) {
     try {
         const url = new URL(trimmed);
         if (!url.hostname) return null;
-        return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname}${url.search}`;
+        const protocol = url.protocol.toLowerCase();
+        if (protocol !== 'turn:' && protocol !== 'turns:') return null;
+        if (url.username || url.password) return null;
+        return `${protocol}${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname}${url.search}`;
     } catch {
         return null;
     }
