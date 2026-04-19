@@ -254,9 +254,9 @@ ensureAdminUser(db, config);
 const resolvedRegistry = urlRegistry.getResolvedRegistry(db, process.env);
 
 // Apply resolved network registry values to runtime config
-if (resolvedRegistry.BASE_URL?.value) {
-    config.baseUrl = resolvedRegistry.BASE_URL.value;
-}
+// NOTE: BASE_URL in the shared URL registry refers to HoboStreamer public URL,
+// not the base URL of the hobo.tools service. Only override hobo.tools baseUrl
+// from HOBO_TOOLS_URL or explicit env settings.
 if (resolvedRegistry.HOBO_TOOLS_URL?.value) {
     config.hoboToolsUrl = resolvedRegistry.HOBO_TOOLS_URL.value;
     config.jwt.issuer = resolvedRegistry.HOBO_TOOLS_URL.value;

@@ -1,245 +1,88 @@
-# HoboApp
+# HoboApp Monorepo
 
-HoboApp is an Electron desktop app for stealth-camping research, trip planning, and survival-resource discovery across Washington State.
+This repository is the Hobo Network service monorepo. It contains the shared infrastructure and backend services used by the Hobo Network, including the central `hobo-tools` identity provider.
 
-It combines curated location data, map-based search, public datasets, weather and terrain analysis, transit and grocery research, and local-only planning tools into one desktop workflow.
-
-> Research tool only. It does not guarantee safety, legality, access, or suitability.
-
-**Community:** [Join the Discord](https://discord.gg/M6MuRUaeJj)
+> The classic HoboApp Electron client is not present as a standalone runnable app in this repository. The main active service in this repo is `HoboApp/hobo-tools`.
 
 ---
 
-## What the current codebase does
+## What this repo contains
 
-The current codebase centers around:
-
-- an Electron main process in [src/main.js](src/main.js)
-- a secure preload bridge in [src/preload.js](src/preload.js)
-- a large renderer/UI layer in [src/renderer.js](src/renderer.js)
-- modular data adapters under [src/modules](src/modules)
-- local persistence for favorites, notes, recent searches, trip plans, custom spots, and spot photos
-
-The app is desktop-first and local-first. It is built for research and planning, not for cloud sync or social networking.
+- `hobo-tools/` — central SSO provider, internal API hub, admin panel, notifications, and service registry.
+- `hobo-audio/`, `hobo-docs/`, `hobo-food/`, `hobo-img/`, `hobo-maps/`, `hobo-quest/`, `hobo-text/`, `hobo-yt/` — sibling Hobo services.
+- `packages/hobo-shared/` — shared client/server helpers and auth UI components used by Hobo services.
+- `deploy/` — deployment examples, Nginx configs, and systemd snippets.
+- `scripts/` — migration and maintenance utilities.
+- `README.md` — this repo-level overview.
 
 ---
 
-## Core features
+## Repository role
 
-### Interactive map research
+This repository is the broader Hobo Network backend monorepo. It is not the standalone HoboStreamer livestream server.
 
-- address, city, and coordinate lookup
-- rich map overlays and source-aware search progress
-- clustered results and detail panels
-- photo viewing for custom spots
-- dark desktop-oriented UI with animated shell behavior
-
-### Location and survival discovery
-
-The app aggregates public and curated sources to surface:
-
-- stealth-camping candidates
-- campgrounds and public land sites
-- bridge and overpass shelter options
-- bathrooms and hygiene resources
-- showers, laundry, Wi‑Fi, food, water, libraries, clinics, and related services
-- grocery stores and meal-planning inputs
-- waterways, wooded cover, rain cover, and terrain/elevation context
-- transit options and agency/fare context
-- custom user-added spots with notes and photos
-
-### Planning tools
-
-- favorites
-- saved notes
-- recent searches
-- custom locations
-- trip-planning workflows
-- GPX export
-- optional custom photo attachments for saved spots
-
-### Local-only persistence and safer file handling
-
-The main process stores user data locally and includes guardrails around:
-
-- text sanitization
-- coordinate normalization
-- safer external URL opening
-- safer custom-photo path handling
+- `hobo-tools` is the central identity provider, auth issuer, and internal API hub.
+- `packages/hobo-shared` provides shared helper code and browser auth/UI integration.
+- HoboStreamer’s runtime lives in the sibling repository `HoboStreamer.com/`.
 
 ---
 
-## Data sources and adapters
+## Relationship to HoboStreamer
 
-The main process currently wires together modules including:
-
-- RIDB / Recreation.gov
-- Overpass / OpenStreetMap
-- FreeCampsites
-- iOverlander
-- geocoding helpers
-- weather
-- Reddit lookup
-- terrain and elevation analysis
-- transit
-- grocery helpers
-- bathrooms
-- bridge data
-- survival-resource search
-- USFS
-- woods / waterways
-- National Park Service
-- OpenChargeMap
-- cover / rain-cover research
-- crime-data helpers
-- built-in curated static data
-
-See [src/main.js](src/main.js) and [src/modules](src/modules).
+- `HoboStreamer.com` depends on `hobo.tools` for OAuth2 authentication, JWT token issuance, and token verification.
+- `HoboStreamer.com` also depends on the local `packages/hobo-shared` package, typically available from this monorepo.
+- The HoboStreamer service is intentionally separate from this repo; use `HoboStreamer.com/` for streaming server work.
 
 ---
 
-## Architecture summary
+## Local setup overview
 
-### Main process
+There is no runnable top-level script in the root `package.json`. Run services from their individual project folders.
 
-[src/main.js](src/main.js) owns:
+### Typical local entry points
 
-- Electron window lifecycle
-- IPC routing
-- local JSON persistence
-- photo storage helpers
-- source orchestration and normalization entry points
+- `cd hobo-tools && npm install && npm start` — start the central `hobo-tools` service.
+- `cd hobo-tools && npm run dev` — run `hobo-tools` in development mode.
 
-### Preload bridge
-
-[src/preload.js](src/preload.js) exposes renderer-facing APIs for:
-
-- search and geocoding
-- weather / terrain / elevation
-- Reddit search
-- user-data persistence
-- favorites and notes
-- custom locations
-- spot photo management
-
-### Renderer
-
-[src/renderer.js](src/renderer.js) drives:
-
-- search flows
-- detail panels
-- weather modal
-- photo viewer/lightbox
-- custom-spot workflows
-- trip planning and research interactions
+To run the streaming backend, open the sibling `HoboStreamer.com/` repository and follow its own setup.
 
 ---
 
-## Installation
+## HoboTools service
 
-### Requirements
+`HoboApp/hobo-tools` is the main local bootstrap service for this repo.
 
-- Node.js 18+
-- npm
-- Linux, macOS, or Windows capable of running Electron
+- `server/index.js` initializes the SQLite DB, loads URL registry values, creates admin accounts, and starts Express.
+- `server/config.js` reads `.env`, applies defaults, and resolves runtime service URLs.
+- `server/db/database.js` seeds OAuth2 clients for `hobostreamer` and `hoboquest` and supports local callback URIs in `local-dev` mode.
+- `hobo-tools/.env.example` documents the configuration values you should set.
+- `packages/hobo-shared` is the local shared package used by `hobo-tools` and other services.
 
-### Run locally
-
-```bash
-npm install
-npm start
-```
-
-### Development mode
-
-```bash
-npm run dev
-```
+See [hobo-tools/README.md](hobo-tools/README.md) and [SETUP.md](SETUP.md) for service-specific setup details.
 
 ---
 
-## Repository layout
+## When to use this repo
 
-- [package.json](package.json) — Electron app metadata and scripts
-- [src/main.js](src/main.js) — main process, persistence, IPC, source orchestration
-- [src/preload.js](src/preload.js) — secure renderer bridge
-- [src/renderer.js](src/renderer.js) — UI logic
-- [src/index.html](src/index.html) — app shell
-- [src/styles.css](src/styles.css) — styling and animations
-- [src/modules](src/modules) — source adapters and utilities
+Use this repository when you need:
 
-Representative modules:
+- the central `hobo.tools` identity provider and OAuth2 server.
+- shared auth and UI helper code for Hobo services.
+- backend service registry configuration and admin tooling.
+- local development of `hobo-tools`, including URL registry and OAuth client setup.
 
-- [src/modules/freecampsites.js](src/modules/freecampsites.js)
-- [src/modules/ioverlander.js](src/modules/ioverlander.js)
-- [src/modules/bathrooms.js](src/modules/bathrooms.js)
-- [src/modules/bridges.js](src/modules/bridges.js)
-- [src/modules/grocery.js](src/modules/grocery.js)
-- [src/modules/geocoder.js](src/modules/geocoder.js)
-- [src/modules/harmreduction.js](src/modules/harmreduction.js)
+Do not use this repo alone expecting the livestream platform. That service is in `HoboStreamer.com/`.
 
 ---
 
-## Tech stack
+## Important notes
 
-The checked-in package metadata currently uses:
-
-- Electron
-- Node.js
-- Axios
-- Cheerio
-- NodeCache
-
-The app also relies heavily on custom renderer logic and internal source modules rather than a large frontend framework.
-
----
-
-## Privacy
-
-HoboApp stores user data locally, including:
-
-- favorites
-- notes
-- recent searches
-- custom locations
-- trip plans
-- settings
-- optional API keys
-- custom spot photos
-
-There is no hosted sync service in this repository for that personal data.
-
----
-
-## Safety and legal notice
-
-This project is for informational and educational use only.
-
-Outdoor sleeping, stealth camping, trespassing, and remote travel carry real risk, including injury, arrest, property loss, and death. Data can be stale, incomplete, unsafe, inaccurate, or legally unusable. Always verify land ownership, weather, access restrictions, and local law yourself.
-
-Use HoboApp at your own risk.
-
----
-
-## Project status
-
-- package version is currently `2.0.0`
-- some internal storage names still reference older names such as `hobocamp`
-- the current app is Washington-focused and desktop-first
-
----
-
-## Contributing
-
-Useful contribution areas:
-
-- source quality improvements and deduplication
-- better result scoring and filtering
-- renderer performance and UI polish
-- broader geography support beyond Washington State
-- offline caching improvements
-- release packaging and distribution
-- documentation and screenshot refreshes
+- `HoboApp/package.json` contains metadata only and does not expose runnable service scripts.
+- `HoboApp/hobo-tools` can auto-create its database, admin user, and default OAuth clients on first startup.
+- `hobotools`, `HoboStreamer.com`, and `HoboApp/hobo-quest` must share the same `INTERNAL_API_KEY` for internal API calls.
+- `HOBO_TOOLS_URL` is used as the issuer/login URL by `hobotools`; `HOBO_TOOLS_INTERNAL_URL` is the internal API endpoint.
+- `BOOTSTRAP_PROFILE=local-dev` seeds local dev URL registry values and local redirect URIs such as `http://localhost:3000/api/auth/callback`.
+- `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` are required; `RSA_PRIVATE_KEY_PATH` / `RSA_PUBLIC_KEY_PATH` are no longer used.
 
 ---
 

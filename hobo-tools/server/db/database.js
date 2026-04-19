@@ -508,6 +508,44 @@ function initDb(dbPath) {
         }
     } catch { /* already up to date */ }
 
+    function ensureLocalOauthRedirects() {
+        if (process.env.NODE_ENV === 'production' && process.env.BOOTSTRAP_PROFILE !== 'local-dev') return;
+
+        const localClients = [
+            {
+                clientId: 'hobostreamer',
+                extraUris: ['http://localhost:3000/auth/callback', 'http://localhost:3000/api/auth/callback'],
+            },
+            {
+                clientId: 'hoboquest',
+                extraUris: ['http://localhost:3200/auth/callback', 'http://localhost:3200/api/auth/callback'],
+            },
+        ];
+
+        for (const { clientId, extraUris } of localClients) {
+            try {
+                const client = db.prepare('SELECT redirect_uris FROM oauth_clients WHERE client_id = ?').get(clientId);
+                if (!client) continue;
+                const uris = new Set(JSON.parse(client.redirect_uris || '[]'));
+                let changed = false;
+                for (const uri of extraUris) {
+                    if (!uris.has(uri)) {
+                        uris.add(uri);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    db.prepare('UPDATE oauth_clients SET redirect_uris = ? WHERE client_id = ?')
+                        .run(JSON.stringify([...uris]), clientId);
+                    console.log(`[DB] Added local redirect_uris for ${clientId}: ${extraUris.join(', ')}`);
+                }
+            } catch (err) {
+                console.warn(`[DB] Failed to add local redirect_uris for ${clientId}:`, err.message);
+            }
+        }
+    }
+    ensureLocalOauthRedirects();
+
     // ── Seed Default Settings ────────────────────────────────
     const settingsCount = db.prepare('SELECT COUNT(*) as cnt FROM site_settings').get().cnt;
     if (settingsCount === 0) {

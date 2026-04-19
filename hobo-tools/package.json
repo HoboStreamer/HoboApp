@@ -5,7 +5,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "NODE_ENV=development node server/index.js"
+    "dev": "NODE_ENV=development node server/index.js",
+    "reset-db": "node server/reset-db.js",
+    "grant-admin": "node server/grant-admin.js"
   },
   "license": "MIT",
   "dependencies": {

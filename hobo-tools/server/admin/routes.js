@@ -9,6 +9,9 @@
 
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
+const childProcess = require('child_process');
 const urlRegistry = require('../url-registry');
 const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
 
@@ -413,6 +416,62 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
             res.json({ ok: true, key });
         } catch (err) {
             res.status(400).json({ ok: false, error: err.message });
+        }
+    });
+
+    router.post('/reset-db', (req, res) => {
+        try {
+            const serviceRoot = path.resolve(__dirname, '..');
+            const scriptPath = path.join(serviceRoot, 'server', 'reset-db.js');
+            if (!fs.existsSync(scriptPath)) {
+                return res.status(404).json({ ok: false, error: 'Reset script not found' });
+            }
+            const result = childProcess.spawnSync(process.execPath, [scriptPath], {
+                cwd: serviceRoot,
+                env: process.env,
+                encoding: 'utf8',
+                timeout: 30000,
+            });
+            if (result.error) throw result.error;
+            if (result.status !== 0) {
+                return res.status(500).json({ ok: false, error: result.stderr || result.stdout || `Exit code ${result.status}` });
+            }
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)')
+                .run(req.user.id, 'reset_db', JSON.stringify({ output: result.stdout.trim() }));
+            res.json({ ok: true, message: result.stdout.trim() });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    });
+
+    router.post('/users/grant-admin', (req, res) => {
+        try {
+            const { id, username, email } = req.body;
+            if (!id && !username && !email) {
+                return res.status(400).json({ ok: false, error: 'id, username, or email is required' });
+            }
+
+            let user;
+            if (id) {
+                user = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(id);
+            } else if (username) {
+                user = db.prepare('SELECT id, username, email FROM users WHERE LOWER(username) = LOWER(?)').get(username);
+            } else {
+                user = db.prepare('SELECT id, username, email FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+            }
+            if (!user) {
+                return res.status(404).json({ ok: false, error: 'User not found' });
+            }
+
+            db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', user.id);
+            db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
+                req.user.id,
+                'grant_admin',
+                JSON.stringify({ targetId: user.id, targetUsername: user.username, targetEmail: user.email }),
+            );
+            res.json({ ok: true, user: { id: user.id, username: user.username, email: user.email, role: 'admin' } });
+        } catch (err) {
+            res.status(500).json({ ok: false, error: err.message });
         }
     });
 
