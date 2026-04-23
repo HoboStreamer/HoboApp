@@ -298,7 +298,7 @@ function initDb(dbPath) {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
-        -- Email delivery log (SES metrics / admin visibility)
+        -- Email delivery log (email metrics / admin visibility)
         CREATE TABLE IF NOT EXISTS email_delivery_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email_type TEXT NOT NULL,
@@ -553,13 +553,11 @@ function initDb(dbPath) {
             ['registration_open', 'true', 'boolean'],
             ['platform_name', 'Hobo Network', 'string'],
             ['default_theme', 'campfire', 'string'],
-            // Amazon SES defaults
-            ['ses_enabled', 'false', 'boolean'],
-            ['ses_region', 'us-east-1', 'string'],
-            ['ses_access_key_id', '', 'string'],
-            ['ses_secret_access_key', '', 'string'],
-            ['ses_from_email', 'noreply@hobo.tools', 'string'],
-            ['ses_from_name', 'Hobo Network', 'string'],
+            // Email provider defaults
+            ['email_enabled', 'false', 'boolean'],
+            ['resend_api_key', '', 'string'],
+            ['email_from_address', 'noreply@hobo.tools', 'string'],
+            ['email_from_name', 'Hobo Network', 'string'],
             // Notification defaults
             ['notifications_enabled', 'true', 'boolean'],
             ['notification_max_age_days', '90', 'number'],

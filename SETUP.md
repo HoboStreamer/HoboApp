@@ -158,7 +158,7 @@ That is required for local login flows from HoboStreamer and HoboQuest.
 
 - `SETUP_TOKEN` — protects bootstrap endpoints.
 - `BOOTSTRAP_PROFILE` — local-dev or production profiles.
-- AWS SES values for email notifications.
+- Email provider values for email notifications.
 - `HOBOSTREAMER_INTERNAL_URL` and `HOBOQUEST_INTERNAL_URL` for internal proxy/webhook routes.
 
 ## Troubleshooting

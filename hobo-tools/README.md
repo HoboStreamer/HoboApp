@@ -10,11 +10,11 @@ Central hub and SSO provider for the Hobo Network. Manages user accounts, OAuth2
 
 - **SSO Identity Provider** — "One Account. All of Hobo." Central registration and login, OAuth2 Authorization Code flow for HoboStreamer and HoboQuest.
 - **Unified Notification System** — Cross-service notifications with priority levels, category filtering, toast popups, bell badge, sounds, and rich content (buttons, inputs, media). All services push notifications to the central API; clients poll every 15 seconds.
-- **Amazon SES Email Alerts** — Critical notifications (moderation actions, system alerts) trigger email via Amazon SES. Configurable through the admin panel or `.env`.
+- **Email Alerts** — Critical notifications (moderation actions, system alerts) can be delivered by the built-in email service. Configuration is managed through the admin panel.
 - **Anonymous Users** — Browse and interact without an account. Anon users receive a unique number, can accumulate stats, and optionally link to a registered account later.
 - **Multi-Account Switching** — Google-style account management. Users can add multiple accounts and switch instantly, including an anonymous mode.
 - **Theme Catalog** — Shared theme system with ~30 built-in themes and community submissions. Theme preferences sync across all services.
-- **Admin Panel** — SES configuration, user management (role changes, bans), broadcast notifications, system health dashboard, and audit log.
+- **Admin Panel** — email configuration, user management (role changes, bans), broadcast notifications, system health dashboard, and audit log.
 - **Internal API** — Server-to-server endpoints for token verification, user lookup, notification push, account linking, and audit logging. Protected by `X-Internal-Key`.
 - **Subdomain Services** — `login.hobo.tools` (SSO), `my.hobo.tools` (account management), `maps.hobo.tools` (camp locator), `dl.hobo.tools` (media tools).
 
@@ -33,9 +33,9 @@ hobo.tools (port 3100)
 │   ├── notifications/
 │   │   ├── notification-service.js  # CRUD, preferences, email queue, cleanup
 │   │   ├── routes.js                # REST API for notification UI
-│   │   └── ses-service.js           # Amazon SES email with HTML templates
+│   │   └── email-service.js         # Resend email service with HTML templates
 │   ├── admin/
-│   │   └── routes.js         # Admin panel API (SES, settings, users, broadcast, health)
+│   │   └── routes.js         # Admin panel API (email settings, users, broadcast, health)
 │   ├── themes/
 │   │   └── routes.js         # Theme CRUD, user preferences
 │   ├── internal/
@@ -67,7 +67,7 @@ openssl rsa -in data/keys/private.pem -pubout -out data/keys/public.pem
 
 # 3. Configure environment
 cp .env.example .env
-# Edit .env — set INTERNAL_API_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, and optionally SETUP_TOKEN, BOOTSTRAP_PROFILE, and SES credentials
+# Edit .env — set INTERNAL_API_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, and optionally SETUP_TOKEN and BOOTSTRAP_PROFILE
 
 # 4. Run
 npm start
@@ -79,6 +79,81 @@ The server auto-creates the SQLite database and seeds OAuth2 clients on first ru
 
 ---
 
+## TLS / Certbot Deploy Support
+
+`hobo.tools` includes a built-in deploy subsystem under `server/deploy/` that can manage Let’s Encrypt certificates and preview Nginx config.
+
+### What it does
+
+- wraps local `certbot` calls via `server/deploy/cert-manager.js`
+- supports `cloudflare` mode using `certbot-dns-cloudflare`
+- supports `manual` DNS-01 issuance for wildcard certificates
+- stores certs under `/etc/letsencrypt/live/<domain>/`
+- generates Nginx config templates that reference `/etc/letsencrypt/live/.../fullchain.pem` and `privkey.pem`
+
+### Requirements
+
+- `certbot` installed and available in `PATH`
+- for Cloudflare mode: `certbot-dns-cloudflare` plugin installed
+- `/etc/letsencrypt` writable by the service user
+- `nginx` installed if you want preview/apply support
+
+### Deploy configuration keys
+
+Use the `hobotools` deploy setup API or URL registry to configure:
+
+- `DEPLOY_ACME_EMAIL` — ACME registration email
+- `DEPLOY_CERT_MODE` — `cloudflare`, `manual`, or `none`
+- `DEPLOY_CLOUDFLARE_TOKEN` — Cloudflare API token for DNS-01 challenge
+- `DEPLOY_DOMAINS` — array of domain objects, e.g. `[{domain:'hobo.tools',wildcard:true,certName:'hobo.tools',services:['hobotools']}]`
+- `DEPLOY_NGINX_MODE` — `preview`, `apply`, or `disabled`
+- `DEPLOY_NGINX_SITES_PATH` — path where Nginx site files should be written
+- `DEPLOY_NGINX_BACKUP_PATH` — backup directory for generated Nginx configs
+- `DEPLOY_SERVICE_MAP` — optional service mapping override
+
+### Admin deploy endpoints
+
+The deploy subsystem exposes admin-only APIs at `/api/admin/deploy`:
+
+- `GET /api/admin/deploy/prerequisites` — check `certbot`, plugin, `/etc/letsencrypt`, and `nginx`
+- `GET /api/admin/deploy/config` — read current deploy config
+- `PUT /api/admin/deploy/config` — save deploy config values
+- `GET /api/admin/deploy/certs` — list certificates known to certbot
+- `POST /api/admin/deploy/certs/issue-cloudflare` — issue a wildcard cert via Cloudflare DNS-01
+- `POST /api/admin/deploy/certs/manual-info` — get manual DNS challenge instructions
+- `POST /api/admin/deploy/certs/issue-manual` — run manual DNS issuance after TXT records are in place
+- `POST /api/admin/deploy/certs/renew` — renew all certbot certificates
+- `GET /api/admin/deploy/nginx/preview` — preview generated Nginx configs
+
+### How to use it
+
+1. Install certbot:
+
+```bash
+sudo apt update
+sudo apt install certbot python3-certbot-dns-cloudflare
+```
+
+2. Ensure `nginx` is installed if you want config preview/apply support.
+
+3. Set deploy registry values through the setup API or admin config.
+
+4. For Cloudflare mode, provide a valid Cloudflare token. The wrapper writes `/etc/letsencrypt/cloudflare.ini`.
+
+5. For manual mode, create the required DNS TXT records for `_acme-challenge.<domain>` and `*. <domain>` as instructed by the service.
+
+6. After issuance, Nginx configs reference certs at `/etc/letsencrypt/live/<domain>/fullchain.pem` and `/etc/letsencrypt/live/<domain>/privkey.pem`.
+
+7. Use `POST /api/admin/deploy/certs/renew` to renew existing certs.
+
+### Notes
+
+- The deploy module does not replace a full deployment toolchain; it is a built-in helper for cert issuance and Nginx preview.
+- If `DEPLOY_CERT_MODE` is set to `none`, the service will still generate preview Nginx configs but will leave SSL certificate paths commented out.
+- `certbot` must be installed on the host running `hobotools`, not just in Docker or another container.
+
+---
+
 ## Notification System
 
 ### How it works
@@ -86,7 +161,7 @@ The server auto-creates the SQLite database and seeds OAuth2 clients on first ru
 1. **Any service** pushes notifications to hobo.tools via `POST /internal/notifications/push`
 2. **hobo.tools** stores them in SQLite with priority, category, and optional rich content
 3. **Clients** poll `GET /api/notifications` every 15 seconds, rendering toasts and updating the bell badge
-4. **Critical notifications** are queued for email delivery via Amazon SES (if configured)
+4. **Critical notifications** are queued for email delivery via the built-in email service (Resend by default).
 
 ### Priorities
 
@@ -116,23 +191,23 @@ curl -X POST http://127.0.0.1:3100/internal/notifications/push \
 
 ---
 
-## Amazon SES Setup
+## Email Setup
 
-SES is optional — the notification system works without it. Email is only sent for **CRITICAL** priority notifications.
+Email is optional — the notification system works without it. Email is only sent for **CRITICAL** priority notifications.
 
 ### Quick setup
 
-1. In AWS Console → SES → Verify your domain (`hobo.tools`)
-2. In AWS Console → IAM → Create a user with `AmazonSESFullAccess` policy
-3. Copy the access key ID and secret to `.env` or configure via the admin panel
-4. Add DNS records in Cloudflare for DKIM verification (SES provides the CNAME records)
+1. Create a domain or sender identity at <https://resend.com/domains>.
+2. Add the required SPF, DKIM, and MX records to your DNS provider.
+3. Configure the Resend API key and from-addresses in the admin panel.
+4. Verify your domain on Resend before sending production email.
 
 ### Admin panel configuration
 
-Instead of `.env`, you can configure SES at runtime:
-- `GET /api/admin/ses` — view current config
-- `PUT /api/admin/ses` — update region, credentials, from address
-- `POST /api/admin/ses/test` — send a test email
+Instead of `.env`, configure email at runtime via the admin panel:
+- `GET /api/admin/email` — view current email config
+- `PUT /api/admin/email` — update API key, default from address, and per-service from addresses
+- `POST /api/admin/email/test` — send a test email
 
 ---
 
@@ -213,16 +288,15 @@ Accessible to users with `role = 'admin'`. All endpoints under `/api/admin/`.
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/admin/ses` | SES configuration status |
-| `PUT /api/admin/ses` | Update SES credentials and settings |
-| `POST /api/admin/ses/test` | Send test email |
+| `GET /api/admin/email` | Email configuration status |
+| `PUT /api/admin/email` | Update API key and email settings |
+| `POST /api/admin/email/test` | Send test email |
 | `GET /api/admin/settings` | All site settings (secrets masked) |
 | `PUT /api/admin/settings` | Update site settings |
-| `GET /api/admin/users` | User list with search |
 | `PUT /api/admin/users/:id/role` | Change user role |
 | `PUT /api/admin/users/:id/ban` | Ban/unban user (sends notification) |
 | `POST /api/admin/broadcast` | Send notification to all non-banned users |
-| `GET /api/admin/health` | System health (counts, memory, uptime, SES status) |
+| `GET /api/admin/health` | System health (counts, memory, uptime, email status) |
 | `GET /api/admin/audit` | Audit log |
 
 ---
@@ -247,7 +321,7 @@ Accessible to users with `role = 'admin'`. All endpoints under `/api/admin/`.
 | `linked_accounts` | Connected external service accounts |
 | `themes` | Theme catalog entries |
 | `user_theme_prefs` | Per-user theme selections |
-| `site_settings` | Key-value admin settings (SES config, etc.) |
+| `site_settings` | Key-value admin settings (email config, etc.) |
 | `audit_log` | Admin action audit trail |
 | `notifications` | All user notifications (UUID PK) |
 | `notification_preferences` | Per-user category preferences |

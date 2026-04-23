@@ -50,7 +50,7 @@ service/
 - **Internal APIs:** Localhost-only, protected by `X-Internal-Key` header. Used for cross-service calls (push notifications, token verification).
 - **Config:** `.env` files with `dotenv`. Defaults in `config.js` allow running without `.env` in dev.
 - **DB migrations:** Inline `ALTER TABLE` in `ensureTables()` wrapped in `try/catch` — no migration framework.
-- **Error handling:** Graceful degradation — services start with reduced features if optional deps (RSA keys, SES, etc.) are missing.
+- **Error handling:** Graceful degradation — services start with reduced features if optional deps (RSA keys, email provider integration, etc.) are missing.
 - **Trust proxy:** Set to `2` (Cloudflare → Nginx → Node).
 
 ## hobo-shared Package

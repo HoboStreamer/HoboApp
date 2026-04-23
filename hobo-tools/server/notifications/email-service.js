@@ -66,7 +66,7 @@ class EmailService {
     }
 
     /**
-     * One-time migration: copy old SES settings to new email_* keys if they exist
+     * One-time migration: copy legacy email settings to the new email_* keys if they exist
      * and the new keys haven't been set yet.
      */
     _migrateFromSES() {

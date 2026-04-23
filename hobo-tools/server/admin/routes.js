@@ -218,18 +218,18 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
     // Email Configuration (Resend)
     // ═══════════════════════════════════════════════════════
 
-    // GET /api/admin/ses — get current email config
-    router.get('/ses', (req, res) => {
+    // GET /api/admin/email — get current email config
+    router.get('/email', (req, res) => {
         try {
             const status = emailService.getStatus();
-            res.json({ ok: true, ses: status, metrics: getEmailMetrics() });
+            res.json({ ok: true, email: status, metrics: getEmailMetrics() });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }
     });
 
-    // PUT /api/admin/ses — update email config
-    router.put('/ses', (req, res) => {
+    // PUT /api/admin/email — update email config
+    router.put('/email', (req, res) => {
         try {
             const { enabled, api_key, from_email, from_name,
                     from_email_hobostreamer, from_email_hoboquest, from_email_hobotools } = req.body;
@@ -255,14 +255,14 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
                 req.user.id, 'email_config_update', JSON.stringify({ from_email })
             );
 
-            res.json({ ok: true, ses: emailService.getStatus() });
+            res.json({ ok: true, email: emailService.getStatus() });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }
     });
 
-    // POST /api/admin/ses/test — send test email
-    router.post('/ses/test', async (req, res) => {
+    // POST /api/admin/email/test — send test email
+    router.post('/email/test', async (req, res) => {
         try {
             const { email } = req.body;
             if (!email) return res.status(400).json({ ok: false, error: 'Email required' });
@@ -282,8 +282,8 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         try {
             const rows = db.prepare('SELECT * FROM site_settings').all();
             const settings = {};
-            // Keys managed exclusively by the SES tab — hide from generic settings
-            const SES_MANAGED_KEYS = new Set([
+            // Keys managed exclusively by the Email tab — hide from generic settings
+            const EMAIL_MANAGED_KEYS = new Set([
                 'ses_enabled', 'ses_region', 'ses_access_key_id', 'ses_secret_access_key',
                 'ses_from_email', 'ses_from_name',
                 'ses_from_email_hobostreamer', 'ses_from_email_hoboquest', 'ses_from_email_hobotools',
@@ -291,7 +291,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
                 'email_from_hobostreamer', 'email_from_hoboquest', 'email_from_hobotools',
             ]);
             for (const r of rows) {
-                if (SES_MANAGED_KEYS.has(r.key)) continue;
+                if (EMAIL_MANAGED_KEYS.has(r.key)) continue;
                 settings[r.key] = { value: r.value, type: r.type };
             }
             res.json({ ok: true, settings });
@@ -592,7 +592,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
             const unreadCount = db.prepare('SELECT COUNT(*) as cnt FROM notifications WHERE is_read = 0').get().cnt;
             const anonCount = db.prepare('SELECT COUNT(*) as cnt FROM anon_users').get().cnt;
             const sessionCount = db.prepare('SELECT COUNT(*) as cnt FROM user_sessions WHERE is_active = 1').get().cnt;
-            const ses = emailService.getStatus();
+            const emailStatus = emailService.getStatus();
 
             res.json({
                 ok: true,
@@ -602,7 +602,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
                     active_sessions: sessionCount,
                     total_notifications: notifCount,
                     unread_notifications: unreadCount,
-                    ses_enabled: ses.enabled,
+                    email_enabled: emailStatus.enabled,
                     uptime: process.uptime(),
                     memory: process.memoryUsage(),
                 },

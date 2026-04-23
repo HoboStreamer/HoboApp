@@ -191,7 +191,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                 <button class="admin-tab-btn" onclick="showTab('pastes',this)"><i class="fa-solid fa-paste"></i> Pastes</button>
                 <button class="admin-tab-btn" onclick="showTab('storage',this)"><i class="fa-solid fa-hard-drive"></i> Storage</button>
                 <button class="admin-tab-btn" onclick="showTab('notifications',this)"><i class="fa-solid fa-bell"></i> Notifications</button>
-                <button class="admin-tab-btn" onclick="showTab('ses',this)"><i class="fa-solid fa-envelope"></i> Email</button>
+                <button class="admin-tab-btn" onclick="showTab('email',this)"><i class="fa-solid fa-envelope"></i> Email</button>
                 <button class="admin-tab-btn" onclick="showTab('vkeys',this)"><i class="fa-solid fa-key"></i> Keys</button>
                 <button class="admin-tab-btn" onclick="showTab('audit',this)"><i class="fa-solid fa-clipboard-list"></i> Audit</button>
                 <button class="admin-tab-btn" onclick="showTab('analytics',this)"><i class="fa-solid fa-chart-pie"></i> Analytics</button>
@@ -328,11 +328,11 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
         </div>
     </div>
 
-    <!-- SES -->
-    <div class="section" id="sec-ses">
+    <!-- Email -->
+    <div class="section" id="sec-email">
         <div class="card">
-            <h3><i class="fa-solid fa-envelope"></i> Amazon SES Configuration</h3>
-            <div id="ses-content"><div class="loading">Loading...</div></div>
+            <h3><i class="fa-solid fa-envelope"></i> Email Configuration</h3>
+            <div id="email-content"><div class="loading">Loading...</div></div>
         </div>
     </div>
 
@@ -738,7 +738,7 @@ const tabLoaders = {
     pastes: loadPastesAdmin,
     storage: loadStorage,
     notifications: () => {},
-    ses: loadSES,
+    email: loadEmail,
     vkeys: loadVKeys,
     audit: loadAudit,
     analytics: loadAnalytics,
@@ -1807,14 +1807,14 @@ async function sendBroadcast() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SES Configuration
+// Email Configuration
 // ═══════════════════════════════════════════════════════════════
-async function loadSES() {
-    const c = document.getElementById('ses-content');
+async function loadEmail() {
+    const c = document.getElementById('email-content');
     c.innerHTML = '<div class="loading">Loading...</div>';
     try {
-        const data = await api('/api/admin/ses');
-        const ses = data.ses || {};
+        const data = await api('/api/admin/email');
+        const email = data.email || {};
         const metrics = data.metrics || {};
         const summary = metrics.summary || {};
         const byType = Array.isArray(metrics.by_type) ? metrics.by_type : [];
@@ -1839,27 +1839,27 @@ async function loadSES() {
                 </div>
             </div>
 
-            <form id="ses-form" style="max-width:600px;margin-bottom:16px">
+            <form id="email-form" style="max-width:600px;margin-bottom:16px">
                 <div class="setting-row">
                     <label><strong>Email Enabled</strong></label>
-                    <input type="checkbox" id="ses-enabled" ${ses.enabled ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
+                    <input type="checkbox" id="email-enabled" ${email.enabled ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
                 </div>
-                ${ses.issue ? `<div style="background:#e74c3c22;border:1px solid #e74c3c44;border-radius:8px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:#e74c3c"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(ses.issue)}</div>` : ses.ready ? `<div style="background:#27ae6022;border:1px solid #27ae6044;border-radius:8px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:#27ae60"><i class="fa-solid fa-circle-check"></i> Resend is ready — emails will be delivered</div>` : ''}
+                ${email.issue ? `<div style="background:#e74c3c22;border:1px solid #e74c3c44;border-radius:8px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:#e74c3c"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(email.issue)}</div>` : email.ready ? `<div style="background:#27ae6022;border:1px solid #27ae6044;border-radius:8px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:#27ae60"><i class="fa-solid fa-circle-check"></i> Resend is ready — emails will be delivered</div>` : ''}
 
                 <h4 style="margin:12px 0 10px;font-size:14px"><i class="fa-solid fa-key"></i> Resend API</h4>
-                <div class="form-field"><label>API Key</label><input type="password" id="ses-api-key" value="${esc(ses.api_key || '')}" placeholder="re_xxxxxxxxxxxx" autocomplete="off"></div>
+                <div class="form-field"><label>API Key</label><input type="password" id="email-api-key" value="${esc(email.api_key || '')}" placeholder="re_xxxxxxxxxxxx" autocomplete="off"></div>
                 <p class="muted" style="margin:-4px 0 8px;font-size:11px">Get your API key from <a href="https://resend.com/api-keys" target="_blank" style="color:var(--accent)">resend.com/api-keys</a>. Key is masked after saving.</p>
 
                 <h4 style="margin:20px 0 10px;font-size:14px"><i class="fa-solid fa-envelope"></i> From Addresses</h4>
-                <div class="form-field"><label>Default From Email</label><input type="email" id="ses-from-email" value="${esc(ses.from_email || '')}" placeholder="noreply@hobo.tools"></div>
-                <div class="form-field"><label>Default From Name</label><input type="text" id="ses-from-name" value="${esc(ses.from_name || '')}" placeholder="Hobo Network"></div>
-                <div class="form-field"><label>HoboStreamer From <span class="muted">(optional override)</span></label><input type="email" id="ses-from-hobostreamer" value="${esc(ses.from_email_hobostreamer || '')}" placeholder="noreply@hobostreamer.com"></div>
-                <div class="form-field"><label>Hobo Quest From <span class="muted">(optional override)</span></label><input type="email" id="ses-from-hoboquest" value="${esc(ses.from_email_hoboquest || '')}" placeholder="noreply@hobo.quest"></div>
-                <div class="form-field"><label>Hobo Tools From <span class="muted">(optional override)</span></label><input type="email" id="ses-from-hobotools" value="${esc(ses.from_email_hobotools || '')}" placeholder="noreply@hobo.tools"></div>
+                <div class="form-field"><label>Default From Email</label><input type="email" id="email-from-email" value="${esc(email.from_email || '')}" placeholder="noreply@hobo.tools"></div>
+                <div class="form-field"><label>Default From Name</label><input type="text" id="email-from-name" value="${esc(email.from_name || '')}" placeholder="Hobo Network"></div>
+                <div class="form-field"><label>HoboStreamer From <span class="muted">(optional override)</span></label><input type="email" id="email-from-hobostreamer" value="${esc(email.from_email_hobostreamer || '')}" placeholder="noreply@hobostreamer.com"></div>
+                <div class="form-field"><label>Hobo Quest From <span class="muted">(optional override)</span></label><input type="email" id="email-from-hoboquest" value="${esc(email.from_email_hoboquest || '')}" placeholder="noreply@hobo.quest"></div>
+                <div class="form-field"><label>Hobo Tools From <span class="muted">(optional override)</span></label><input type="email" id="email-from-hobotools" value="${esc(email.from_email_hobotools || '')}" placeholder="noreply@hobo.tools"></div>
 
                 <div style="display:flex;gap:8px;margin-top:16px">
-                    <button type="button" class="btn btn-primary" onclick="saveSES()"><i class="fa-solid fa-floppy-disk"></i> Save Email Config</button>
-                    <button type="button" class="btn btn-outline" onclick="testSES()"><i class="fa-solid fa-paper-plane"></i> Send Test Email</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEmail()"><i class="fa-solid fa-floppy-disk"></i> Save Email Config</button>
+                    <button type="button" class="btn btn-outline" onclick="testEmail()"><i class="fa-solid fa-paper-plane"></i> Send Test Email</button>
                 </div>
                 <div style="background:#2a2a3822;border:1px solid #333340;border-radius:8px;padding:12px 14px;margin-top:16px;font-size:12px;color:var(--text-muted)">
                     <strong style="color:var(--text)"><i class="fa-solid fa-globe"></i> DNS Setup</strong><br>
@@ -1908,27 +1908,27 @@ async function loadSES() {
     } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
 }
 
-async function saveSES() {
+async function saveEmail() {
     try {
-        await api('/api/admin/ses', { method: 'PUT', body: {
-            enabled: document.getElementById('ses-enabled').checked,
-            api_key: document.getElementById('ses-api-key').value,
-            from_email: document.getElementById('ses-from-email').value,
-            from_name: document.getElementById('ses-from-name').value,
-            from_email_hobostreamer: document.getElementById('ses-from-hobostreamer').value,
-            from_email_hoboquest: document.getElementById('ses-from-hoboquest').value,
-            from_email_hobotools: document.getElementById('ses-from-hobotools').value,
+        await api('/api/admin/email', { method: 'PUT', body: {
+            enabled: document.getElementById('email-enabled').checked,
+            api_key: document.getElementById('email-api-key').value,
+            from_email: document.getElementById('email-from-email').value,
+            from_name: document.getElementById('email-from-name').value,
+            from_email_hobostreamer: document.getElementById('email-from-hobostreamer').value,
+            from_email_hoboquest: document.getElementById('email-from-hoboquest').value,
+            from_email_hobotools: document.getElementById('email-from-hobotools').value,
         }});
         toast('Email configuration saved', 'success');
-        loadSES();
+        loadEmail();
     } catch (e) { toast(e.message, 'error'); }
 }
 
-async function testSES() {
+async function testEmail() {
     const email = prompt('Send test email to:');
     if (!email) return;
     try {
-        const result = await api('/api/admin/ses/test', { method: 'POST', body: { email } });
+        const result = await api('/api/admin/email/test', { method: 'POST', body: { email } });
         if (result.sent) {
             toast('Test email sent successfully! Check your inbox.', 'success');
         } else {
