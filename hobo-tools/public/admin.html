@@ -1468,6 +1468,22 @@ async function loadAi() {
                     <legend style="padding:0 8px;font-weight:700">Estimated Cost</legend>
                     ${costHtml}
                 </fieldset>
+                <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+                    <legend style="padding:0 8px;font-weight:700">AI Status</legend>
+                    <button type="button" class="btn" onclick="testAiStatus()"><i class="fa-solid fa-heart-pulse"></i> Run Status Check</button>
+                    <div id="ai-status-out" style="margin-top:10px"></div>
+                </fieldset>
+                <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+                    <legend style="padding:0 8px;font-weight:700">AI Explorer</legend>
+                    <p class="muted" style="margin:0 0 8px">Browse a streamer's AI memory, analyzed pastes, and VODs — and generate a per-streamer overview aggregated across all of it.</p>
+                    <div style="display:flex;gap:8px">
+                        <input id="ai-explorer-search" placeholder="Search streamer username…" onkeydown="if(event.key==='Enter'){event.preventDefault();aiExplorerSearch();}"
+                            style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+                        <button type="button" class="btn" onclick="aiExplorerSearch()"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+                    <div id="ai-explorer-results" style="margin-top:8px"></div>
+                    <div id="ai-explorer-detail" style="margin-top:12px"></div>
+                </fieldset>
                 <form id="ai-form">
                     <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px">
                         <legend style="padding:0 8px;font-weight:700">Configuration</legend>
@@ -1487,6 +1503,71 @@ async function saveAi() {
         await api('/api/admin/streamer/settings', { method: 'PUT', body: { settings } });
         toast('AI settings saved', 'success');
     } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── AI Status + Explorer ─────────────────────────────────────
+async function testAiStatus() {
+    const out = document.getElementById('ai-status-out');
+    if (!out) return;
+    out.innerHTML = '<span class="muted">Checking… (this makes one tiny live call)</span>';
+    try {
+        const { status } = await api('/api/admin/streamer/ai/status');
+        const badge = status.ok ? '<span style="color:#4ade80">● OK</span>' : '<span style="color:#f87171">● Problem</span>';
+        out.innerHTML = `<div style="font-size:13px;line-height:1.7">
+            ${badge} &nbsp; provider <b>${esc(status.provider)}</b>, model <b>${esc(status.model)}</b>${status.probed ? ` · reply "${esc(status.reply||'')}" · ${status.latency_ms}ms` : ''}
+            <br>enabled: <b>${status.enabled}</b> · key set: <b>${status.has_key}</b> · paste analysis: ${status.paste_analysis} · stream memory: ${status.stream_memory}
+            <br>cost today: <b>$${Number(status.cost_today||0).toFixed(4)}</b> · daily cap: ${status.budget_cap_usd_per_day ? '$'+status.budget_cap_usd_per_day : 'none'}
+            ${status.error ? `<br><span style="color:#f87171">${esc(status.error)}</span>` : ''}
+        </div>`;
+    } catch (e) { out.innerHTML = `<span style="color:#f87171">${esc(e.message)}</span>`; }
+}
+
+async function aiExplorerSearch() {
+    const q = (document.getElementById('ai-explorer-search').value || '').trim();
+    const box = document.getElementById('ai-explorer-results');
+    box.innerHTML = '<span class="muted">Searching…</span>';
+    try {
+        const data = await api('/api/admin/streamer/users?search=' + encodeURIComponent(q) + '&limit=15');
+        const users = data.users || [];
+        box.innerHTML = users.length
+            ? users.map(u => `<button type="button" class="btn btn-sm" style="margin:2px" onclick="aiExplorerLoad(${u.id})">@${esc(u.username)}${u.display_name && u.display_name !== u.username ? ' ('+esc(u.display_name)+')' : ''}</button>`).join('')
+            : '<span class="muted">No matching users.</span>';
+    } catch (e) { box.innerHTML = `<span style="color:#f87171">${esc(e.message)}</span>`; }
+}
+
+async function aiExplorerLoad(userId) {
+    const box = document.getElementById('ai-explorer-detail');
+    box.innerHTML = '<div class="loading">Loading…</div>';
+    try {
+        const d = await api('/api/admin/streamer/ai/explorer/' + userId);
+        const ov = d.overview;
+        const tbl = (rows, head) => `<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px"><thead><tr>${head.map(h=>`<th style="text-align:left;border-bottom:1px solid var(--border);padding:3px 6px">${h}</th>`).join('')}</tr></thead><tbody>${rows||`<tr><td style="padding:6px" class="muted">None</td></tr>`}</tbody></table>`;
+        const memRows = (d.memories||[]).map(m => `<tr><td style="padding:3px 6px;white-space:nowrap;color:var(--muted)">${esc((m.created_at||'').slice(0,16))}</td><td style="padding:3px 6px">${esc(m.description||'')}</td></tr>`).join('');
+        const pasteRows = (d.pastes||[]).map(p => `<tr><td style="padding:3px 6px">${esc(p.type||'')}</td><td style="padding:3px 6px">${esc(p.title||'')}</td><td style="padding:3px 6px">${esc(p.ai_summary||'—')}</td></tr>`).join('');
+        const vodRows = (d.vods||[]).map(v => `<tr><td style="padding:3px 6px">${esc(v.title||'')}</td><td style="padding:3px 6px">${esc(v.category||'')}</td><td style="padding:3px 6px">${esc(v.ai_overview||'—')}</td></tr>`).join('');
+        box.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                <h3 style="margin:0">@${esc(d.user.username)}</h3>
+                <button type="button" class="btn btn-sm btn-primary" onclick="aiGenerateOverview(${userId})"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Overview</button>
+            </div>
+            <div style="padding:10px;background:var(--bg-input);border-radius:6px;margin-bottom:10px">
+                <strong>AI Overview</strong> ${ov?`<small class="muted">(${esc((ov.generated_at||'').slice(0,16))} · ${esc(ov.model||'')})</small>`:''}
+                <div style="margin-top:6px;white-space:pre-wrap;font-size:13px;line-height:1.5">${ov?esc(ov.overview):'<span class="muted">Not generated yet — click “Generate Overview”.</span>'}</div>
+            </div>
+            <p class="muted" style="font-size:12px;margin:0 0 6px">${d.counts.memories} memories · ${d.counts.pastes} pastes · ${d.counts.vods} vods</p>
+            <details style="margin-bottom:6px"><summary style="cursor:pointer">Stream memories (${d.counts.memories})</summary>${tbl(memRows,['When','Description'])}</details>
+            <details style="margin-bottom:6px"><summary style="cursor:pointer">Pastes (${d.counts.pastes})</summary>${tbl(pasteRows,['Type','Title','AI summary'])}</details>
+            <details><summary style="cursor:pointer">VODs (${d.counts.vods})</summary>${tbl(vodRows,['Title','Category','AI overview'])}</details>`;
+    } catch (e) { box.innerHTML = `<span style="color:#f87171">${esc(e.message)}</span>`; }
+}
+
+async function aiGenerateOverview(userId) {
+    toast('Generating overview… (one AI call)', 'info');
+    try {
+        await api('/api/admin/streamer/ai/streamer/' + userId + '/overview', { method: 'POST' });
+        toast('Overview generated', 'success');
+        aiExplorerLoad(userId);
+    } catch (e) { toast(e.message || 'Failed', 'error'); }
 }
 
 async function loadStreamerMediaTools() {
