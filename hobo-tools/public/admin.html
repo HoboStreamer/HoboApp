@@ -1746,7 +1746,10 @@ async function loadStorage() {
     const c = document.getElementById('storage-content');
     c.innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing storage...</div>';
     try {
-        const data = await api('/api/admin/streamer/storage');
+        const [data, tierData] = await Promise.all([
+            api('/api/admin/streamer/storage'),
+            api('/api/admin/streamer/storage/tiers').catch(() => null),
+        ]);
         const d = data.disk || {};
         const usePct = d.total ? ((d.used / d.total) * 100).toFixed(1) : 0;
         const dataPct = d.total ? ((data.dataTotal?.bytes || 0) / d.total * 100).toFixed(1) : 0;
@@ -1807,7 +1810,104 @@ async function loadStorage() {
             <div id="vod-table"><div class="loading">Loading VODs...</div></div>
         `;
         loadVodTable();
+        loadStreamerStorageExtras(tierData);
     } catch (e) { c.innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; }
+}
+
+// ── Streamer storage tiers (Local/B2/R2) + cloud usage/cost (hobo.tools admin) ──
+function buildStreamerTierHtml(tierData) {
+    if (!tierData) return '';
+    const t = tierData.tiers || {};
+    const ct = tierData.clipTiers || {};
+    const prov = tierData.providers || {};
+    const ts = tierData.settings || {};
+    const L = t.local || { count: 0, bytes: 0 };
+    const B = t.b2 || { count: 0, bytes: 0 };
+    const R = t.r2 || { count: 0, bytes: 0 };
+    const totalBytes = (L.bytes || 0) + (B.bytes || 0) + (R.bytes || 0);
+    const totalVods = (L.count || 0) + (B.count || 0) + (R.count || 0);
+    const totalClips = ((ct.local && ct.local.count) || 0) + ((ct.b2 && ct.b2.count) || 0) + ((ct.r2 && ct.r2.count) || 0);
+    const offloaded = (B.bytes || 0) + (R.bytes || 0);
+    const offloadPct = totalBytes > 0 ? ((offloaded / totalBytes) * 100).toFixed(1) : '0.0';
+    const pctOf = (b) => totalBytes > 0 ? (b / totalBytes) * 100 : 0;
+    const provStatus = (p) => {
+        if (!p) return '<span style="color:var(--text-muted)">—</span>';
+        if (!p.configured) return '<span style="color:var(--text-muted)">not configured</span>';
+        return p.healthy
+            ? '<span style="color:var(--success,#22c55e)"><i class="fa-solid fa-circle-check"></i> healthy</span>' + (p.bucket ? ' <span style="color:var(--text-muted);font-size:11px">· ' + esc(p.bucket) + '</span>' : '')
+            : '<span style="color:var(--danger,#ef4444)"><i class="fa-solid fa-circle-xmark"></i> error</span>';
+    };
+    const rows = [
+        { label: 'Local (SSD)', icon: 'fa-hard-drive', color: '#f59e0b', v: L, clips: (ct.local && ct.local.count) || 0, status: '<span style="color:var(--text-muted)">primary disk</span>' },
+        { label: 'Backblaze B2', icon: 'fa-box-archive', color: '#e21e2b', v: B, clips: (ct.b2 && ct.b2.count) || 0, status: provStatus(prov.b2) },
+        { label: 'Cloudflare R2', icon: 'fa-cloud', color: '#f6821f', v: R, clips: (ct.r2 && ct.r2.count) || 0, status: provStatus(prov.r2) },
+    ];
+    const bar = '<div style="display:flex;height:16px;border-radius:8px;overflow:hidden;margin:6px 0 14px;background:var(--bg-tertiary)">'
+        + '<div title="Local ' + pctOf(L.bytes).toFixed(1) + '%" style="width:' + pctOf(L.bytes) + '%;background:#f59e0b"></div>'
+        + '<div title="B2 ' + pctOf(B.bytes).toFixed(1) + '%" style="width:' + pctOf(B.bytes) + '%;background:#e21e2b"></div>'
+        + '<div title="R2 ' + pctOf(R.bytes).toFixed(1) + '%" style="width:' + pctOf(R.bytes) + '%;background:#f6821f"></div></div>';
+    const rowHtml = rows.map(r => '<tr>'
+        + '<td style="padding:8px 10px"><i class="fa-solid ' + r.icon + '" style="color:' + r.color + '"></i> <strong>' + r.label + '</strong></td>'
+        + '<td style="padding:8px 10px;text-align:right">' + (r.v.count || 0).toLocaleString() + '</td>'
+        + '<td style="padding:8px 10px;text-align:right">' + fmtBytes(r.v.bytes || 0) + '</td>'
+        + '<td style="padding:8px 10px;text-align:right">' + pctOf(r.v.bytes).toFixed(1) + '%</td>'
+        + '<td style="padding:8px 10px;text-align:right">' + (r.clips || 0).toLocaleString() + '</td>'
+        + '<td style="padding:8px 10px">' + r.status + '</td></tr>').join('');
+    return '<div class="card" style="margin-bottom:24px">'
+        + '<h3 style="margin:0 0 6px"><i class="fa-solid fa-layer-group"></i> Storage Tiers <span style="color:var(--text-muted);font-size:13px;font-weight:400">— ' + offloadPct + '% of VOD data offloaded to cloud</span></h3>'
+        + bar
+        + '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+        + '<thead><tr style="text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border)">'
+        + '<th style="padding:6px 10px">Tier</th><th style="padding:6px 10px;text-align:right">VODs</th><th style="padding:6px 10px;text-align:right">VOD Size</th><th style="padding:6px 10px;text-align:right">Share</th><th style="padding:6px 10px;text-align:right">Clips</th><th style="padding:6px 10px">Provider</th></tr></thead>'
+        + '<tbody>' + rowHtml
+        + '<tr style="border-top:2px solid var(--border);font-weight:700"><td style="padding:8px 10px">Total</td><td style="padding:8px 10px;text-align:right">' + totalVods.toLocaleString() + '</td><td style="padding:8px 10px;text-align:right">' + fmtBytes(totalBytes) + '</td><td style="padding:8px 10px;text-align:right">100%</td><td style="padding:8px 10px;text-align:right">' + totalClips.toLocaleString() + '</td><td style="padding:8px 10px">' + (tierData.sweepRunning ? '<span style="color:#f59e0b"><i class="fa-solid fa-spinner fa-spin"></i> sweeping</span>' : '<span style="color:var(--text-muted)">idle</span>') + '</td></tr>'
+        + '</tbody></table></div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text-muted);margin-top:12px">'
+        + '<span><i class="fa-solid ' + (ts.enabled ? 'fa-toggle-on' : 'fa-toggle-off') + '" style="color:' + (ts.enabled ? '#22c55e' : '#ef4444') + '"></i> Auto-offload: ' + (ts.enabled ? 'ON' : 'OFF') + '</span>'
+        + '<span>| Age &ge; ' + (ts.minAgeDays != null ? ts.minAgeDays : '?') + 'd</span><span>| Views &le; ' + (ts.maxViewsForCold != null ? ts.maxViewsForCold : '?') + '</span><span>| Idle &ge; ' + (ts.minLastAccessDays != null ? ts.minLastAccessDays : '?') + 'd</span>'
+        + '</div></div>';
+}
+
+function loadStreamerStorageExtras(tierData) {
+    const c = document.getElementById('storage-content');
+    if (!c) return;
+    c.insertAdjacentHTML('afterbegin', '<div id="streamer-cloud-storage" style="margin-bottom:24px"></div>');
+    c.insertAdjacentHTML('afterbegin', buildStreamerTierHtml(tierData));
+    loadStreamerCloudStorage();
+}
+
+async function loadStreamerCloudStorage(force) {
+    const el = document.getElementById('streamer-cloud-storage');
+    if (!el) return;
+    const header = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+        + '<h3 style="margin:0"><i class="fa-solid fa-cloud"></i> Cloud Storage — B2 &amp; R2 Usage &amp; Cost</h3>'
+        + '<button class="btn btn-sm btn-outline" onclick="loadStreamerCloudStorage(true)"><i class="fa-solid fa-rotate"></i> Rescan</button></div>';
+    el.innerHTML = header + '<div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Scanning cloud buckets…</div>';
+    try {
+        const data = await api('/api/admin/streamer/storage/buckets' + (force ? '?force=1' : ''));
+        const usage = data.usage || {};
+        const costs = data.costs || {};
+        const money = (n) => '$' + (Number(n) || 0).toFixed(2);
+        const card = (key, label, color) => {
+            const u = usage[key];
+            const cc = costs[key];
+            if (!u || u.configured === false) return '<div class="card" style="flex:1;min-width:260px"><strong style="color:' + color + '"><i class="fa-solid fa-cloud"></i> ' + label + '</strong><div style="color:var(--text-muted);margin-top:8px">Not configured</div></div>';
+            if (u.error) return '<div class="card" style="flex:1;min-width:260px"><strong style="color:' + color + '"><i class="fa-solid fa-cloud"></i> ' + label + '</strong><div style="color:var(--danger,#ef4444);margin-top:8px">Scan error: ' + esc(u.error) + '</div></div>';
+            const tops = Object.entries(u.prefixes || {}).sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 8);
+            const prefixRows = tops.map(([p, v]) => '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);padding:2px 0"><span>' + esc(p) + '</span><span>' + fmtBytes(v.bytes) + ' · ' + v.objects.toLocaleString() + '</span></div>').join('');
+            return '<div class="card" style="flex:1;min-width:260px">'
+                + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><strong style="color:' + color + '"><i class="fa-solid fa-cloud"></i> ' + label + '</strong><span style="color:var(--text-muted);font-size:12px">' + esc(u.bucket || '') + '</span></div>'
+                + '<div style="display:flex;gap:16px;margin-bottom:10px"><div><div style="font-size:20px;font-weight:700">' + fmtBytes(u.bytes) + '</div><div style="color:var(--text-muted);font-size:11px">' + u.objects.toLocaleString() + ' objects</div></div>'
+                + '<div><div style="font-size:20px;font-weight:700;color:' + color + '">' + (cc ? money(cc.storageMonthly) : '—') + '<span style="font-size:12px;font-weight:400;color:var(--text-muted)">/mo</span></div><div style="color:var(--text-muted);font-size:11px">storage @ $' + (cc ? cc.storagePerGbMonth : '?') + '/GB</div></div></div>'
+                + '<div style="color:var(--text-muted);font-size:11px;margin-bottom:6px">Egress: ' + (cc ? esc(cc.egressNote) : '—') + '</div>'
+                + (prefixRows ? '<div style="border-top:1px solid var(--border);padding-top:6px">' + prefixRows + '</div>' : '') + '</div>';
+        };
+        el.innerHTML = header
+            + '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">' + card('b2', 'Backblaze B2', '#e21e2b') + card('r2', 'Cloudflare R2', '#f6821f') + '</div>'
+            + '<div class="card" style="display:flex;align-items:center;justify-content:space-between"><span><i class="fa-solid fa-file-invoice-dollar" style="color:var(--accent)"></i> <strong>Estimated cloud storage cost</strong> <span style="color:var(--text-muted);font-size:12px">(list prices; excludes egress/operations)</span></span><span style="font-size:22px;font-weight:800;color:var(--accent)">' + money(costs.totalStorageMonthly) + '<span style="font-size:13px;font-weight:400;color:var(--text-muted)">/mo</span></span></div>';
+    } catch (e) {
+        el.innerHTML = header + '<div style="color:var(--danger,#ef4444)">Failed to scan buckets: ' + esc(e.message) + '</div>';
+    }
 }
 
 async function loadVodTable() {
