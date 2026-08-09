@@ -1542,9 +1542,13 @@ async function aiExplorerLoad(userId) {
         const d = await api('/api/admin/streamer/ai/explorer/' + userId);
         const ov = d.overview;
         const tbl = (rows, head) => `<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px"><thead><tr>${head.map(h=>`<th style="text-align:left;border-bottom:1px solid var(--border);padding:3px 6px">${h}</th>`).join('')}</tr></thead><tbody>${rows||`<tr><td style="padding:6px" class="muted">None</td></tr>`}</tbody></table>`;
-        const memRows = (d.memories||[]).map(m => `<tr><td style="padding:3px 6px;white-space:nowrap;color:var(--muted)">${esc((m.created_at||'').slice(0,16))}</td><td style="padding:3px 6px">${esc(m.description||'')}</td></tr>`).join('');
+        const scrollCell = (t) => t ? `<div style="max-height:90px;overflow:auto;white-space:pre-wrap;font-size:11px;line-height:1.45">${esc(t)}</div>` : '<span class="muted">—</span>';
+        const isHeard = (s) => /heard:/i.test(s||'');
+        const memRows = (d.memories||[]).map(m => `<tr><td style="padding:3px 6px;white-space:nowrap;color:var(--muted)">${esc((m.created_at||'').slice(0,16))}${isHeard(m.description)?' <span title="contains audio transcript" style="color:var(--accent)">🔊</span>':''}</td><td style="padding:3px 6px">${esc(m.description||'')}</td></tr>`).join('');
         const pasteRows = (d.pastes||[]).map(p => `<tr><td style="padding:3px 6px">${esc(p.type||'')}</td><td style="padding:3px 6px">${esc(p.title||'')}</td><td style="padding:3px 6px">${esc(p.ai_summary||'—')}</td></tr>`).join('');
-        const vodRows = (d.vods||[]).map(v => `<tr><td style="padding:3px 6px">${esc(v.title||'')}</td><td style="padding:3px 6px">${esc(v.category||'')}</td><td style="padding:3px 6px">${esc(v.ai_overview||'—')}</td></tr>`).join('');
+        const vodRows = (d.vods||[]).map(v => `<tr><td style="padding:3px 6px">${esc(v.title||'')}</td><td style="padding:3px 6px">${esc(v.ai_overview||'—')}</td><td style="padding:3px 6px;min-width:180px">${scrollCell(v.ai_transcript)}</td></tr>`).join('');
+        const clipRows = (d.clips||[]).map(c => `<tr><td style="padding:3px 6px">${esc(c.title||'')}</td><td style="padding:3px 6px">${esc(c.ai_overview||'—')}</td><td style="padding:3px 6px;min-width:180px">${scrollCell(c.ai_transcript)}</td></tr>`).join('');
+        const txCount = (d.vods||[]).filter(v=>v.ai_transcript).length + (d.clips||[]).filter(c=>c.ai_transcript).length + (d.memories||[]).filter(m=>isHeard(m.description)).length;
         box.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
                 <h3 style="margin:0">@${esc(d.user.username)}</h3>
@@ -1554,10 +1558,11 @@ async function aiExplorerLoad(userId) {
                 <strong>AI Overview</strong> ${ov?`<small class="muted">(${esc((ov.generated_at||'').slice(0,16))} · ${esc(ov.model||'')})</small>`:''}
                 <div style="margin-top:6px;white-space:pre-wrap;font-size:13px;line-height:1.5">${ov?esc(ov.overview):'<span class="muted">Not generated yet — click “Generate Overview”.</span>'}</div>
             </div>
-            <p class="muted" style="font-size:12px;margin:0 0 6px">${d.counts.memories} memories · ${d.counts.pastes} pastes · ${d.counts.vods} vods</p>
-            <details style="margin-bottom:6px"><summary style="cursor:pointer">Stream memories (${d.counts.memories})</summary>${tbl(memRows,['When','Description'])}</details>
+            <p class="muted" style="font-size:12px;margin:0 0 6px">${d.counts.memories} memories · ${d.counts.pastes} pastes · ${d.counts.vods} vods · ${d.counts.clips||0} clips · <span style="color:var(--accent)">🔊 ${txCount} with transcript</span></p>
+            <details style="margin-bottom:6px"><summary style="cursor:pointer">Stream memories (${d.counts.memories}) — 🔊 = includes audio transcript</summary>${tbl(memRows,['When','Description'])}</details>
             <details style="margin-bottom:6px"><summary style="cursor:pointer">Pastes (${d.counts.pastes})</summary>${tbl(pasteRows,['Type','Title','AI summary'])}</details>
-            <details><summary style="cursor:pointer">VODs (${d.counts.vods})</summary>${tbl(vodRows,['Title','Category','AI overview'])}</details>`;
+            <details style="margin-bottom:6px"><summary style="cursor:pointer">VODs (${d.counts.vods}) — overview + transcript</summary>${tbl(vodRows,['Title','AI overview','Transcript'])}</details>
+            <details><summary style="cursor:pointer">Clips (${d.counts.clips||0}) — overview + transcript</summary>${tbl(clipRows,['Title','AI overview','Transcript'])}</details>`;
     } catch (e) { box.innerHTML = `<span style="color:#f87171">${esc(e.message)}</span>`; }
 }
 
