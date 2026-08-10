@@ -279,7 +279,8 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
     // Site Settings
     // ═══════════════════════════════════════════════════════
 
-    router.get('/settings', (req, res) => {
+    // Core site settings are owner-only (off-limits to admins).
+    router.get('/settings', requireOwner, (req, res) => {
         try {
             const rows = db.prepare('SELECT * FROM site_settings').all();
             const settings = {};
@@ -307,7 +308,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         }
     });
 
-    router.put('/settings', (req, res) => {
+    router.put('/settings', requireOwner, (req, res) => {
         try {
             const { key, value, type } = req.body;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
