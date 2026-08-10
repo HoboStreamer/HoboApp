@@ -14,9 +14,12 @@ const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
 module.exports = function createDeployRoutes(db, requireAuth) {
     const router = express.Router();
 
+    // Deploy touches TLS, nginx and live infrastructure — owner-only.
+    const OWNER = (process.env.OWNER_USERNAME || 'goosely').toLowerCase();
     function requireAdmin(req, res, next) {
-        if (!req.user || req.user.role !== 'admin') {
-            return res.status(403).json({ ok: false, error: 'Admin access required' });
+        const isOwner = req.user && req.user.username && req.user.username.toLowerCase() === OWNER;
+        if (!req.user || req.user.role !== 'admin' || !isOwner) {
+            return res.status(403).json({ ok: false, error: 'Owner access required' });
         }
         next();
     }

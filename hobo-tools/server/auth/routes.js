@@ -92,6 +92,10 @@ function signToken(user, privateKey, config) {
 
 function sanitizeUser(user) {
     const { password_hash, token_valid_after, ...safe } = user;
+    // Owner = the configured owner account (Hobo Network owner). Not a DB column —
+    // derived here so the client can gate owner-only areas (Deploy, SSH, secrets).
+    const OWNER = (process.env.OWNER_USERNAME || 'goosely').toLowerCase();
+    safe.is_owner = !!(safe.username && safe.username.toLowerCase() === OWNER);
     return safe;
 }
 
@@ -825,3 +829,6 @@ router.delete('/users/:id/follow', requireAuth, (req, res) => {
 });
 
 module.exports = router;
+// Exported so the admin proxy can re-mint a fresh upstream token that reflects
+// the user's CURRENT role (client tokens can be stale after a role change).
+module.exports.signToken = signToken;

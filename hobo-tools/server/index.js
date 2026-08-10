@@ -32,6 +32,7 @@ const { DEV_TOOL_MAP, DEV_ALIASES } = require('./dev/config');
 const { DiscordService } = require('./discord/discord-service');
 const createDiscordRoutes = require('./discord/routes');
 const createDeployRoutes = require('./deploy/routes');
+const { signToken } = require('./auth/routes');
 
 const app = express();
 
@@ -79,11 +80,22 @@ function sendMyAccountApp(res) {
 
 async function proxyJsonRequest(req, res, targetUrl, errorLabel) {
     try {
+        // Re-mint a fresh token from the user's CURRENT server-side record so that
+        // a just-granted role (e.g. admin) propagates to upstream services
+        // immediately, instead of relying on the client's possibly-stale token.
+        let upstreamToken = req.token;
+        try {
+            if (req.user && req.app.locals.privateKey) {
+                upstreamToken = signToken(req.user, req.app.locals.privateKey, req.app.locals.config);
+            }
+        } catch (e) {
+            console.error('[AdminProxy] token re-mint failed, forwarding original:', e.message);
+        }
         const fetchOpts = {
             method: req.method,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${req.token}`,
+                'Authorization': `Bearer ${upstreamToken}`,
             },
         };
         if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
