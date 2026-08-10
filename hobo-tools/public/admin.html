@@ -190,14 +190,14 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                 <button class="admin-tab-btn" onclick="showTab('moderators',this)"><i class="fa-solid fa-shield-halved"></i> Moderators</button>
                 <button class="admin-tab-btn" onclick="showTab('settings',this)"><i class="fa-solid fa-gear"></i> Settings</button>
                 <button class="admin-tab-btn" onclick="showTab('tts',this)"><i class="fa-solid fa-volume-high"></i> TTS</button>
-                <button class="admin-tab-btn" onclick="showTab('cashouts',this)"><i class="fa-solid fa-money-bill-transfer"></i> Cashouts</button>
-                <button class="admin-tab-btn" onclick="showTab('payments',this)"><i class="fa-solid fa-credit-card"></i> Payments</button>
-                <button class="admin-tab-btn" onclick="showTab('ai',this)"><i class="fa-solid fa-robot"></i> AI</button>
+                <button class="admin-tab-btn owner-only" onclick="showTab('cashouts',this)"><i class="fa-solid fa-money-bill-transfer"></i> Cashouts</button>
+                <button class="admin-tab-btn owner-only" onclick="showTab('payments',this)"><i class="fa-solid fa-credit-card"></i> Payments</button>
+                <button class="admin-tab-btn owner-only" onclick="showTab('ai',this)"><i class="fa-solid fa-robot"></i> AI</button>
                 <button class="admin-tab-btn" onclick="showTab('vpn',this)"><i class="fa-solid fa-user-shield"></i> VPN Queue</button>
                 <button class="admin-tab-btn" onclick="showTab('pastes',this)"><i class="fa-solid fa-paste"></i> Pastes</button>
-                <button class="admin-tab-btn" onclick="showTab('storage',this)"><i class="fa-solid fa-hard-drive"></i> Storage</button>
+                <button class="admin-tab-btn owner-only" onclick="showTab('storage',this)"><i class="fa-solid fa-hard-drive"></i> Storage</button>
                 <button class="admin-tab-btn" onclick="showTab('notifications',this)"><i class="fa-solid fa-bell"></i> Notifications</button>
-                <button class="admin-tab-btn" onclick="showTab('email',this)"><i class="fa-solid fa-envelope"></i> Email</button>
+                <button class="admin-tab-btn owner-only" onclick="showTab('email',this)"><i class="fa-solid fa-envelope"></i> Email</button>
                 <button class="admin-tab-btn" onclick="showTab('vkeys',this)"><i class="fa-solid fa-key"></i> Keys</button>
                 <button class="admin-tab-btn" onclick="showTab('audit',this)"><i class="fa-solid fa-clipboard-list"></i> Audit</button>
                 <button class="admin-tab-btn" onclick="showTab('analytics',this)"><i class="fa-solid fa-chart-pie"></i> Analytics</button>
@@ -753,6 +753,8 @@ function authHeaders() {
 
 // ── Tab switching ────────────────────────────────────────────
 let currentTab = 'dashboard';
+// Tabs restricted to the network owner (API keys / money / infrastructure).
+const OWNER_ONLY_TABS = new Set(['deploy', 'payments', 'cashouts', 'ai', 'storage', 'email']);
 const tabLoaders = {
     dashboard: loadDashboard,
     users: loadUsers,
@@ -779,8 +781,8 @@ const tabLoaders = {
 
 function showTab(id, btn) {
     if (!tabLoaders[id]) id = 'dashboard';
-    // Deploy is owner-only — bounce non-owners to the dashboard.
-    if (id === 'deploy' && currentUser && !currentUser.is_owner) id = 'dashboard';
+    // Owner-only tabs (secrets / money / infra) — bounce non-owners to dashboard.
+    if (OWNER_ONLY_TABS.has(id) && currentUser && !currentUser.is_owner) id = 'dashboard';
     currentTab = id;
     btn = btn || _tabButton(id);
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));

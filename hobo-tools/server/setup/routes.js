@@ -5,6 +5,23 @@ const bcrypt = require('bcryptjs');
 const urlRegistry = require('../url-registry');
 const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
 const certManager = require('../deploy/cert-manager');
+const { isSensitiveSettingKey, maskSecret } = require('../auth/owner-guard');
+
+// The setup status is served UNAUTHENTICATED — never leak secret registry
+// values (e.g. DEPLOY_CLOUDFLARE_TOKEN) in it.
+function redactResolvedRegistry(resolved) {
+    if (!resolved || typeof resolved !== 'object') return resolved;
+    const out = {};
+    for (const [key, entry] of Object.entries(resolved)) {
+        if (entry && typeof entry === 'object' && 'value' in entry &&
+            (entry.type === 'secret' || isSensitiveSettingKey(key))) {
+            out[key] = { ...entry, value: entry.value ? maskSecret(entry.value) : entry.value, redacted: true };
+        } else {
+            out[key] = entry;
+        }
+    }
+    return out;
+}
 
 function createSetupRoutes(db, config) {
     const router = express.Router();
@@ -67,7 +84,7 @@ function createSetupRoutes(db, config) {
             bootstrapProfile: config.bootstrapProfile,
             warnings: getSetupWarnings(resolvedRegistry),
             issues: getSetupIssues(resolvedRegistry),
-            resolvedRegistry,
+            resolvedRegistry: redactResolvedRegistry(resolvedRegistry),
         };
     }
 

@@ -14,6 +14,7 @@ const fs = require('fs');
 const childProcess = require('child_process');
 const urlRegistry = require('../url-registry');
 const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
+const { isOwner, requireOwner, isSensitiveSettingKey, maskSecret } = require('../auth/owner-guard');
 
 const LOCAL_REFRESH_SERVICES = new Set(['hobotools']);
 
@@ -218,8 +219,8 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
     // Email Configuration (Resend)
     // ═══════════════════════════════════════════════════════
 
-    // GET /api/admin/email — get current email config
-    router.get('/email', (req, res) => {
+    // GET /api/admin/email — get current email config (owner-only: exposes key metadata)
+    router.get('/email', requireOwner, (req, res) => {
         try {
             const status = emailService.getStatus();
             res.json({ ok: true, email: status, metrics: getEmailMetrics() });
@@ -228,8 +229,8 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         }
     });
 
-    // PUT /api/admin/email — update email config
-    router.put('/email', (req, res) => {
+    // PUT /api/admin/email — update email config (owner-only: writes resend_api_key)
+    router.put('/email', requireOwner, (req, res) => {
         try {
             const { enabled, api_key, from_email, from_name,
                     from_email_hobostreamer, from_email_hoboquest, from_email_hobotools } = req.body;
@@ -261,8 +262,8 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         }
     });
 
-    // POST /api/admin/email/test — send test email
-    router.post('/email/test', async (req, res) => {
+    // POST /api/admin/email/test — send test email (owner-only, part of email config)
+    router.post('/email/test', requireOwner, async (req, res) => {
         try {
             const { email } = req.body;
             if (!email) return res.status(400).json({ ok: false, error: 'Email required' });
@@ -290,9 +291,15 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
                 'email_enabled', 'resend_api_key', 'email_from_address', 'email_from_name',
                 'email_from_hobostreamer', 'email_from_hoboquest', 'email_from_hobotools',
             ]);
+            const owner = isOwner(req.user);
             for (const r of rows) {
                 if (EMAIL_MANAGED_KEYS.has(r.key)) continue;
-                settings[r.key] = { value: r.value, type: r.type };
+                // Secrets (API keys / tokens / credentials) are owner-only — mask for admins.
+                if (!owner && (r.type === 'secret' || isSensitiveSettingKey(r.key))) {
+                    settings[r.key] = { value: maskSecret(r.value), type: r.type, redacted: true };
+                } else {
+                    settings[r.key] = { value: r.value, type: r.type };
+                }
             }
             res.json({ ok: true, settings });
         } catch (err) {
@@ -304,8 +311,12 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         try {
             const { key, value, type } = req.body;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
+            // Secrets are owner-only — an admin cannot create or overwrite them.
+            if ((type === 'secret' || isSensitiveSettingKey(key)) && !isOwner(req.user)) {
+                return res.status(403).json({ ok: false, error: 'Owner access required to change this setting' });
+            }
             // Prevent overwriting secrets with masked values
-            if (key === 'ses_secret_access_key' && value?.startsWith('••••')) {
+            if (typeof value === 'string' && /^••••/.test(value)) {
                 return res.json({ ok: true, skipped: true });
             }
             db.prepare('INSERT OR REPLACE INTO site_settings (key, value, type) VALUES (?, ?, ?)').run(key, String(value), type || 'string');
@@ -323,21 +334,40 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
 
     router.get('/url-registry', (req, res) => {
         try {
-            const entries = urlRegistry.getAllRegistryEntries(db);
+            let entries = urlRegistry.getAllRegistryEntries(db);
+            // Mask secret-typed registry values (e.g. DEPLOY_CLOUDFLARE_TOKEN) for non-owners.
+            if (!isOwner(req.user) && Array.isArray(entries)) {
+                entries = entries.map((e) => {
+                    if (e && (e.type === 'secret' || isSensitiveSettingKey(e.key))) {
+                        return { ...e, value: maskSecret(e.value), redacted: true };
+                    }
+                    return e;
+                });
+            }
             res.json({ ok: true, entries });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
         }
     });
 
+    // Reject secret-registry writes/clears from non-owners (Cloudflare token, etc.).
+    function guardRegistryKey(req, res, key) {
+        if (isSensitiveSettingKey(key) && !isOwner(req.user)) {
+            res.status(403).json({ ok: false, error: 'Owner access required to change this key' });
+            return false;
+        }
+        return true;
+    }
+
     router.put('/url-registry', async (req, res) => {
         try {
             const { key, value } = req.body;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
             if (value === undefined || value === null) return res.status(400).json({ ok: false, error: 'Value required' });
+            if (!guardRegistryKey(req, res, key)) return;
             const entry = urlRegistry.setRegistryEntry(db, key, value, req.user.id);
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
-                req.user.id, 'url_registry_update', JSON.stringify({ key, value })
+                req.user.id, 'url_registry_update', JSON.stringify({ key })
             );
 
             const refreshResult = await notifyServiceRefresh(req, key);
@@ -356,9 +386,10 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
             const { value } = req.body;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
             if (value === undefined || value === null) return res.status(400).json({ ok: false, error: 'Value required' });
+            if (!guardRegistryKey(req, res, key)) return;
             const entry = urlRegistry.setRegistryEntry(db, key, value, req.user.id);
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
-                req.user.id, 'url_registry_update', JSON.stringify({ key, value })
+                req.user.id, 'url_registry_update', JSON.stringify({ key })
             );
 
             const refreshResult = await notifyServiceRefresh(req, key);
@@ -375,6 +406,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         try {
             const { key } = req.params;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
+            if (!guardRegistryKey(req, res, key)) return;
             urlRegistry.resetRegistryEntry(db, key);
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'url_registry_reset', JSON.stringify({ key })
@@ -409,6 +441,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         try {
             const { key } = req.params;
             if (!key) return res.status(400).json({ ok: false, error: 'Key required' });
+            if (!guardRegistryKey(req, res, key)) return;
             urlRegistry.resetRegistryEntry(db, key);
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'url_registry_reset', JSON.stringify({ key })
@@ -444,7 +477,9 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         }
     });
 
-    router.post('/users/grant-admin', (req, res) => {
+    // Only the owner may grant admin — otherwise an admin could self-escalate here,
+    // bypassing the owner gate on PUT /users/:id/role.
+    router.post('/users/grant-admin', requireOwner, (req, res) => {
         try {
             const { id, username, email } = req.body;
             if (!id && !username && !email) {
@@ -633,6 +668,14 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
                 LEFT JOIN users u ON u.id = a.user_id
                 ORDER BY a.created_at DESC LIMIT ? OFFSET ?
             `).all(limit, offset);
+            // Historical rows may hold secret values in `details` (older registry/
+            // config writes logged the raw value). Scrub those for non-owners.
+            if (!isOwner(req.user)) {
+                const SECRET_ACTIONS = /(registry|setting|config|email|discord|net_|deploy)/i;
+                for (const r of rows) {
+                    if (r.details && SECRET_ACTIONS.test(r.action || '')) r.details = '"[redacted]"';
+                }
+            }
             res.json({ ok: true, entries: rows });
         } catch (err) {
             res.status(500).json({ ok: false, error: err.message });
@@ -726,7 +769,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         'net.globalping_token',      // Globalping API token (optional, 100 credits/hr free)
     ];
 
-    router.get('/net-config', (req, res) => {
+    router.get('/net-config', requireOwner, (req, res) => {
         try {
             const config = {};
             for (const key of NET_SETTING_KEYS) {
@@ -745,7 +788,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         }
     });
 
-    router.put('/net-config', (req, res) => {
+    router.put('/net-config', requireOwner, (req, res) => {
         try {
             const { key, value } = req.body;
             if (!key || !NET_SETTING_KEYS.includes(key)) {

@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 const express = require('express');
+const { isOwner, isSensitiveSettingKey } = require('../auth/owner-guard');
 
 module.exports = function createDiscordRoutes(db, discordService, requireAuth, requireAdmin) {
     const router = express.Router();
@@ -46,8 +47,11 @@ module.exports = function createDiscordRoutes(db, discordService, requireAuth, r
         );
         let tokenChanged = false;
 
+        const owner = isOwner(req.user);
         for (const [key, value] of Object.entries(settings)) {
             if (!allowedKeys.includes(key)) continue;
+            // Bot token / OAuth secret are owner-only — silently skip for admins.
+            if (isSensitiveSettingKey(key) && !owner) continue;
             const strVal = String(value ?? '').trim();
             // Don't overwrite token/secret with masked values
             if (key === 'discord_bot_token' && (strVal === '••••••••' || strVal === '')) continue;
