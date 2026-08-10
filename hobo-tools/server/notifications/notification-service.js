@@ -172,7 +172,11 @@ class NotificationService {
             rows = this._getForUser.all(userId, limit, offset);
         }
         return rows.map(n => {
-            if (n.rich_content) n.rich_content = JSON.parse(n.rich_content);
+            // Defensive: a single corrupt row must never 500 the whole dropdown.
+            if (n.rich_content) {
+                try { n.rich_content = JSON.parse(n.rich_content); }
+                catch { n.rich_content = null; }
+            }
             return n;
         });
     }

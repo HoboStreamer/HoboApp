@@ -355,18 +355,21 @@
             }
 
             list.innerHTML = data.notifications.map(n => {
-                const rich = n.rich_content ? JSON.parse(n.rich_content) : {};
-                const ago = timeAgo(n.created_at);
-                const serviceTag = n.service && n.service !== 'hobotools'
-                    ? `<span class="service-tag">${n.service}</span>` : '';
-                return `<div class="hobo-notif-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
-                    <span class="icon">${n.icon || '🔔'}</span>
-                    <div class="content">
-                        <div class="title">${n.title}</div>
-                        <div class="msg">${n.message}</div>
-                        <div class="meta"><span>${ago}</span>${serviceTag}</div>
-                    </div>
-                </div>`;
+                // Render each item in isolation — one malformed notification must
+                // never blank the whole dropdown ("Failed to load").
+                try {
+                    const ago = timeAgo(n.created_at);
+                    const serviceTag = n.service && n.service !== 'hobotools'
+                        ? `<span class="service-tag">${esc(n.service)}</span>` : '';
+                    return `<div class="hobo-notif-item ${n.read ? '' : 'unread'}" data-id="${esc(n.id)}">
+                        <span class="icon">${esc(n.icon || '🔔')}</span>
+                        <div class="content">
+                            <div class="title">${esc(n.title)}</div>
+                            <div class="msg">${esc(n.message)}</div>
+                            <div class="meta"><span>${esc(ago)}</span>${serviceTag}</div>
+                        </div>
+                    </div>`;
+                } catch { return ''; }
             }).join('');
 
             list.querySelectorAll('.hobo-notif-item').forEach(item => {
@@ -375,7 +378,7 @@
                     markRead(id);
                     item.classList.remove('unread');
                     const notif = data.notifications.find(n => String(n.id) === id);
-                    const rich = notif?.rich_content ? JSON.parse(notif.rich_content) : {};
+                    const rich = richOf(notif);
                     if (rich.url) window.open(rich.url, '_blank');
                 });
             });
@@ -436,6 +439,25 @@
             }
             _lastCheck = new Date().toISOString();
         } catch {}
+    }
+
+    // ── Helpers ──────────────────────────────────────────────
+    // Escape untrusted text before inserting into innerHTML. Notification
+    // titles/messages can be attacker-controlled (e.g. abusive broadcasts), so
+    // they must never be treated as HTML.
+    function esc(v) {
+        if (v == null) return '';
+        return String(v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    // rich_content arrives already parsed from the API, but tolerate a raw JSON
+    // string too. Never throw — a bad value just yields {}.
+    function richOf(n) {
+        const rc = n && n.rich_content;
+        if (!rc) return {};
+        if (typeof rc === 'object') return rc;
+        try { return JSON.parse(rc) || {}; } catch { return {}; }
     }
 
     // ── Time Formatting ──────────────────────────────────────
