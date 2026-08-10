@@ -15,6 +15,7 @@ const childProcess = require('child_process');
 const urlRegistry = require('../url-registry');
 const { URL_DEFINITIONS } = require('hobo-shared/url-resolver');
 const { isOwner, requireOwner, isSensitiveSettingKey, maskSecret } = require('../auth/owner-guard');
+const { checkAdminLimit, recordAdminAction } = require('../auth/admin-limits');
 
 const LOCAL_REFRESH_SERVICES = new Set(['hobotools']);
 
@@ -472,7 +473,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
         }
     });
 
-    router.post('/reset-db', (req, res) => {
+    router.post('/reset-db', requireOwner, (req, res) => {
         try {
             const serviceRoot = path.resolve(__dirname, '..');
             const scriptPath = path.join(serviceRoot, 'server', 'reset-db.js');
@@ -622,6 +623,16 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
             const { title, message, icon, url, priority, category } = req.body;
             if (!title) return res.status(400).json({ ok: false, error: 'Title required' });
 
+            // Abusable at volume — admins get one global notification per 6h; owners are exempt.
+            const limit = checkAdminLimit(db, req.user, 'broadcast');
+            if (!limit.ok) {
+                return res.status(429).json({
+                    ok: false,
+                    error: `Rate limited — you can send another global notification in ${limit.retryHuman}.`,
+                    retryMs: limit.retryMs,
+                });
+            }
+
             // Get all non-banned user IDs
             const userIds = db.prepare('SELECT id FROM users WHERE is_banned = 0').all().map(u => u.id);
             const results = notificationService.createBulk(userIds, {
@@ -637,6 +648,7 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
                 service: 'hobo-tools',
             });
 
+            recordAdminAction(db, req.user, 'broadcast');
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'broadcast_notification', JSON.stringify({ title, recipients: results.length })
             );
