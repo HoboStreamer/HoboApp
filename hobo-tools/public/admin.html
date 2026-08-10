@@ -159,6 +159,10 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
     .section-tabs-shell{gap:6px}
     .tabs-scroll-btn{width:30px;height:30px;flex-basis:30px;border-radius:8px}
 }
+.ssh-prompt{background:var(--bg-elev,#111);border:1px solid var(--border,#2a2a2a);border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.8rem;line-height:1.55;color:var(--text,#ddd);max-height:520px;overflow:auto;margin:0}
+#sec-ssh code{background:var(--bg-elev,#111);border:1px solid var(--border,#2a2a2a);border-radius:5px;padding:2px 7px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.8rem;display:inline-block;margin-top:3px;word-break:break-all}
+#sec-ssh .staff-pill{font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;vertical-align:middle;margin-left:8px;color:var(--warning,#f0b74a);background:color-mix(in srgb,var(--warning,#f0b74a) 18%,transparent);border:1px solid color-mix(in srgb,var(--warning,#f0b74a) 40%,transparent)}
+#sec-ssh .staff-pill.user-pill{color:var(--accent,#6ea8ff);background:color-mix(in srgb,var(--accent,#6ea8ff) 18%,transparent);border-color:color-mix(in srgb,var(--accent,#6ea8ff) 40%,transparent)}
 </style>
 </head>
 <body>
@@ -197,7 +201,8 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                 <button class="admin-tab-btn" onclick="showTab('vkeys',this)"><i class="fa-solid fa-key"></i> Keys</button>
                 <button class="admin-tab-btn" onclick="showTab('audit',this)"><i class="fa-solid fa-clipboard-list"></i> Audit</button>
                 <button class="admin-tab-btn" onclick="showTab('analytics',this)"><i class="fa-solid fa-chart-pie"></i> Analytics</button>
-                <button class="admin-tab-btn" onclick="showTab('deploy',this)"><i class="fa-solid fa-server"></i> Deploy</button>
+                <button class="admin-tab-btn owner-only" onclick="showTab('deploy',this)"><i class="fa-solid fa-server"></i> Deploy</button>
+                <button class="admin-tab-btn" onclick="showTab('ssh',this)"><i class="fa-solid fa-terminal"></i> SSH</button>
             </div>
         </div>
         <button class="tabs-scroll-btn" id="main-tabs-right" onclick="scrollMainTabs(1)" title="Scroll right" aria-label="Scroll right">
@@ -670,6 +675,11 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
             </div>
         </div>
     </div>
+
+    <!-- SSH access provisioning -->
+    <div class="section" id="sec-ssh">
+        <div id="ssh-content"><div class="loading">Loading...</div></div>
+    </div>
 </div>
 
 <!-- Shared scripts -->
@@ -757,10 +767,13 @@ const tabLoaders = {
     audit: loadAudit,
     analytics: loadAnalytics,
     deploy: loadDeployOverview,
+    ssh: loadSSH,
 };
 
 function showTab(id, btn) {
     if (!tabLoaders[id]) id = 'dashboard';
+    // Deploy is owner-only — bounce non-owners to the dashboard.
+    if (id === 'deploy' && currentUser && !currentUser.is_owner) id = 'dashboard';
     currentTab = id;
     btn = btn || _tabButton(id);
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -3265,6 +3278,10 @@ async function init() {
             document.querySelector('.page').innerHTML = '<div class="card" style="text-align:center;padding:60px"><h3 style="color:var(--live-red)"><i class="fa-solid fa-lock"></i> Access Denied</h3><p class="muted" style="margin-top:8px">Admin privileges required.</p></div>';
             return;
         }
+        // Owner-only UI (Deploy tab, etc.) — hide for plain admins.
+        if (!currentUser.is_owner) {
+            document.querySelectorAll('.owner-only').forEach(el => { el.style.display = 'none'; });
+        }
         // Init navbar
         if (window.HoboNavbar) {
             HoboNavbar.init({ service: 'hobotools', token, user: currentUser });
@@ -3282,6 +3299,201 @@ async function init() {
 }
 
 init();
+
+// ═══════════════════════════════════════════════════════════════
+// SSH Access — owner provisions locked-down dev accounts; admins get
+// guided instructions + an agent prompt to connect and vibe-code.
+// ═══════════════════════════════════════════════════════════════
+let sshInfo = null;
+
+async function loadSSH() {
+    const el = document.getElementById('ssh-content');
+    if (!el) return;
+    if (!sshInfo) {
+        try {
+            const r = await fetch(`${API}/api/admin/ssh-info`, { headers: authHeaders() });
+            const d = await r.json();
+            if (!d.ok) throw new Error(d.error || 'Failed to load SSH info');
+            sshInfo = d;
+        } catch (e) {
+            el.innerHTML = `<div class="card"><p class="muted">Could not load SSH info: ${esc(e.message)}</p></div>`;
+            return;
+        }
+    }
+    if (sshInfo.is_owner) renderSSHOwner(el);
+    else renderSSHUser(el);
+}
+
+function _sshSetText(id, t) { const e = document.getElementById(id); if (e) e.textContent = t; }
+function _sshSanitizeUser(v) { return (v || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''); }
+
+function sshCopy(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+        if (typeof toast === 'function') toast('Prompt copied', 'success');
+        if (btn) { const o = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied'; setTimeout(() => { btn.innerHTML = o; }, 1400); }
+    }).catch(() => { if (typeof toast === 'function') toast('Copy failed', 'error'); });
+}
+
+// ── Owner view ──────────────────────────────────────────────
+function renderSSHOwner(el) {
+    const hostWarn = sshInfo.host ? '' :
+        `<div class="card" style="border-color:var(--warning)"><p style="color:var(--warning);margin:0"><i class="fa-solid fa-triangle-exclamation"></i> No server host is configured yet. Set <code>SSH_SERVER_HOST</code> in the hobo-tools environment so the connection details fill in automatically.</p></div>`;
+    el.innerHTML = `
+    <div class="card">
+        <h3><i class="fa-solid fa-user-lock"></i> Provision an SSH dev account <span class="staff-pill">Owner</span></h3>
+        <p class="muted">Create a locked-down Linux account so a trusted admin can SSH in and help build the sites (vibe coding with Claude). They get their own home + group access to the project folders — <b>no root</b>. Fill in the fields, copy the prompt, and hand it to your agent.</p>
+    </div>
+    ${hostWarn}
+    <div class="card">
+        <div class="form-group" style="margin-bottom:14px">
+            <label>New Linux username</label>
+            <input type="text" id="ssh-o-user" placeholder="e.g. alex" oninput="sshOwnerUpdate()" style="max-width:280px">
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+            <label>Their SSH <b>public</b> key <span class="muted">— ask them to run the steps in their own SSH tab and paste their <code>.pub</code> here (recommended)</span></label>
+            <textarea id="ssh-o-pubkey" rows="3" placeholder="ssh-ed25519 AAAA... alex@hobo" oninput="sshOwnerUpdate()" style="width:100%;font-family:ui-monospace,monospace;font-size:0.82rem"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Access level</label>
+            <select id="ssh-o-access" onchange="sshOwnerUpdate()" style="max-width:380px">
+                <option value="code">Project code only (safest)</option>
+                <option value="restart">Project code + restart app services</option>
+            </select>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0"><i class="fa-solid fa-robot"></i> Agent prompt</h3>
+            <button class="btn btn-primary" onclick="sshCopy('ssh-o-prompt', this)"><i class="fa-solid fa-copy"></i> Copy Prompt</button>
+        </div>
+        <p class="muted" style="margin:8px 0">Paste into Claude Code running on the server with sudo (or locally with root SSH) to create and lock down the account.</p>
+        <pre id="ssh-o-prompt" class="ssh-prompt"></pre>
+    </div>
+    <div class="card">
+        <h3><i class="fa-solid fa-shield-halved"></i> How it's locked down</h3>
+        <ul class="muted" style="line-height:1.7;margin:0;padding-left:20px">
+            <li>Key-only login — password auth is disabled for the account.</li>
+            <li>Member of a shared <code>devs</code> group that owns the project dirs (<code>${esc(sshInfo.projectsRoot)}</code>) with setgid, so they can edit code and new files stay group-shared.</li>
+            <li><b>Not</b> in <code>sudo</code> — no root. nginx / TLS / packages / system changes stay with you via the owner-only Deploy tab.</li>
+            <li>Optional access level adds a tightly-scoped sudoers rule that only permits <code>systemctl restart</code> of the app services — nothing else.</li>
+            <li>Revoke anytime: remove their key from <code>~/.ssh/authorized_keys</code>, or <code>sudo deluser --remove-home &lt;user&gt;</code>.</li>
+        </ul>
+    </div>`;
+    sshOwnerUpdate();
+}
+
+function sshOwnerUpdate() {
+    const user = _sshSanitizeUser(document.getElementById('ssh-o-user')?.value) || '<username>';
+    const pub = (document.getElementById('ssh-o-pubkey')?.value || '').trim();
+    const access = document.getElementById('ssh-o-access')?.value || 'code';
+    const host = sshInfo.host || '<server-host>';
+    const roots = sshInfo.projectsRoot;
+    const firstRoot = roots.split(/\s+/)[0];
+    const pubShown = pub || "<PASTE THE USER'S SSH PUBLIC KEY HERE>";
+
+    const steps = [
+        `Create the user with no password login:\n   sudo adduser --disabled-password --gecos "" ${user}`,
+        `Install their SSH public key:\n   sudo install -d -m 700 -o ${user} -g ${user} /home/${user}/.ssh\n   echo "${pubShown}" | sudo tee /home/${user}/.ssh/authorized_keys\n   sudo chmod 600 /home/${user}/.ssh/authorized_keys\n   sudo chown ${user}:${user} /home/${user}/.ssh/authorized_keys`,
+        `Create/ensure a shared dev group and add them:\n   sudo groupadd -f devs\n   sudo usermod -aG devs ${user}`,
+        `Give the group access to the project dirs (setgid so new files stay shared):\n   sudo chgrp -R devs ${roots}\n   sudo chmod -R g+rwX ${roots}\n   sudo find ${roots} -type d -exec chmod g+s {} +`,
+        `Do NOT add them to the sudo group — they must not have root.`,
+    ];
+    if (access === 'restart') {
+        steps.push(`Allow ONLY restarting the app services (no other sudo):\n   echo '${user} ALL=(root) NOPASSWD: /usr/bin/systemctl restart hobo-tools, /usr/bin/systemctl restart hobostreamer' | sudo tee /etc/sudoers.d/${user}\n   sudo chmod 440 /etc/sudoers.d/${user}\n   sudo visudo -c`);
+    }
+    steps.push(`Verify:\n   sudo -u ${user} whoami\n   sudo -u ${user} ls -la ${firstRoot}`);
+    const numbered = steps.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
+
+    const prompt =
+`You are provisioning a locked-down SSH account on my Linux server for a trusted Hobo Network admin so they can SSH in and help develop the sites (vibe coding with Claude Code). Be careful and idempotent, and do NOT grant this user root/sudo beyond exactly what is specified below.
+
+Server host: ${host}
+New username: ${user}
+Their SSH public key:
+${pubShown}
+
+Steps:
+${numbered}
+
+Finally, tell me the exact command they should run to connect:
+   ssh ${user}@${host}`;
+    _sshSetText('ssh-o-prompt', prompt);
+}
+
+// ── Admin (user) view ───────────────────────────────────────
+function renderSSHUser(el) {
+    const defUser = _sshSanitizeUser(currentUser.username) || 'me';
+    el.innerHTML = `
+    <div class="card">
+        <h3><i class="fa-solid fa-terminal"></i> Connect to the dev server <span class="staff-pill user-pill">You</span></h3>
+        <p class="muted">Generate your key, send the owner (<b>${esc(sshInfo.ownerUsername)}</b>) your <b>public</b> key to authorize, then SSH in and help build the sites with Claude. Your private key never leaves your machine.</p>
+    </div>
+    <div class="card">
+        <div class="form-group">
+            <label>Your SSH username <span class="muted">— confirm the exact name with the owner</span></label>
+            <input type="text" id="ssh-u-user" value="${esc(defUser)}" oninput="sshUserUpdate()" style="max-width:280px">
+        </div>
+    </div>
+    <div class="card">
+        <h3><i class="fa-solid fa-list-ol"></i> Steps</h3>
+        <ol class="muted" style="line-height:1.9;padding-left:20px;margin:0">
+            <li>Generate a key pair (skip if you already have one you want to use):<br><code id="ssh-u-keygen"></code></li>
+            <li>Print your <b>public</b> key and send it to the owner to authorize:<br><code id="ssh-u-cat"></code></li>
+            <li>Once they confirm it's added, put this in your <code>~/.ssh/config</code>:<pre id="ssh-u-config" class="ssh-prompt" style="margin-top:6px"></pre></li>
+            <li>Connect: <code id="ssh-u-connect"></code></li>
+        </ol>
+    </div>
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0"><i class="fa-solid fa-robot"></i> Agent prompt</h3>
+            <button class="btn btn-primary" onclick="sshCopy('ssh-u-prompt', this)"><i class="fa-solid fa-copy"></i> Copy Prompt</button>
+        </div>
+        <p class="muted" style="margin:8px 0">Paste into Claude Code on your own machine — it sets up the connection and gives it full context about the server so you can start vibe coding.</p>
+        <pre id="ssh-u-prompt" class="ssh-prompt"></pre>
+    </div>`;
+    sshUserUpdate();
+}
+
+function sshUserUpdate() {
+    const host = sshInfo.host || '<server-host>';
+    const user = _sshSanitizeUser(document.getElementById('ssh-u-user')?.value) || '<username>';
+    const keygen = `ssh-keygen -t ed25519 -C "${user}@hobo" -f ~/.ssh/hobo_${user}`;
+    const cat = `cat ~/.ssh/hobo_${user}.pub`;
+    const config = `Host hobo\n    HostName ${host}\n    User ${user}\n    IdentityFile ~/.ssh/hobo_${user}\n    ServerAliveInterval 60`;
+    const connect = `ssh hobo`;
+    _sshSetText('ssh-u-keygen', keygen);
+    _sshSetText('ssh-u-cat', cat);
+    _sshSetText('ssh-u-config', config);
+    _sshSetText('ssh-u-connect', connect);
+
+    const prompt =
+`Help me connect to the Hobo Network dev server over SSH, then help me develop the sites (vibe coding with Claude Code).
+
+My SSH username: ${user}
+Server host: ${host}
+
+Do this:
+1. If I don't already have this key, generate one (leave the passphrase empty, or set one — my call):
+   ${keygen}
+2. Print my PUBLIC key so I can send it to the server owner (${sshInfo.ownerUsername}) to authorize. Nothing works until they add it:
+   ${cat}
+3. Add this block to my ~/.ssh/config (create the file if needed, then chmod 600 ~/.ssh/config):
+${config}
+4. Test the connection:
+   ${connect}
+
+Context about the server so you can help me once I'm connected:
+- Projects live under: ${sshInfo.projectsRoot}
+  (hobo.tools + its sub-apps under /opt/hobo, HoboStreamer.com under /opt/hobostreamer)
+- Services are systemd units: ${sshInfo.services.join(', ')}. Deploys are git-based —
+  cd into the project, git pull --ff-only, then restart the service (if I'm permitted).
+- I'm a Hobo Network admin, not root. nginx / TLS / packages / system-level changes go through the owner.
+- Other devs share the project group, so be careful with shared files and always pull before editing.
+Once I'm connected, cd into the relevant project and let's build.`;
+    _sshSetText('ssh-u-prompt', prompt);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Deploy Panel — TLS / Nginx / Infrastructure Control Plane

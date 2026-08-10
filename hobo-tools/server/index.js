@@ -412,6 +412,21 @@ app.use('/api/admin/discord', createDiscordRoutes(db, discordService, requireAut
 // Deploy (TLS / Nginx / Infrastructure) admin API
 app.use('/api/admin/deploy', createDeployRoutes(db, requireAuth));
 
+// SSH access provisioning info — powers the admin "SSH" tab.
+// Returns non-secret connection context (host, project roots, services). The
+// actual host lives in env (SSH_SERVER_HOST) so no infra detail is committed.
+app.get('/api/admin/ssh-info', requireAuth, requireAdmin, (req, res) => {
+    const OWNER = (process.env.OWNER_USERNAME || 'goosely').toLowerCase();
+    res.json({
+        ok: true,
+        host: process.env.SSH_SERVER_HOST || '',
+        ownerUsername: OWNER,
+        projectsRoot: process.env.SSH_PROJECTS_ROOT || '/opt/hobo /opt/hobostreamer',
+        services: ['hobo-tools', 'hobostreamer'],
+        is_owner: !!(req.user.username && req.user.username.toLowerCase() === OWNER),
+    });
+});
+
 // Setup API for first-run bootstrapping and status checks
 app.use('/api/setup', createSetupRoutes(db, config));
 
