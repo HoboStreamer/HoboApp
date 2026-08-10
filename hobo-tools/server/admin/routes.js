@@ -511,6 +511,14 @@ function createAdminRoutes(db, notificationService, emailService, requireAuth) {
             const { role } = req.body;
             const validRoles = ['user', 'streamer', 'global_mod', 'admin'];
             if (!validRoles.includes(role)) return res.status(400).json({ ok: false, error: 'Invalid role' });
+            // Only the network owner may grant/revoke the ADMIN role. Regular admins can
+            // still manage streamers / global mods / users, but not other admins.
+            const OWNER = (process.env.OWNER_USERNAME || 'goosely').toLowerCase();
+            const isOwner = req.user && String(req.user.username || '').toLowerCase() === OWNER;
+            const target = db.prepare('SELECT role FROM users WHERE id = ?').get(req.params.id);
+            if (!isOwner && (role === 'admin' || (target && target.role === 'admin'))) {
+                return res.status(403).json({ ok: false, error: 'Only the owner can grant or change the admin role' });
+            }
             db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
             db.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
                 req.user.id, 'user_role_change', JSON.stringify({ targetId: req.params.id, role })

@@ -1438,6 +1438,12 @@ async function loadAi() {
         const field = (key) => {
             const s = byKey[key]; if (!s) return '';
             const sensitive = /(api_key|secret)/i.test(key);
+            // Server redacts API keys / money settings for non-owner admins — show locked.
+            if (s.redacted) return `
+                <div class="setting-row" style="flex-direction:column;align-items:stretch">
+                    <label><strong>${esc(key)}</strong> <span style="color:var(--muted);font-size:11px;font-weight:600">🔒 Owner only</span><br><small>${esc(s.description||'')}</small></label>
+                    <input type="text" value="${esc(s.value)}" disabled data-redacted="1"
+                        style="margin-top:4px;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:13px;opacity:0.65"></div>`;
             if (s.type === 'boolean') return `
                 <div class="setting-row"><label><strong>${esc(key)}</strong><br><small>${esc(s.description||'')}</small></label>
                 <input type="checkbox" data-key="${esc(key)}" data-type="boolean" ${s.value==='true'?'checked':''} style="width:18px;height:18px;cursor:pointer"></div>`;
