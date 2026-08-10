@@ -861,8 +861,9 @@ function routeFromUrl() {
             const sel = document.getElementById('analytics-period'); if (sel) sel.value = per;
         }
         showTab(tab, _tabButton(tab));
-        if (tab === 'analytics' && sub) showAnalyticsSubTab(sub, _subBtn('analytics-sub-tabs', sub));
-        else if (tab === 'deploy' && sub) showDeploySubTab(sub, _subBtn('deploy-sub-tabs', sub));
+        // Use the effective tab (showTab may bounce a non-owner off /admin/deploy).
+        if (currentTab === 'analytics' && sub) showAnalyticsSubTab(sub, _subBtn('analytics-sub-tabs', sub));
+        else if (currentTab === 'deploy' && sub) showDeploySubTab(sub, _subBtn('deploy-sub-tabs', sub));
     } finally {
         _applyingRoute = false;
         _syncAdminUrl(true); // normalize (e.g. /admin/analytics -> /admin/analytics/overview)
