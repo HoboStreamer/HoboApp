@@ -744,6 +744,13 @@ async function api(path, opts = {}) {
     return data;
 }
 
+// Auth headers for raw fetch() calls (SSH tab, Deploy tab, etc.).
+function authHeaders() {
+    const h = {};
+    if (token) h.Authorization = 'Bearer ' + token;
+    return h;
+}
+
 // ── Tab switching ────────────────────────────────────────────
 let currentTab = 'dashboard';
 const tabLoaders = {
@@ -3358,10 +3365,14 @@ function renderSSHOwner(el) {
         </div>
         <div class="form-group">
             <label>Access level</label>
-            <select id="ssh-o-access" onchange="sshOwnerUpdate()" style="max-width:380px">
+            <select id="ssh-o-access" onchange="sshOwnerUpdate()" style="max-width:440px">
                 <option value="code">Project code only (safest)</option>
                 <option value="restart">Project code + restart app services</option>
+                <option value="web">Full web + nginx — build &amp; run their own sites (high trust)</option>
             </select>
+        </div>
+        <div id="ssh-o-webwarn" style="display:none;margin-top:12px;padding:10px 12px;border:1px solid var(--warning);border-radius:8px;background:color-mix(in srgb,var(--warning) 10%,transparent);color:var(--warning);font-size:0.84rem;line-height:1.5">
+            <i class="fa-solid fa-triangle-exclamation"></i> <b>High trust:</b> web + nginx access lets this admin edit any nginx site config and reload the web server — they can serve anything and a bad config can take <em>all</em> the sites down. It still stops short of root (no package installs or arbitrary sudo), but only grant it to admins you fully trust to run the web layer with you.
         </div>
     </div>
     <div class="card">
@@ -3377,8 +3388,14 @@ function renderSSHOwner(el) {
         <ul class="muted" style="line-height:1.7;margin:0;padding-left:20px">
             <li>Key-only login — password auth is disabled for the account.</li>
             <li>Member of a shared <code>devs</code> group that owns the project dirs (<code>${esc(sshInfo.projectsRoot)}</code>) with setgid, so they can edit code and new files stay group-shared.</li>
-            <li><b>Not</b> in <code>sudo</code> — no root. nginx / TLS / packages / system changes stay with you via the owner-only Deploy tab.</li>
-            <li>Optional access level adds a tightly-scoped sudoers rule that only permits <code>systemctl restart</code> of the app services — nothing else.</li>
+            <li><b>Not</b> in <code>sudo</code> — no blanket root. TLS / packages / arbitrary system changes stay with you.</li>
+            <li><b>Access levels</b> are additive and each grants only a tightly-scoped sudoers rule (never general root):
+                <ul style="margin:4px 0 0;padding-left:18px">
+                    <li><b>Project code only</b> — edit code in the project dirs, nothing privileged.</li>
+                    <li><b>+ Restart app services</b> — adds sudo for <code>systemctl restart hobo-tools/hobostreamer</code> only.</li>
+                    <li><b>Full web + nginx</b> — adds group ownership of the nginx site configs + a <code>/srv/www</code> web root, plus sudo limited to <code>nginx -t</code> and reload/restart of nginx &amp; php-fpm. Lets them build &amp; run their own sites — high trust, since a bad config affects every site.</li>
+                </ul>
+            </li>
             <li>Revoke anytime: remove their key from <code>~/.ssh/authorized_keys</code>, or <code>sudo deluser --remove-home &lt;user&gt;</code>.</li>
         </ul>
     </div>`;
@@ -3393,22 +3410,40 @@ function sshOwnerUpdate() {
     const roots = sshInfo.projectsRoot;
     const firstRoot = roots.split(/\s+/)[0];
     const pubShown = pub || "<PASTE THE USER'S SSH PUBLIC KEY HERE>";
+    const isRestart = access === 'restart' || access === 'web';
+    const isWeb = access === 'web';
+
+    // Toggle the high-trust warning under the selector.
+    const ww = document.getElementById('ssh-o-webwarn');
+    if (ww) ww.style.display = isWeb ? 'block' : 'none';
 
     const steps = [
         `Create the user with no password login:\n   sudo adduser --disabled-password --gecos "" ${user}`,
         `Install their SSH public key:\n   sudo install -d -m 700 -o ${user} -g ${user} /home/${user}/.ssh\n   echo "${pubShown}" | sudo tee /home/${user}/.ssh/authorized_keys\n   sudo chmod 600 /home/${user}/.ssh/authorized_keys\n   sudo chown ${user}:${user} /home/${user}/.ssh/authorized_keys`,
         `Create/ensure a shared dev group and add them:\n   sudo groupadd -f devs\n   sudo usermod -aG devs ${user}`,
         `Give the group access to the project dirs (setgid so new files stay shared):\n   sudo chgrp -R devs ${roots}\n   sudo chmod -R g+rwX ${roots}\n   sudo find ${roots} -type d -exec chmod g+s {} +`,
-        `Do NOT add them to the sudo group — they must not have root.`,
+        `Do NOT add them to the sudo group — they must not have blanket root.`,
     ];
-    if (access === 'restart') {
-        steps.push(`Allow ONLY restarting the app services (no other sudo):\n   echo '${user} ALL=(root) NOPASSWD: /usr/bin/systemctl restart hobo-tools, /usr/bin/systemctl restart hobostreamer' | sudo tee /etc/sudoers.d/${user}\n   sudo chmod 440 /etc/sudoers.d/${user}\n   sudo visudo -c`);
+    if (isWeb) {
+        steps.push(`Grant broad web + nginx access (edit any site config, run their own sites):\n   sudo groupadd -f webdev\n   sudo usermod -aG webdev ${user}\n   # let the group own & edit nginx site configs (setgid keeps new files group-shared)\n   sudo chgrp -R webdev /etc/nginx/sites-available /etc/nginx/sites-enabled\n   sudo chmod -R g+rwX /etc/nginx/sites-available /etc/nginx/sites-enabled\n   sudo find /etc/nginx/sites-available /etc/nginx/sites-enabled -type d -exec chmod g+s {} +\n   # a shared web root for their own sites (2775 = group-writable + setgid)\n   sudo install -d -m 2775 -o root -g webdev /srv/www`);
     }
-    steps.push(`Verify:\n   sudo -u ${user} whoami\n   sudo -u ${user} ls -la ${firstRoot}`);
+    if (isRestart) {
+        const cmds = ['/usr/bin/systemctl restart hobo-tools', '/usr/bin/systemctl restart hobostreamer'];
+        if (isWeb) cmds.push('/usr/sbin/nginx -t', '/usr/bin/systemctl reload nginx', '/usr/bin/systemctl restart nginx', '/usr/bin/systemctl reload php*-fpm', '/usr/bin/systemctl restart php*-fpm');
+        steps.push(`Allow ONLY these exact root commands via sudo (nothing else):\n   echo '${user} ALL=(root) NOPASSWD: ${cmds.join(', ')}' | sudo tee /etc/sudoers.d/${user}\n   sudo chmod 440 /etc/sudoers.d/${user}\n   sudo visudo -c`);
+    }
+    steps.push(`Verify:\n   sudo -u ${user} whoami\n   sudo -u ${user} ls -la ${firstRoot}${isWeb ? '\n   sudo -u ' + user + ' test -w /etc/nginx/sites-enabled && echo "nginx: writable"' : ''}`);
     const numbered = steps.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
 
+    const purpose = isWeb
+        ? 'help develop our sites AND build/run their own nginx + PHP sites on the box'
+        : 'help develop the sites';
+    const webNote = isWeb
+        ? '\n\nNote: this tier gives them full control of the web layer (nginx configs + a /srv/www web root + reloading nginx/php-fpm) but still NOT blanket root — installing new system packages (PHP runtime, etc.) stays an owner action. If PHP-FPM is not installed yet, install it once before they start.'
+        : '';
+
     const prompt =
-`You are provisioning a locked-down SSH account on my Linux server for a trusted Hobo Network admin so they can SSH in and help develop the sites (vibe coding with Claude Code). Be careful and idempotent, and do NOT grant this user root/sudo beyond exactly what is specified below.
+`You are provisioning a locked-down SSH account on my Linux server for a trusted Hobo Network admin so they can SSH in and ${purpose} (vibe coding with Claude Code). Be careful and idempotent, and do NOT grant this user root/sudo beyond exactly what is specified below.
 
 Server host: ${host}
 New username: ${user}
@@ -3416,7 +3451,7 @@ Their SSH public key:
 ${pubShown}
 
 Steps:
-${numbered}
+${numbered}${webNote}
 
 Finally, tell me the exact command they should run to connect:
    ssh ${user}@${host}`;
