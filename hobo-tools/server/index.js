@@ -594,8 +594,9 @@ app.get(['/login', '/forgot-password', '/reset-password'], (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
 });
 
-// Admin panel
-app.get('/admin', (req, res) => {
+// Admin panel — serve the SPA for /admin and any client-routed sub-path
+// (e.g. /admin/settings, /admin/analytics/overview). Auth is checked client-side.
+app.get(['/admin', '/admin/*'], (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'admin.html'));
 });
 

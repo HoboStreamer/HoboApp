@@ -760,7 +760,9 @@ const tabLoaders = {
 };
 
 function showTab(id, btn) {
+    if (!tabLoaders[id]) id = 'dashboard';
     currentTab = id;
+    btn = btn || _tabButton(id);
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('#main-tabs .admin-tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('sec-' + id)?.classList.add('active');
@@ -768,7 +770,93 @@ function showTab(id, btn) {
     btn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     setTimeout(checkMainTabsOverflow, 180);
     tabLoaders[id]?.();
+    _syncAdminUrl();
 }
+
+/* ── Admin URL routing (History API + slugs + localStorage) ──────────
+   /admin/<tab>[/<subtab>][?last=30d]  e.g. /admin/settings,
+   /admin/analytics/hobostreamer?last=12h. On load a slug wins; otherwise the
+   last-visited location is restored from localStorage. */
+let deployCurrentSubTab = 'overview';
+let _applyingRoute = false;
+
+function _tabButton(id) {
+    return [...document.querySelectorAll('#main-tabs .admin-tab-btn')]
+        .find(b => (b.getAttribute('onclick') || '').includes(`showTab('${id}'`)) || null;
+}
+function _subBtn(containerId, tab) {
+    return [...document.querySelectorAll(`#${containerId} button`)]
+        .find(b => (b.getAttribute('onclick') || '').includes(`('${tab}'`)) || null;
+}
+
+// Analytics period ↔ URL param. Day options become "<n>d"; hour/3d pass through.
+function periodToUrlParam(v) {
+    if (v == null) return '';
+    v = String(v);
+    return /^\d+$/.test(v) ? v + 'd' : v;   // 30 -> 30d ; 12h/3d stay
+}
+function urlParamToPeriod(p) {
+    if (!p) return null;
+    p = String(p).toLowerCase().trim();
+    const alias = { '1y': '365', '365d': '365', '1d': '24h', '24': '24h' };
+    if (alias[p]) return alias[p];
+    if (/^\d+d$/.test(p)) return p.slice(0, -1);          // 30d -> 30
+    const valid = ['1h', '12h', '24h', '3d', '7', '14', '30', '90', '365'];
+    if (valid.includes(p)) return p;
+    if (/^\d+$/.test(p)) return p;                        // bare day count
+    return null;
+}
+
+function _adminPath() {
+    if (currentTab === 'analytics') return '/admin/analytics/' + (analyticsCurrentSubTab || 'overview');
+    if (currentTab === 'deploy') return '/admin/deploy/' + (deployCurrentSubTab || 'overview');
+    if (currentTab && currentTab !== 'dashboard') return '/admin/' + currentTab;
+    return '/admin';
+}
+function _syncAdminUrl(replace) {
+    if (_applyingRoute) return;
+    let url = _adminPath();
+    if (currentTab === 'analytics') {
+        const per = document.getElementById('analytics-period')?.value;
+        if (per) url += '?last=' + periodToUrlParam(per);
+    }
+    try { history[replace ? 'replaceState' : 'pushState']({ adminTab: currentTab }, '', url); } catch { /* */ }
+    try { localStorage.setItem('hobo_admin_last_path', url); } catch { /* */ }
+}
+
+function routeFromUrl() {
+    _applyingRoute = true;
+    try {
+        let rest = location.pathname.replace(/^\/admin\/?/, '');
+        let parts = rest.split('/').filter(Boolean);
+        let search = location.search;
+        // Bare /admin → restore last-visited location (a real slug always wins).
+        if (parts.length === 0) {
+            const last = localStorage.getItem('hobo_admin_last_path');
+            if (last && last !== '/admin' && last.startsWith('/admin')) {
+                try { history.replaceState({}, '', last); } catch { /* */ }
+                const u = new URL(last, location.origin);
+                parts = u.pathname.replace(/^\/admin\/?/, '').split('/').filter(Boolean);
+                search = u.search;
+            }
+        }
+        let tab = parts[0];
+        const sub = parts[1] || null;
+        if (!tab || !tabLoaders[tab]) tab = 'dashboard';
+        const per = urlParamToPeriod(new URLSearchParams(search).get('last'));
+        if (tab === 'analytics' && per) {
+            const sel = document.getElementById('analytics-period'); if (sel) sel.value = per;
+        }
+        showTab(tab, _tabButton(tab));
+        if (tab === 'analytics' && sub) showAnalyticsSubTab(sub, _subBtn('analytics-sub-tabs', sub));
+        else if (tab === 'deploy' && sub) showDeploySubTab(sub, _subBtn('deploy-sub-tabs', sub));
+    } finally {
+        _applyingRoute = false;
+        _syncAdminUrl(true); // normalize (e.g. /admin/analytics -> /admin/analytics/overview)
+    }
+}
+
+window.addEventListener('popstate', () => routeFromUrl());
 
 function checkMainTabsOverflow() {
     const tabs = document.getElementById('main-tabs');
@@ -2428,12 +2516,14 @@ function showAnalyticsSubTab(tab, btn) {
     if (tab === 'overview') loadAnalyticsOverview();
     else if (tab === 'bots') loadBotAnalysis();
     else loadServiceAnalytics(tab);
+    _syncAdminUrl();
 }
 
 function reloadAnalytics() {
     if (analyticsCurrentSubTab === 'overview') loadAnalyticsOverview();
     else if (analyticsCurrentSubTab === 'bots') loadBotAnalysis();
     else loadServiceAnalytics(analyticsCurrentSubTab);
+    _syncAdminUrl(true); // period lives in ?last= — replace, don't stack history
 }
 
 async function loadAnalytics() {
@@ -3184,8 +3274,8 @@ async function init() {
             }
         }
         initMainTabsOverflow();
-        // Load dashboard
-        loadDashboard();
+        // Open the tab from the URL slug (or restore the last-visited location).
+        routeFromUrl();
     } catch (e) {
         document.querySelector('.page').innerHTML = `<div class="card" style="text-align:center;padding:60px"><h3 style="color:var(--live-red)"><i class="fa-solid fa-circle-exclamation"></i> Error</h3><p class="muted" style="margin-top:8px">${esc(e.message)}</p></div>`;
     }
@@ -3198,8 +3288,9 @@ init();
 // ═══════════════════════════════════════════════════════════════
 
 function showDeploySubTab(tab, btn) {
+    deployCurrentSubTab = tab;
     document.querySelectorAll('#deploy-sub-tabs button').forEach(b => b.classList.remove('active'));
-    btn?.classList.add('active');
+    (btn || _subBtn('deploy-sub-tabs', tab))?.classList.add('active');
     ['deploy-overview', 'deploy-certs-panel', 'deploy-nginx-panel', 'deploy-domains-panel', 'deploy-config-panel'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -3217,6 +3308,7 @@ function showDeploySubTab(tab, btn) {
     if (tab === 'certs') loadDeployCerts();
     if (tab === 'domains') loadDeployDomains();
     if (tab === 'config') loadDeployConfig();
+    _syncAdminUrl();
 }
 
 async function loadDeployOverview() {
