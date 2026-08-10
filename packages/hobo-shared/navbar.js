@@ -504,6 +504,7 @@
             </a>
             <div class="hobo-navbar-links">
                 ${links.map(l => `<a href="${l.href}">${l.label}</a>`).join('')}
+                ${u && u.role === 'admin' ? `<a href="https://hobo.tools/admin"><i class="fa-solid fa-shield-halved"></i> Admin</a>` : ''}
             </div>
             <div class="hobo-navbar-spacer"></div>
             <div class="hobo-navbar-right">
