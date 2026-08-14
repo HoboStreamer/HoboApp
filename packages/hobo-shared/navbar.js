@@ -503,7 +503,12 @@
                 </div>
             </a>
             <div class="hobo-navbar-links">
-                ${links.map(l => `<a href="${l.href}">${l.label}</a>`).join('')}
+                ${links.map(l => {
+                    // On my.hobo.tools the app IS the site, so a root ('/') nav link (e.g. Home)
+                    // should point at the hobo.tools marketing root, not back into the app.
+                    const href = (l.href === '/' && host === 'my.hobo.tools') ? 'https://hobo.tools/' : l.href;
+                    return `<a href="${href}">${l.label}</a>`;
+                }).join('')}
                 ${u && u.role === 'admin' ? `<a href="https://hobo.tools/admin"><i class="fa-solid fa-shield-halved"></i> Admin</a>` : ''}
             </div>
             <div class="hobo-navbar-spacer"></div>
