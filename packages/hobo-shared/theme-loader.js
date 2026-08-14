@@ -10,9 +10,10 @@
 
     const COOKIE_NAME = 'hobo_theme_id';
     const STORAGE_KEY = 'hobo_theme';
-    const DEFAULT_API_BASE = (typeof location !== 'undefined' && location.hostname && location.hostname !== 'hobo.tools' && !location.hostname.endsWith('.hobo.tools'))
-        ? location.origin
-        : 'https://hobo.tools';
+    // The user's theme is owned centrally by hobo.tools, so EVERY app (hobostreamer.com,
+    // hobo.quest, *.hobo.tools) fetches it from there — that's what makes the theme
+    // chosen at my.hobo.tools/themes sync everywhere. Apps may override via init({apiBase}).
+    const DEFAULT_API_BASE = 'https://hobo.tools';
     let _config = { apiBase: DEFAULT_API_BASE };
 
     // ── Condensed built-in theme variable maps ───────────────
@@ -179,14 +180,21 @@
             if (!token) return;
             fetch(_config.apiBase + '/api/themes/me/active', {
                 headers: { 'Authorization': 'Bearer ' + token },
+                credentials: 'include',
             }).then(function (r) { return r.ok ? r.json() : null; })
               .then(function (data) {
                 if (!data || !data.theme_id) return;
                 const serverId = data.theme_id;
-                if (serverId !== getCurrent()) {
-                    if (applyById(serverId)) {
-                        save(serverId, THEMES[serverId]);
-                    }
+                const custom = data.custom_variables;
+                if (custom && typeof custom === 'object' && Object.keys(custom).length) {
+                    // Custom theme: apply the built-in base (if any) then the user's overrides.
+                    const base = THEMES[serverId] || {};
+                    applyVars(base);
+                    applyVars(custom);
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ id: serverId, variables: Object.assign({}, base, custom) })); } catch { /* quota */ }
+                    setCookie(COOKIE_NAME, serverId, 365);
+                } else if (serverId !== getCurrent()) {
+                    if (applyById(serverId)) save(serverId, THEMES[serverId]);
                 }
             }).catch(function () { /* offline / CORS */ });
         }, 500);
