@@ -464,6 +464,19 @@ function initDb(dbPath) {
         }
     }
 
+    // ── Migration: one linked account per (user, service) ────────
+    // The link-account upsert uses ON CONFLICT(user_id, service), which needs a
+    // matching unique index (the table only declared UNIQUE(service, service_user_id)).
+    try {
+        // Drop any pre-existing duplicate (user_id, service) rows, keeping the newest.
+        db.exec(`
+            DELETE FROM linked_accounts WHERE id NOT IN (
+                SELECT MAX(id) FROM linked_accounts GROUP BY user_id, service
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_linked_user_service ON linked_accounts(user_id, service);
+        `);
+    } catch (e) { console.warn('[DB] linked_accounts unique index migration:', e.message); }
+
     // ── Seed OAuth2 Clients ──────────────────────────────────
     const clientCount = db.prepare('SELECT COUNT(*) as cnt FROM oauth_clients').get().cnt;
     if (clientCount === 0) {

@@ -25,6 +25,27 @@ function configure({ publicKey, jwtIssuer }) {
     if (jwtIssuer) _jwtIssuer = jwtIssuer;
 }
 
+// Register this user as having a linked HoboQuest account on hobo.tools, so it
+// shows up under their Linked Services. Fire-and-forget + deduped per process.
+const _linkedReported = new Set();
+function _reportLinkedAccount(user) {
+    if (!user || !user.id || user.is_anon || _linkedReported.has(user.id)) return;
+    _linkedReported.add(user.id);
+    try {
+        fetch(`${HOBO_TOOLS_URL}/internal/link-account`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Internal-Key': INTERNAL_KEY },
+            body: JSON.stringify({
+                user_id: user.id,
+                service: 'hoboquest',
+                service_user_id: String(user.id),
+                service_username: user.username || user.display_name || null,
+            }),
+            signal: AbortSignal.timeout(3000),
+        }).catch(() => { _linkedReported.delete(user.id); });
+    } catch { _linkedReported.delete(user.id); }
+}
+
 function getRequestIp(req) {
     const rawIp = req?.headers?.['cf-connecting-ip']
         || req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
@@ -41,13 +62,15 @@ function authenticateWs(token) {
     try {
         const algorithm = _publicKey.includes('BEGIN') ? 'RS256' : 'HS256';
         const decoded = jwt.verify(token, _publicKey, { algorithms: [algorithm], issuer: _jwtIssuer });
-        return {
+        const user = {
             id: decoded.sub || decoded.id,
             username: decoded.username,
             display_name: decoded.display_name || decoded.username,
             role: decoded.role || 'user',
             is_banned: false,
         };
+        _reportLinkedAccount(user);
+        return user;
     } catch {
         return null;
     }
