@@ -150,6 +150,11 @@ router.post('/register', (req, res) => {
     }
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
     if (/^anon/i.test(username)) return res.status(400).json({ error: 'Username cannot start with "anon" — this prefix is reserved for anonymous identities' });
+    // Names the site itself posts under (changelog / system messages) — reserved so a real
+    // user can't impersonate the platform.
+    if (['hobostreamer', 'system', 'hobostreamerbot'].includes(username.toLowerCase())) {
+        return res.status(400).json({ error: 'This username is reserved by the system and cannot be registered.' });
+    }
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
     if (existing) return res.status(409).json({ error: 'Username already taken' });
