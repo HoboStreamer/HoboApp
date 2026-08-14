@@ -127,6 +127,11 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
 .theme-current .label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
 .theme-current .name{font-size:13px;font-weight:700;margin-top:2px}
 .theme-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.theme-custom-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.theme-custom-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
+.theme-custom-row input[type=color]{width:34px;height:34px;border:none;border-radius:8px;background:none;cursor:pointer;padding:0}
+.theme-custom-row input[type=color]::-webkit-color-swatch{border:1px solid var(--border);border-radius:6px}
+.theme-custom-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}
 .theme-card{background:var(--bg-input);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,transform .15s,box-shadow .15s}
 .theme-card:hover{transform:translateY(-2px);border-color:var(--accent)}
 .theme-card.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(192,150,92,.25) inset}
@@ -276,6 +281,23 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
             </div>
             <div id="theme-grid" class="theme-grid">
                 <div class="theme-empty">Loading themes…</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                    <h3 style="margin:0"><span class="icon"><i class="fa-solid fa-sliders"></i></span> Customize colors</h3>
+                    <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem">Tweak your active theme. Changes preview live and sync everywhere when you save.</p>
+                </div>
+                <button class="btn btn-outline" id="theme-custom-toggle" onclick="toggleThemeCustomizer()"><i class="fa-solid fa-pen"></i> Customize</button>
+            </div>
+            <div id="theme-customizer" style="display:none;margin-top:16px">
+                <div id="theme-custom-grid" class="theme-custom-grid"></div>
+                <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+                    <button class="btn btn-primary" onclick="saveCustomColors(this)"><i class="fa-solid fa-floppy-disk"></i> Save custom theme</button>
+                    <button class="btn btn-outline" onclick="resetCustomColors(this)"><i class="fa-solid fa-rotate-left"></i> Reset to preset</button>
+                </div>
             </div>
         </div>
     </div>
@@ -615,9 +637,13 @@ async function loadThemes() {
         ]);
         availableThemes = themesData.themes || [];
         activeThemeId = activeData.theme_id || 'campfire';
+        activeCustomVars = (activeData.custom_variables && typeof activeData.custom_variables === 'object') ? activeData.custom_variables : {};
         const activeTheme = availableThemes.find((theme) => String(theme.id) === String(activeThemeId) || String(theme.slug) === String(activeThemeId));
+        activeThemeVars = (activeTheme && activeTheme.variables) || {};
         if (activeTheme) applyThemeToPage(activeTheme);
+        if (Object.keys(activeCustomVars).length) applyThemeToPage({ variables: Object.assign({}, activeThemeVars, activeCustomVars) });
         renderThemes();
+        renderThemeCustomizer();
     } catch (err) {
         console.error('Failed to load themes:', err);
         grid.innerHTML = '<div class="theme-empty">Unable to load themes right now.</div>';
@@ -628,8 +654,11 @@ async function setTheme(themeId) {
     try {
         await apiFetch('/api/themes/me', { method: 'PUT', body: JSON.stringify({ theme_id: themeId }) });
         activeThemeId = themeId;
+        activeCustomVars = {}; // picking a preset clears custom overrides
         const activeTheme = availableThemes.find((theme) => String(theme.id) === String(themeId) || String(theme.slug) === String(themeId));
         if (activeTheme) {
+            activeThemeVars = activeTheme.variables || {};
+            renderThemeCustomizer();
             applyThemeToPage(activeTheme);
             localStorage.setItem('hobo_theme', JSON.stringify({ id: activeTheme.id, slug: activeTheme.slug, name: activeTheme.name, variables: activeTheme.variables || {} }));
             // Sync theme choice cross-domain via cookie + HoboThemeLoader
@@ -640,6 +669,69 @@ async function setTheme(themeId) {
     } catch (err) {
         alert('Error: ' + err.message);
     }
+}
+
+// ── Custom color editor ──────────────────────────────────────
+let activeCustomVars = {};
+let activeThemeVars = {};
+const THEME_EDITABLE = [
+    ['--bg-primary', 'Background'], ['--bg-secondary', 'Surface'], ['--bg-card', 'Card'],
+    ['--bg-hover', 'Hover'], ['--accent', 'Accent'], ['--accent-light', 'Accent light'],
+    ['--text-primary', 'Text'], ['--text-secondary', 'Muted text'], ['--border', 'Border'],
+];
+function _hexOrDefault(v) {
+    if (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim())) return v.trim();
+    if (typeof v === 'string' && /^#[0-9a-fA-F]{3}$/.test(v.trim())) {
+        const h = v.trim().slice(1); return '#' + h.split('').map(c => c + c).join('');
+    }
+    return '#888888';
+}
+function renderThemeCustomizer() {
+    const grid = document.getElementById('theme-custom-grid');
+    if (!grid) return;
+    grid.innerHTML = THEME_EDITABLE.map(([varName, label]) => {
+        const val = _hexOrDefault(activeCustomVars[varName] || activeThemeVars[varName]);
+        return `<label class="theme-custom-row">
+            <input type="color" value="${val}" data-var="${varName}" oninput="_onCustomColorInput(this)">
+            <span>${label}</span>
+        </label>`;
+    }).join('');
+}
+function toggleThemeCustomizer() {
+    const box = document.getElementById('theme-customizer');
+    const btn = document.getElementById('theme-custom-toggle');
+    if (!box) return;
+    const show = box.style.display === 'none';
+    box.style.display = show ? '' : 'none';
+    if (btn) btn.innerHTML = show ? '<i class="fa-solid fa-chevron-up"></i> Hide' : '<i class="fa-solid fa-pen"></i> Customize';
+    if (show) renderThemeCustomizer();
+}
+function _onCustomColorInput(input) {
+    const v = input.getAttribute('data-var');
+    activeCustomVars[v] = input.value;
+    // Live preview on this page.
+    applyThemeToPage({ variables: Object.assign({}, activeThemeVars, activeCustomVars) });
+}
+async function saveCustomColors(btn) {
+    if (btn) btn.disabled = true;
+    try {
+        await apiFetch('/api/themes/me', { method: 'PUT', body: JSON.stringify({ theme_id: activeThemeId, custom_variables: activeCustomVars }) });
+        const merged = Object.assign({}, activeThemeVars, activeCustomVars);
+        try { localStorage.setItem('hobo_theme', JSON.stringify({ id: activeThemeId, variables: merged })); } catch {}
+        if (typeof HoboThemeLoader !== 'undefined') HoboThemeLoader.save(activeThemeId, merged);
+        alert('Custom theme saved — it will sync across the network.');
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { if (btn) btn.disabled = false; }
+}
+async function resetCustomColors(btn) {
+    if (btn) btn.disabled = true;
+    try {
+        await apiFetch('/api/themes/me', { method: 'PUT', body: JSON.stringify({ theme_id: activeThemeId, custom_variables: null }) });
+        activeCustomVars = {};
+        applyThemeToPage({ variables: activeThemeVars });
+        renderThemeCustomizer();
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { if (btn) btn.disabled = false; }
 }
 
 function openInitialSection() {
