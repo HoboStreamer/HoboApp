@@ -160,6 +160,8 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
 
 /* Loading */
 .loading-spinner{text-align:center;padding:40px;color:var(--text-muted);font-size:13px}
+.acct-retry-btn{display:inline-block;background:var(--accent,#c0965c);color:#0b0d10;border:none;border-radius:6px;padding:3px 12px;font-weight:600;font-size:0.85em;cursor:pointer;vertical-align:baseline}
+.acct-retry-btn:hover{filter:brightness(1.08)}
 
 @media(max-width:600px){
     .page{padding:12px}
@@ -464,7 +466,7 @@ async function _bootstrapFromCookie() {
     localStorage.setItem('hobo_token', cookieToken);
     // Try to populate the account list
     try {
-        const res = await fetch(API + '/api/auth/me', {
+        const res = await fetchWithTimeout(API + '/api/auth/me', {
             headers: { Authorization: 'Bearer ' + cookieToken, 'Content-Type': 'application/json' },
             credentials: 'include',
         });
@@ -477,7 +479,7 @@ async function _bootstrapFromCookie() {
             localStorage.setItem('hobo_active_account', String(user.id));
         } else if (res.status === 401) {
             // Token expired — try refresh
-            const refreshRes = await fetch(API + '/api/auth/refresh', {
+            const refreshRes = await fetchWithTimeout(API + '/api/auth/refresh', {
                 method: 'POST',
                 headers: { Authorization: 'Bearer ' + cookieToken, 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -503,21 +505,40 @@ async function _bootstrapFromCookie() {
     } catch { /* cookie may be expired — loadUser will handle redirect */ }
 }
 
+// fetch with an abort timeout so a weak connection can't hang the page forever.
+async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+        return await fetch(url, { ...opts, signal: ctrl.signal });
+    } catch (e) {
+        const err = new Error(e && e.name === 'AbortError'
+            ? 'Request timed out — check your connection'
+            : 'Network error — check your connection');
+        err.network = true;
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function apiFetch(path, opts = {}) {
     const headers = { 'Content-Type':'application/json', ...opts.headers };
     const authToken = getAuthToken();
     if (authToken) headers.Authorization = 'Bearer ' + authToken;
-    const res = await fetch(API + path, { ...opts, headers, credentials: 'include' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    const res = await fetchWithTimeout(API + path, { ...opts, headers, credentials: 'include' });
+    let data = {};
+    try { data = await res.json(); } catch { /* non-JSON (e.g. proxy error page) */ }
+    if (!res.ok) { const err = new Error(data.error || res.statusText || 'Request failed'); err.status = res.status; throw err; }
     return data;
 }
 
 async function anonFetch(path, opts = {}) {
     const headers = { 'Content-Type':'application/json', ...opts.headers };
-    const res = await fetch(API + path, { ...opts, headers, credentials: 'include' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    const res = await fetchWithTimeout(API + path, { ...opts, headers, credentials: 'include' });
+    let data = {};
+    try { data = await res.json(); } catch { /* non-JSON */ }
+    if (!res.ok) { const err = new Error(data.error || res.statusText || 'Request failed'); err.status = res.status; throw err; }
     return data;
 }
 
@@ -838,9 +859,30 @@ async function loadUser() {
         }
     } catch (err) {
         console.error(err);
-        if (err.message.includes('401') || err.message.includes('Authentication') || err.message.includes('not found')) {
+        // A genuine auth failure → send them to log in. Everything else (offline, weak signal,
+        // timeout, server hiccup) → show a clear reason + retry instead of a stuck "Loading…".
+        if (err.status === 401 || /401|Authentication|not found|revoked|Unauthorized/i.test(err.message || '')) {
             window.location.href = '/login?return=' + encodeURIComponent(window.location.pathname);
+            return;
         }
+        showAccountLoadError(err);
+    }
+}
+
+// Replace the stuck "Loading…" with a readable reason + a Retry button.
+function showAccountLoadError(err) {
+    const nameEl = document.getElementById('user-name');
+    const subEl = document.getElementById('user-subtitle');
+    if (nameEl) nameEl.textContent = "Couldn't load your account";
+    if (subEl) {
+        const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+        subEl.textContent = (offline ? "You appear to be offline" : (err && err.message) ? err.message : 'Something went wrong') + ' · ';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'acct-retry-btn';
+        btn.textContent = 'Retry';
+        btn.onclick = () => { if (nameEl) nameEl.textContent = 'Loading…'; if (subEl) subEl.textContent = ''; loadUser(); };
+        subEl.appendChild(btn);
     }
 }
 
