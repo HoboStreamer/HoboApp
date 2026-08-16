@@ -242,6 +242,7 @@ body{min-height:100%;color:var(--text);font-family:'Inter',-apple-system,BlinkMa
                 <div class="form-field">
                     <label>Display Name</label>
                     <input type="text" id="pf-display-name" maxlength="50">
+                    <small class="field-hint" id="pf-display-name-hint" style="opacity:.7;font-size:12px">You can only change the capitalization of your username.</small>
                 </div>
                 <div class="form-field">
                     <label>Bio</label>
@@ -951,8 +952,14 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
             return;
         }
 
+        // Display name may only re-case the username, not rename it.
+        const _dn = (document.getElementById('pf-display-name').value || '').trim();
+        if (currentUser?.username && _dn.toLowerCase() !== String(currentUser.username).toLowerCase()) {
+            alert('Your display name can only change the capitalization of your username (e.g. "' + currentUser.username + '" → "' + currentUser.username.charAt(0).toUpperCase() + currentUser.username.slice(1) + '").');
+            return;
+        }
         const data = await apiFetch('/api/auth/profile', { method: 'PUT', body: JSON.stringify({
-            display_name: document.getElementById('pf-display-name').value,
+            display_name: _dn,
             bio: document.getElementById('pf-bio').value,
             email: document.getElementById('pf-email').value || undefined,
             profile_color: document.getElementById('pf-color').value,

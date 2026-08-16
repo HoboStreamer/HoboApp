@@ -428,7 +428,15 @@ router.put('/profile', requireAuth, (req, res) => {
     const updates = [];
     const params = [];
 
-    if (display_name !== undefined) { updates.push('display_name = ?'); params.push(display_name); }
+    if (display_name !== undefined) {
+        // Display name may only re-case the username (e.g. "goosely" → "Goosely"), not rename.
+        const dn = String(display_name || '').trim();
+        const uname = String(req.user.username || '');
+        if (dn.toLowerCase() !== uname.toLowerCase()) {
+            return res.status(400).json({ error: 'Your display name can only change the capitalization of your username — not the name itself.' });
+        }
+        updates.push('display_name = ?'); params.push(dn || uname);
+    }
     if (bio !== undefined) { updates.push('bio = ?'); params.push(bio.slice(0, 500)); }
     if (avatar_url !== undefined) { updates.push('avatar_url = ?'); params.push(avatar_url); }
     if (email !== undefined) { updates.push('email = ?'); params.push(email || null); }
